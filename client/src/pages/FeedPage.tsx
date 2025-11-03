@@ -80,6 +80,7 @@ export default function FeedPage() {
                 id={quote.id}
                 content={quote.text}
                 author={authorName}
+                authorId={quote.authorId}
                 upvotes={Math.max(0, quote.voteCount)}
                 downvotes={Math.max(0, -quote.voteCount)}
                 timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}

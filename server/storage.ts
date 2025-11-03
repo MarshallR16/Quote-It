@@ -1,6 +1,6 @@
 import { type User, type UpsertUser, type Quote, type QuoteWithAuthor, type InsertQuote, type Vote, type InsertVote, type Product, type InsertProduct, type Order, type InsertOrder, type WeeklyWinner, type InsertWeeklyWinner, type HallOfFame, type InsertHallOfFame, type Friendship, type InsertFriendship, users, quotes, votes, products, orders, weeklyWinners, hallOfFame, friendships } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -49,7 +49,7 @@ export interface IStorage {
 
   // Friendship methods
   getFriendship(userId: string, friendId: string): Promise<Friendship | undefined>;
-  getFriends(userId: string): Promise<User[]>;
+  getFriends(userId: string): Promise<(Friendship & { friend: User })[]>;
   getPendingFriendRequests(userId: string): Promise<(Friendship & { requester: User })[]>;
   createFriendRequest(friendship: InsertFriendship): Promise<Friendship>;
   acceptFriendRequest(friendshipId: string, recipientUserId: string): Promise<{ success: boolean; friendship?: Friendship; error?: string }>;
@@ -354,28 +354,68 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async getFriends(userId: string): Promise<User[]> {
-    // Get accepted friendships where user is either the requester or the friend
-    const result = await db
+  async getFriends(userId: string): Promise<(Friendship & { friend: User })[]> {
+    // Get accepted friendships where current user is the requester
+    const asRequester = await db
       .select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        profileImageUrl: users.profileImageUrl,
-        dailyPostCount: users.dailyPostCount,
-        lastPostDate: users.lastPostDate,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
+        id: friendships.id,
+        userId: friendships.userId,
+        friendId: friendships.friendId,
+        status: friendships.status,
+        createdAt: friendships.createdAt,
+        updatedAt: friendships.updatedAt,
+        friend: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          dailyPostCount: users.dailyPostCount,
+          lastPostDate: users.lastPostDate,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        },
       })
       .from(friendships)
-      .innerJoin(users, 
-        sql`(${friendships.userId} = ${userId} AND ${users.id} = ${friendships.friendId}) OR 
-            (${friendships.friendId} = ${userId} AND ${users.id} = ${friendships.userId})`
-      )
-      .where(eq(friendships.status, 'accepted'));
-    
-    return result as User[];
+      .innerJoin(users, eq(friendships.friendId, users.id))
+      .where(
+        and(
+          eq(friendships.userId, userId),
+          eq(friendships.status, 'accepted')
+        )
+      );
+
+    // Get accepted friendships where current user is the friend
+    const asFriend = await db
+      .select({
+        id: friendships.id,
+        userId: friendships.userId,
+        friendId: friendships.friendId,
+        status: friendships.status,
+        createdAt: friendships.createdAt,
+        updatedAt: friendships.updatedAt,
+        friend: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          dailyPostCount: users.dailyPostCount,
+          lastPostDate: users.lastPostDate,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        },
+      })
+      .from(friendships)
+      .innerJoin(users, eq(friendships.userId, users.id))
+      .where(
+        and(
+          eq(friendships.friendId, userId),
+          eq(friendships.status, 'accepted')
+        )
+      );
+
+    return [...asRequester, ...asFriend] as (Friendship & { friend: User })[];
   }
 
   async getPendingFriendRequests(userId: string): Promise<(Friendship & { requester: User })[]> {
@@ -471,7 +511,7 @@ export class DbStorage implements IStorage {
   async getFriendsQuotes(userId: string): Promise<QuoteWithAuthor[]> {
     // Get IDs of accepted friends
     const friendsList = await this.getFriends(userId);
-    const friendIds = friendsList.map(f => f.id);
+    const friendIds = friendsList.map(f => f.friend.id);
     
     if (friendIds.length === 0) {
       return [];
@@ -491,7 +531,7 @@ export class DbStorage implements IStorage {
       })
       .from(quotes)
       .leftJoin(users, eq(quotes.authorId, users.id))
-      .where(sql`${quotes.authorId} = ANY(${friendIds})`)
+      .where(inArray(quotes.authorId, friendIds))
       .orderBy(desc(quotes.createdAt));
     
     return result as QuoteWithAuthor[];

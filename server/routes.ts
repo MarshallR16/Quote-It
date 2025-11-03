@@ -71,6 +71,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user by ID
+  app.get('/api/users/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching user: " + error.message });
+    }
+  });
+
   // Quote routes
   app.get("/api/quotes", async (_req, res) => {
     try {
@@ -681,6 +695,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(friends);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching friends: " + error.message });
+    }
+  });
+
+  // Get friendship status with specific user
+  app.get('/api/friends/status/:targetUserId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { targetUserId } = req.params;
+
+      // Check both directions for friendship
+      const sentRequest = await storage.getFriendship(userId, targetUserId);
+      const receivedRequest = await storage.getFriendship(targetUserId, userId);
+
+      if (sentRequest) {
+        if (sentRequest.status === 'accepted') {
+          return res.json({ status: 'accepted', friendshipId: sentRequest.id });
+        } else if (sentRequest.status === 'pending') {
+          return res.json({ status: 'pending_sent', friendshipId: sentRequest.id });
+        }
+      }
+
+      if (receivedRequest) {
+        if (receivedRequest.status === 'accepted') {
+          return res.json({ status: 'accepted', friendshipId: receivedRequest.id });
+        } else if (receivedRequest.status === 'pending') {
+          return res.json({ status: 'pending_received', friendshipId: receivedRequest.id });
+        }
+      }
+
+      res.json({ status: 'none' });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching friendship status: " + error.message });
     }
   });
 

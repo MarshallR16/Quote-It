@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame } from "lucide-react";
+import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -34,6 +34,16 @@ export default function TopNavigation({
           IT
         </h1>
         <nav className="hidden md:flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="default"
+            className="gap-2"
+            onClick={() => setLocation("/friends")}
+            data-testid="button-nav-friends"
+          >
+            <Users className="w-4 h-4" />
+            <span>Friends</span>
+          </Button>
           <Button
             variant="ghost"
             size="default"

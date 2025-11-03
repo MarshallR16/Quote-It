@@ -22,6 +22,8 @@ import FeedPage from "@/pages/FeedPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
 import StorePage from "@/pages/StorePage";
 import ProfilePage from "@/pages/ProfilePage";
+import UserProfilePage from "@/pages/UserProfilePage";
+import FriendsPage from "@/pages/FriendsPage";
 import AdminPage from "@/pages/AdminPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
@@ -68,6 +70,8 @@ function Router() {
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/store" component={StorePage} />
           <Route path="/profile" component={ProfilePage} />
+          <Route path="/friends" component={FriendsPage} />
+          <Route path="/users/:userId" component={UserProfilePage} />
           <Route path="/admin" component={AdminPage} />
           <Route path="/checkout/:productId" component={CheckoutPage} />
           <Route path="/checkout/success" component={CheckoutSuccessPage} />

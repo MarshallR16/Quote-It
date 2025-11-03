@@ -108,6 +108,7 @@ export default function ProfilePage() {
                       id={quote.id}
                       content={quote.text}
                       author={authorName}
+                      authorId={quote.authorId}
                       upvotes={Math.max(0, quote.voteCount)}
                       downvotes={0}
                       timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}
