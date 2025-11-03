@@ -4,6 +4,27 @@
 
 Quote-It is a minimalist social media platform where users share quotes and thoughts, vote on posts, and purchase winning quotes as premium T-shirts. The platform features a clean, typography-first design inspired by Twitter's feed structure and Apple's minimalist aesthetic. Every week, the most voted quote is selected and made available as a merchandise item through Printful integration.
 
+## Recent Changes (November 2025)
+
+**Friends Functionality (Complete)**
+- Added Friends filter tab to feed page for viewing friends' quotes only
+- Implemented full friend request system with storage-layer authorization
+- Security: acceptFriendRequest/rejectFriendRequest methods prevent self-approval and enforce pending-only state transitions
+- New database table: friendships (requesterUserId, friendId, status, timestamps)
+- API endpoints: /api/friends (list), /api/friends/requests (pending), /api/friends/request (send), /api/friends/accept/:id, /api/friends/reject/:id
+- GET /api/quotes/friends endpoint for retrieving friends' quotes
+
+**Store Page Simplification**
+- Removed large hero section (previously 400-500px) and "Shop the Collection" button
+- Replaced with compact header banner (64px) for immediate product visibility
+- Single product now displays above the fold, centered on page
+- Simplified layout appropriate for one-product-at-a-time store model
+
+**Navigation Enhancement**
+- Added Store and Leaderboard links to desktop TopNavigation
+- Logo is clickable to return to feed
+- Improved desktop navigation UX with clear visual hierarchy
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
