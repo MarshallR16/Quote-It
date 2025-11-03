@@ -1,12 +1,11 @@
-import { type User, type InsertUser, type Quote, type InsertQuote, type Vote, type InsertVote, type Product, type InsertProduct, type Order, type InsertOrder, type WeeklyWinner, type InsertWeeklyWinner, type HallOfFame, type InsertHallOfFame, users, quotes, votes, products, orders, weeklyWinners, hallOfFame } from "@shared/schema";
+import { type User, type UpsertUser, type Quote, type InsertQuote, type Vote, type InsertVote, type Product, type InsertProduct, type Order, type InsertOrder, type WeeklyWinner, type InsertWeeklyWinner, type HallOfFame, type InsertHallOfFame, users, quotes, votes, products, orders, weeklyWinners, hallOfFame } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
 
   // Quote methods
   getQuote(id: string): Promise<Quote | undefined>;
@@ -52,13 +51,18 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-    return result[0];
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const result = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return result[0];
   }
 

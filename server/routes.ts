@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertProductSchema, insertOrderSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
@@ -16,6 +17,23 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
   
   // Get all active products
   app.get("/api/products", async (_req, res) => {
@@ -79,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create payment intent for Stripe checkout
-  app.post("/api/create-payment-intent", async (req, res) => {
+  app.post("/api/create-payment-intent", isAuthenticated, async (req: any, res) => {
     try {
       if (!stripe) {
         return res.status(503).json({ 
@@ -87,17 +105,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { productId, userId } = req.body;
+      const { productId } = req.body;
+      const userId = req.user.claims.sub; // Get from authenticated session
       
       if (!productId) {
         return res.status(400).json({ message: "productId is required" });
       }
-
-      if (!userId) {
-        return res.status(400).json({ message: "userId is required" });
-      }
-
-      // TODO: In production, verify userId matches authenticated session
 
       // Fetch product from database to get authoritative price
       const product = await storage.getProduct(productId);
@@ -174,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Verify payment and create order (called from success page)
-  app.post("/api/verify-payment", async (req, res) => {
+  app.post("/api/verify-payment", isAuthenticated, async (req: any, res) => {
     try {
       if (!stripe) {
         return res.status(503).json({ 
@@ -182,10 +195,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { paymentIntentId, userId } = req.body;
+      const { paymentIntentId } = req.body;
+      const userId = req.user.claims.sub; // Get from authenticated session
       
-      if (!paymentIntentId || !userId) {
-        return res.status(400).json({ message: "paymentIntentId and userId are required" });
+      if (!paymentIntentId) {
+        return res.status(400).json({ message: "paymentIntentId is required" });
       }
 
       // Verify payment with Stripe

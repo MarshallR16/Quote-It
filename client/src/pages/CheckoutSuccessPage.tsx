@@ -13,8 +13,9 @@ export default function CheckoutSuccessPage() {
 
   // Verify payment mutation
   const verifyPayment = useMutation({
-    mutationFn: async (data: { paymentIntentId: string; userId: string }) => {
-      const res = await apiRequest("POST", "/api/verify-payment", data);
+    mutationFn: async (paymentIntentId: string) => {
+      // userId is now from authenticated session on server
+      const res = await apiRequest("POST", "/api/verify-payment", { paymentIntentId });
       return await res.json();
     },
     onSuccess: (data) => {
@@ -41,12 +42,8 @@ export default function CheckoutSuccessPage() {
           return;
         }
 
-        // For now, use a mock user ID since we don't have authentication yet
-        // TODO: Replace with actual user ID from auth context
-        const userId = "mock-user-id";
-
-        // Verify payment on server side
-        verifyPayment.mutate({ paymentIntentId, userId });
+        // Verify payment on server side (userId from authenticated session)
+        verifyPayment.mutate(paymentIntentId);
 
       } catch (error) {
         console.error("Error verifying payment:", error);

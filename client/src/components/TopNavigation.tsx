@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { Plus, User, Moon, Sun } from "lucide-react";
+import { Plus, User, Moon, Sun, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TopNavigationProps {
   onCreateClick?: () => void;
@@ -12,11 +13,16 @@ export default function TopNavigation({
   onProfileClick,
 }: TopNavigationProps) {
   const [darkMode, setDarkMode] = useState(false);
+  const { user } = useAuth();
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     document.documentElement.classList.toggle("dark");
     console.log(`Dark mode ${!darkMode ? "enabled" : "disabled"}`);
+  };
+
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
   };
 
   return (
@@ -58,7 +64,24 @@ export default function TopNavigation({
             }}
             data-testid="button-profile"
           >
-            <User className="w-5 h-5" />
+            {user?.profileImageUrl ? (
+              <img
+                src={user.profileImageUrl}
+                alt={user.email || "User"}
+                className="w-7 h-7 rounded-full object-cover"
+              />
+            ) : (
+              <User className="w-5 h-5" />
+            )}
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="rounded-full"
+            onClick={handleLogout}
+            data-testid="button-logout"
+          >
+            <LogOut className="w-5 h-5" />
           </Button>
         </div>
       </div>

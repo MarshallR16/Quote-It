@@ -97,9 +97,8 @@ export default function CheckoutPage() {
   // Create payment intent mutation
   const createPaymentIntent = useMutation({
     mutationFn: async () => {
-      // TODO: Replace with actual user ID from auth context
-      const userId = "mock-user-id";
-      const res = await apiRequest("POST", "/api/create-payment-intent", { productId, userId });
+      // userId is now from authenticated session on server
+      const res = await apiRequest("POST", "/api/create-payment-intent", { productId });
       return await res.json();
     },
     onSuccess: (data: any) => {
