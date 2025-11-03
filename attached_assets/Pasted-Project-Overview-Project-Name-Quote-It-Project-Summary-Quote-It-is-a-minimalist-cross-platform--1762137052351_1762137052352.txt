@@ -1,0 +1,113 @@
+Project Overview
+
+Project Name: Quote-It
+
+Project Summary:
+Quote-It is a minimalist, cross-platform mobile social media app where users post quotes or thoughts. The community votes (up/down) on these posts. Every week, the most liked post is selected and sold as a T-shirt through an in-app store. The app is fully online and targets iOS and Android using a shared codebase.
+
+📱 Platform & Technical Setup
+
+Target Platform: Mobile (iOS + Android)
+
+Framework Suggestion: React Native with Expo (for faster cross-platform development) or Flutter
+
+Backend Hosting: Google Firebase (Authentication, Firestore, Cloud Functions, Storage, Hosting)
+
+Deployment: Use Firebase Hosting + Replit for backend logic/testing
+
+🎨 UI & Branding
+
+Style: Black and white minimalist
+
+Logo: Simple text: "IT"
+
+Design Language: Clean typography, simple layout
+
+Inspiration App: Twitter (feed, posting, voting)
+
+🔑 Core Features
+User Features:
+
+Sign Up / Login (Email or Social)
+
+Post quotes or short messages (text only for now)
+
+Up-vote / Down-vote system on posts
+
+View feed of recent / trending / top posts
+
+Profile page with your posts and stats
+
+Weekly leaderboard showing winning post
+
+Store page with winning design + purchase option
+
+Admin Features:
+
+Weekly automation or manual process to “select” top post
+
+Create or approve T-shirt design (manual integration or placeholder logic)
+
+Manage store inventory (basic logic or API integration with a print-on-demand service like Printful, Teespring, or Shopify)
+
+🛒 Store & Commerce
+
+Display top post as a shirt design
+
+Connect with e-commerce API (e.g., Stripe + Printful or Shopify API)
+
+Users can view product, add to cart, and buy
+
+Payment handling via Stripe
+
+🧩 Database Schema (Firebase Firestore)
+
+users: { uid, username, avatar, email, joinDate }
+
+posts: { id, authorID, content, createdAt, upvotes, downvotes }
+
+votes: { userID, postID, voteType }
+
+winners: { weekNumber, postID, tShirtURL }
+
+orders: { orderID, userID, productID, status, timestamp }
+
+🧪 Suggested File Structure
+/Quote-It
+  /src
+    /components
+    /screens
+    /firebase
+    /store
+  App.js
+  firebase.js
+  navigation.js
+  theme.js
+
+🌍 Language Preferences
+
+Interaction with Replit Agent: English
+
+App Interface: English
+
+🧭 Next Steps for Replit Agent
+
+Scaffold the project with suggested folder structure.
+
+Set up React Native + Expo project OR Flutter base.
+
+Configure Firebase with Authentication and Firestore.
+
+Create Post creation, feed view, and voting logic.
+
+Implement weekly winner selection logic (manual to start).
+
+Set up a placeholder or real store integration (Stripe + API).
+
+Build store UI with a sample product.
+
+Deploy backend to Firebase or Replit + connect frontend.
+
+Add basic design theme (black/white, clean typography).
+
+(Optional) Add notifications and analytics.
