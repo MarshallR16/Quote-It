@@ -13,6 +13,7 @@ import FeedPage from "@/pages/FeedPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
 import StorePage from "@/pages/StorePage";
 import ProfilePage from "@/pages/ProfilePage";
+import CheckoutPage from "@/pages/CheckoutPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -48,6 +49,7 @@ function Router() {
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/store" component={StorePage} />
           <Route path="/profile" component={ProfilePage} />
+          <Route path="/checkout/:productId" component={CheckoutPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
