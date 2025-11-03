@@ -96,12 +96,16 @@ export default function CheckoutPage() {
 
   // Create payment intent mutation
   const createPaymentIntent = useMutation({
-    mutationFn: async (amount: number) => {
-      const res = await apiRequest("POST", "/api/create-payment-intent", { amount, productId });
+    mutationFn: async () => {
+      // TODO: Replace with actual user ID from auth context
+      const userId = "mock-user-id";
+      const res = await apiRequest("POST", "/api/create-payment-intent", { productId, userId });
       return await res.json();
     },
     onSuccess: (data: any) => {
       setClientSecret(data.clientSecret);
+      // Store payment intent ID for later use
+      sessionStorage.setItem('paymentIntentId', data.paymentIntentId);
     },
     onError: (error: any) => {
       toast({
@@ -115,7 +119,9 @@ export default function CheckoutPage() {
   // Create payment intent when product is loaded
   useEffect(() => {
     if (product && !clientSecret) {
-      createPaymentIntent.mutate(parseFloat(product.price));
+      // Store product ID for success page
+      sessionStorage.setItem('productId', productId!);
+      createPaymentIntent.mutate();
     }
   }, [product, clientSecret]);
 

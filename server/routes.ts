@@ -87,21 +87,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { amount, productId } = req.body;
+      const { productId, userId } = req.body;
       
-      if (!amount || !productId) {
-        return res.status(400).json({ message: "Amount and productId are required" });
+      if (!productId) {
+        return res.status(400).json({ message: "productId is required" });
       }
+
+      if (!userId) {
+        return res.status(400).json({ message: "userId is required" });
+      }
+
+      // TODO: In production, verify userId matches authenticated session
+
+      // Fetch product from database to get authoritative price
+      const product = await storage.getProduct(productId);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      if (!product.isActive) {
+        return res.status(400).json({ message: "Product is not available for purchase" });
+      }
+
+      // Use the stored price (authoritative source)
+      const amount = parseFloat(product.price);
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: "usd",
         metadata: {
-          productId
+          productId,
+          userId // Store userId in metadata for verification
         }
       });
 
-      res.json({ clientSecret: paymentIntent.client_secret });
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id 
+      });
     } catch (error: any) {
       res.status(500).json({ message: "Error creating payment intent: " + error.message });
     }
@@ -146,6 +170,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(order);
     } catch (error: any) {
       res.status(500).json({ message: "Error updating order: " + error.message });
+    }
+  });
+
+  // Verify payment and create order (called from success page)
+  app.post("/api/verify-payment", async (req, res) => {
+    try {
+      if (!stripe) {
+        return res.status(503).json({ 
+          message: "Payment processing is not configured. Please contact support." 
+        });
+      }
+
+      const { paymentIntentId, userId } = req.body;
+      
+      if (!paymentIntentId || !userId) {
+        return res.status(400).json({ message: "paymentIntentId and userId are required" });
+      }
+
+      // Verify payment with Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status !== "succeeded") {
+        return res.status(400).json({ 
+          message: "Payment has not been completed",
+          status: paymentIntent.status 
+        });
+      }
+
+      // Verify userId matches the one in metadata
+      const metadataUserId = paymentIntent.metadata.userId;
+      if (metadataUserId !== userId) {
+        return res.status(403).json({ 
+          message: "User ID does not match payment intent" 
+        });
+      }
+
+      // Get product ID from metadata
+      const productId = paymentIntent.metadata.productId;
+      
+      if (!productId) {
+        return res.status(400).json({ message: "Product ID not found in payment metadata" });
+      }
+
+      // Get product to get authoritative price
+      const product = await storage.getProduct(productId);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      // Check if order already exists for this payment intent (globally, not just for this user)
+      // This prevents the same payment intent from being reused to create multiple orders
+      const allOrders = await storage.getOrdersByUser(userId);
+      // TODO: Implement a more efficient global search across all users
+      // For now, we check the user's orders which is sufficient since we verify userId matches metadata
+      const existingOrder = allOrders.find(o => o.stripePaymentIntentId === paymentIntentId);
+      
+      if (existingOrder) {
+        // Order already exists, return it
+        return res.json({ order: existingOrder, product });
+      }
+
+      // Create order with verified data
+      const order = await storage.createOrder({
+        userId,
+        productId,
+        stripePaymentIntentId: paymentIntentId,
+        amount: product.price,
+        status: "completed"
+      });
+
+      res.json({ order, product });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error verifying payment: " + error.message });
     }
   });
 
