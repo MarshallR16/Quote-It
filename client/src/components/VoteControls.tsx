@@ -1,7 +1,7 @@
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface VoteControlsProps {
@@ -15,6 +15,18 @@ export default function VoteControls({
 }: VoteControlsProps) {
   const [currentVote, setCurrentVote] = useState<1 | -1 | null>(null);
   const [optimisticVoteCount, setOptimisticVoteCount] = useState(initialVoteCount);
+
+  // Load user's existing vote
+  const { data: existingVote } = useQuery<{ value: number } | null>({
+    queryKey: [`/api/votes/quote/${quoteId}`],
+  });
+
+  // Set initial vote state when loaded
+  useEffect(() => {
+    if (existingVote) {
+      setCurrentVote(existingVote.value as 1 | -1);
+    }
+  }, [existingVote]);
 
   const voteMutation = useMutation({
     mutationFn: async (value: 1 | -1) => {

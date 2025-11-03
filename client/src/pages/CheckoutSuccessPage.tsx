@@ -13,9 +13,9 @@ export default function CheckoutSuccessPage() {
 
   // Verify payment mutation
   const verifyPayment = useMutation({
-    mutationFn: async (paymentIntentId: string) => {
+    mutationFn: async (data: { paymentIntentId: string; shippingInfo?: any }) => {
       // userId is now from authenticated session on server
-      const res = await apiRequest("POST", "/api/verify-payment", { paymentIntentId });
+      const res = await apiRequest("POST", "/api/verify-payment", data);
       return await res.json();
     },
     onSuccess: (data) => {
@@ -24,6 +24,7 @@ export default function CheckoutSuccessPage() {
       // Clean up session storage
       sessionStorage.removeItem('paymentIntentId');
       sessionStorage.removeItem('productId');
+      sessionStorage.removeItem('shippingInfo');
     },
     onError: () => {
       setStatus("error");
@@ -42,8 +43,12 @@ export default function CheckoutSuccessPage() {
           return;
         }
 
+        // Get shipping info from session storage
+        const shippingInfoStr = sessionStorage.getItem('shippingInfo');
+        const shippingInfo = shippingInfoStr ? JSON.parse(shippingInfoStr) : null;
+
         // Verify payment on server side (userId from authenticated session)
-        verifyPayment.mutate(paymentIntentId);
+        verifyPayment.mutate({ paymentIntentId, shippingInfo });
 
       } catch (error) {
         console.error("Error verifying payment:", error);

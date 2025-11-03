@@ -257,10 +257,104 @@ export default function CheckoutPage() {
           </Card>
 
           <Card className="p-6">
+            <h2 className="font-semibold mb-6">Shipping Information</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={shippingInfo.name}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, name: e.target.value })}
+                    required
+                    data-testid="input-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={shippingInfo.email}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, email: e.target.value })}
+                    required
+                    data-testid="input-email"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="address1">Street Address</Label>
+                <Input
+                  id="address1"
+                  value={shippingInfo.address1}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, address1: e.target.value })}
+                  required
+                  data-testid="input-address"
+                />
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={shippingInfo.city}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                    required
+                    data-testid="input-city"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    value={shippingInfo.state_code}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, state_code: e.target.value })}
+                    placeholder="CA"
+                    maxLength={2}
+                    required
+                    data-testid="input-state"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="zip">ZIP Code</Label>
+                  <Input
+                    id="zip"
+                    value={shippingInfo.zip}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, zip: e.target.value })}
+                    required
+                    data-testid="input-zip"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="size">T-Shirt Size</Label>
+                <Select
+                  value={shippingInfo.size}
+                  onValueChange={(value) => setShippingInfo({ ...shippingInfo, size: value })}
+                >
+                  <SelectTrigger id="size" data-testid="select-size">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="S">Small</SelectItem>
+                    <SelectItem value="M">Medium</SelectItem>
+                    <SelectItem value="L">Large</SelectItem>
+                    <SelectItem value="XL">X-Large</SelectItem>
+                    <SelectItem value="2XL">2X-Large</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
             <h2 className="font-semibold mb-6">Payment Details</h2>
             {clientSecret ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <CheckoutForm product={product} clientSecret={clientSecret} />
+                <CheckoutForm product={product} clientSecret={clientSecret} shippingInfo={shippingInfo} />
               </Elements>
             ) : (
               <div className="flex items-center justify-center py-8">

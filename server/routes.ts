@@ -116,19 +116,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user already voted
       const existingVote = await storage.getVote(quoteId, userId);
+      const quote = await storage.getQuote(quoteId);
+      
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+
+      let delta = 0;
 
       if (existingVote) {
         // Update existing vote if different
         if (existingVote.value !== value) {
+          delta = value - existingVote.value; // e.g., 1 - (-1) = 2, or -1 - 1 = -2
           const updatedVote = await storage.updateVote(existingVote.id, value);
           res.json(updatedVote);
         } else {
           // Same vote, remove it (toggle off)
+          delta = -value; // Remove the vote value
           await storage.deleteVote(existingVote.id);
           res.json({ message: "Vote removed" });
         }
       } else {
         // Create new vote
+        delta = value;
         const vote = await storage.createVote({
           quoteId,
           userId,
@@ -136,8 +146,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         res.json(vote);
       }
+
+      // Update quote voteCount
+      if (delta !== 0) {
+        await storage.updateQuote(quoteId, {
+          voteCount: quote.voteCount + delta,
+        });
+      }
     } catch (error: any) {
       res.status(500).json({ message: "Error voting: " + error.message });
+    }
+  });
+
+  // Get user's vote for a specific quote
+  app.get("/api/votes/quote/:quoteId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { quoteId } = req.params;
+      const userId = req.user.claims.sub;
+
+      const vote = await storage.getVote(quoteId, userId);
+      res.json(vote || null);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching vote: " + error.message });
     }
   });
 
@@ -456,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { paymentIntentId } = req.body;
+      const { paymentIntentId, shippingInfo } = req.body;
       const userId = req.user?.claims?.sub; // Get from authenticated session
       
       if (!paymentIntentId) {
@@ -517,8 +547,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         productId,
         stripePaymentIntentId: paymentIntentId,
         amount: product.price,
-        status: "completed"
+        status: "processing",
+        shippingAddress: shippingInfo ? JSON.stringify(shippingInfo) : null,
       });
+
+      // Automatically submit to Printful if configured and shipping info provided
+      if (isPrintfulConfigured && shippingInfo && product.printfulSyncProductId) {
+        try {
+          // Validate shipping info
+          if (!shippingInfo.name || !shippingInfo.address1 || !shippingInfo.city || 
+              !shippingInfo.state_code || !shippingInfo.zip || !shippingInfo.email || !shippingInfo.size) {
+            throw new Error('Missing required shipping information');
+          }
+
+          console.log('Submitting order to Printful...');
+          
+          const variants = product.printfulSyncVariants as any;
+          
+          // Printful variant IDs for Bella+Canvas 3001 (black)
+          const sizeToVariantId: Record<string, number> = {
+            'S': 4011,
+            'M': 4012,
+            'L': 4013,
+            'XL': 4014,
+            '2XL': 4017,
+          };
+          
+          const targetVariantId = sizeToVariantId[shippingInfo.size];
+          
+          if (!targetVariantId) {
+            throw new Error(`Invalid size: ${shippingInfo.size}`);
+          }
+
+          // Find the sync variant with matching variant_id
+          const selectedVariant = variants?.sync_variants?.find((v: any) => v.variant_id === targetVariantId);
+          
+          if (!selectedVariant) {
+            throw new Error(`Variant not found for size ${shippingInfo.size}`);
+          }
+
+          // Create order in Printful
+          const printfulOrder = await printfulService.createOrder(
+            `order-${order.id}`,
+            {
+              name: shippingInfo.name,
+              address1: shippingInfo.address1,
+              city: shippingInfo.city,
+              state_code: shippingInfo.state_code,
+              country_code: shippingInfo.country_code || 'US',
+              zip: shippingInfo.zip,
+              email: shippingInfo.email,
+            },
+            [{
+              sync_variant_id: selectedVariant.id,
+              quantity: 1,
+            }]
+          );
+
+          // Confirm the order (submit for fulfillment)
+          await printfulService.confirmOrder(printfulOrder.id);
+
+          // Update order status
+          await storage.updateOrder(order.id, {
+            status: 'completed',
+            printfulOrderId: printfulOrder.id.toString(),
+          });
+
+          console.log('Printful order created and confirmed:', printfulOrder.id);
+        } catch (error: any) {
+          console.error('Error creating Printful order:', error);
+          // Update order with error status
+          await storage.updateOrder(order.id, {
+            status: 'failed',
+            notes: `Printful error: ${error.message}`,
+          });
+        }
+      }
 
       res.json({ order, product });
     } catch (error: any) {

@@ -68,6 +68,31 @@ export class PrintfulService {
   }
 
   /**
+   * Word-wrap text to fit within a maximum width
+   */
+  private wrapText(text: string, maxCharsPerLine: number): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (testLine.length > maxCharsPerLine && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    return lines;
+  }
+
+  /**
    * Generate simple SVG design with quote, author, and QR code
    */
   private async generateDesignSVG(quoteText: string, author: string): Promise<string> {
@@ -78,6 +103,18 @@ export class PrintfulService {
 
     const qrCodeDataUrl = await this.generateQRCode(appUrl);
 
+    // Wrap quote text to fit nicely on the shirt (40 chars per line)
+    const wrappedLines = this.wrapText(quoteText, 40);
+    
+    // Generate tspan elements for each line
+    const quoteTspans = wrappedLines.map((line, index) => 
+      `<tspan x="2250" dy="${index === 0 ? '0' : '220'}">"${this.escapeXml(line)}"</tspan>`
+    ).join('\n    ');
+
+    // Adjust author position based on number of quote lines
+    const authorY = 2000 + (wrappedLines.length * 220) + 400;
+    const qrY = authorY + 400;
+
     // Create SVG with quote text, author, and QR code
     // Dimensions: 4500x5400px (Printful recommended for 18"x24" print area)
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
@@ -87,22 +124,16 @@ export class PrintfulService {
   
   <!-- Quote text (centered, large, wrapped) -->
   <text x="2250" y="2000" font-family="Arial, Helvetica, sans-serif" font-size="180" font-weight="bold" text-anchor="middle" fill="#000000">
-    <tspan x="2250" dy="0">"${this.escapeXml(quoteText.substring(0, 40))}"</tspan>
-    ${quoteText.length > 40 ? `<tspan x="2250" dy="220">"${this.escapeXml(quoteText.substring(40, 80))}"</tspan>` : ''}
+    ${quoteTspans}
   </text>
   
   <!-- Author name -->
-  <text x="2250" y="2800" font-family="Arial, Helvetica, sans-serif" font-size="120" text-anchor="middle" fill="#666666">
+  <text x="2250" y="${authorY}" font-family="Arial, Helvetica, sans-serif" font-size="120" text-anchor="middle" fill="#666666">
     - ${this.escapeXml(author)}
   </text>
   
   <!-- QR Code (embedded as image) -->
-  <image x="1950" y="3200" width="600" height="600" xlink:href="${qrCodeDataUrl}"/>
-  
-  <!-- Small "Scan to vote" text under QR -->
-  <text x="2250" y="3950" font-family="Arial, Helvetica, sans-serif" font-size="80" text-anchor="middle" fill="#999999">
-    SCAN TO VOTE
-  </text>
+  <image x="1950" y="${qrY}" width="600" height="600" xlink:href="${qrCodeDataUrl}"/>
 </svg>`;
 
     return svg;
