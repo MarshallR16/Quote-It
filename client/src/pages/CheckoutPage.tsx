@@ -5,6 +5,9 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
@@ -23,7 +26,26 @@ interface Product {
   quoteId: string;
 }
 
-function CheckoutForm({ product, clientSecret }: { product: Product; clientSecret: string }) {
+interface ShippingInfo {
+  name: string;
+  email: string;
+  address1: string;
+  city: string;
+  state_code: string;
+  country_code: string;
+  zip: string;
+  size: string;
+}
+
+function CheckoutForm({ 
+  product, 
+  clientSecret, 
+  shippingInfo 
+}: { 
+  product: Product; 
+  clientSecret: string;
+  shippingInfo: ShippingInfo;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [, navigate] = useLocation();
@@ -40,6 +62,9 @@ function CheckoutForm({ product, clientSecret }: { product: Product; clientSecre
     setIsProcessing(true);
 
     try {
+      // Store shipping info for order creation after payment
+      sessionStorage.setItem('shippingInfo', JSON.stringify(shippingInfo));
+      
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -86,6 +111,18 @@ export default function CheckoutPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  
+  // Shipping information state
+  const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({
+    name: '',
+    email: '',
+    address1: '',
+    city: '',
+    state_code: '',
+    country_code: 'US',
+    zip: '',
+    size: 'M',
+  });
 
   // Fetch product details
   const { data: products, isLoading } = useQuery<Product[]>({

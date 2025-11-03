@@ -3,12 +3,12 @@ import { Card } from "@/components/ui/card";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trophy, ShoppingBag } from "lucide-react";
+import { Trophy } from "lucide-react";
 
 export default function AdminPage() {
   const { toast } = useToast();
 
-  const { data: weeklyWinner, isLoading: isLoadingWinner } = useQuery({
+  const { data: weeklyWinner, isLoading: isLoadingWinner } = useQuery<any>({
     queryKey: ["/api/products/weekly-winner"],
   });
 
@@ -19,9 +19,12 @@ export default function AdminPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/products/weekly-winner"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
-        title: "Weekly winner selected!",
-        description: `Quote: "${data.quote.text.substring(0, 50)}..."`,
+        title: data.product ? "Winner selected & product created!" : "Winner selected!",
+        description: data.product 
+          ? `Printful product created for: "${data.quote.text.substring(0, 50)}..."`
+          : `Quote: "${data.quote.text.substring(0, 50)}..."`,
       });
     },
     onError: (error: any) => {
@@ -32,37 +35,6 @@ export default function AdminPage() {
       });
     },
   });
-
-  const createProductMutation = useMutation({
-    mutationFn: async (data: { quoteId: string; weeklyWinnerId?: string }) => {
-      const res = await apiRequest("POST", "/api/products/create-printful", data);
-      return await res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products/weekly-winner"] });
-      toast({
-        title: "Product created!",
-        description: "Printful product has been created successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create Printful product",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCreateProduct = () => {
-    if (weeklyWinner && weeklyWinner.quote) {
-      createProductMutation.mutate({
-        quoteId: weeklyWinner.quote.id,
-        weeklyWinnerId: weeklyWinner.winner.id,
-      });
-    }
-  };
 
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">
@@ -75,17 +47,17 @@ export default function AdminPage() {
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <Trophy className="w-6 h-6" />
-            <h2 className="text-xl font-bold">Weekly Winner Selection</h2>
+            <h2 className="text-xl font-bold">Automatic Weekly Winner</h2>
           </div>
           <p className="text-muted-foreground mb-4">
-            Select the quote with the highest votes as this week's winner
+            Click to automatically select the quote with the highest votes and create a Printful T-shirt product
           </p>
           <Button
             onClick={() => selectWinnerMutation.mutate()}
             disabled={selectWinnerMutation.isPending}
             data-testid="button-select-winner"
           >
-            {selectWinnerMutation.isPending ? "Selecting..." : "Select Weekly Winner"}
+            {selectWinnerMutation.isPending ? "Processing..." : "Select Winner & Create Product"}
           </Button>
         </Card>
 
@@ -95,39 +67,37 @@ export default function AdminPage() {
           </Card>
         ) : weeklyWinner ? (
           <Card className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <ShoppingBag className="w-6 h-6" />
-              <h2 className="text-xl font-bold">Current Winner → Printful Product</h2>
-            </div>
+            <h2 className="text-xl font-bold mb-4">Current Weekly Product</h2>
             <div className="mb-4">
-              <p className="text-lg font-medium mb-2">"{weeklyWinner.quote.text}"</p>
-              <p className="text-sm text-muted-foreground">- {weeklyWinner.quote.authorId}</p>
+              <p className="text-lg font-medium mb-2">"{weeklyWinner.quote?.text}"</p>
+              <p className="text-sm text-muted-foreground">- {weeklyWinner.quote?.authorId}</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Votes: {weeklyWinner.winner.finalVoteCount}
+                Votes: {weeklyWinner.winner?.finalVoteCount}
               </p>
             </div>
             {weeklyWinner.product ? (
               <div className="bg-muted/30 rounded-md p-4">
-                <p className="text-sm text-muted-foreground">
-                  ✓ Product already created in Printful
+                <p className="text-sm font-medium mb-1">
+                  ✓ Printful product active
                 </p>
-                <p className="text-sm font-medium mt-1">
+                <p className="text-sm text-muted-foreground">
                   Printful ID: {weeklyWinner.product.printfulSyncProductId}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Price: ${weeklyWinner.product.price}
                 </p>
               </div>
             ) : (
-              <Button
-                onClick={handleCreateProduct}
-                disabled={createProductMutation.isPending}
-                data-testid="button-create-product"
-              >
-                {createProductMutation.isPending ? "Creating..." : "Create Printful Product"}
-              </Button>
+              <div className="bg-muted/30 rounded-md p-4">
+                <p className="text-sm text-muted-foreground">
+                  Product not yet created
+                </p>
+              </div>
             )}
           </Card>
         ) : (
           <Card className="p-6">
-            <p className="text-muted-foreground">No weekly winner selected yet. Select one above to get started.</p>
+            <p className="text-muted-foreground">No weekly winner yet. Click the button above to select the top-voted quote and create the product automatically!</p>
           </Card>
         )}
       </div>

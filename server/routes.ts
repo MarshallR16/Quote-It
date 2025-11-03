@@ -272,7 +272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Select weekly winner (admin endpoint)
+  // Select weekly winner and create Printful product automatically
   app.post("/api/admin/select-weekly-winner", isAuthenticated, async (req: any, res) => {
     try {
       // Get all quotes
@@ -307,7 +307,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalVoteCount: topQuote.voteCount,
       });
 
-      res.json({ winner, quote: topQuote });
+      // Automatically create Printful product if configured
+      let product = null;
+      let printfulProduct = null;
+      
+      if (isPrintfulConfigured) {
+        try {
+          // Get author info
+          const author = await storage.getUser(topQuote.authorId);
+          const authorName = author?.email?.split('@')[0] || 'unknown';
+
+          // Create product in Printful
+          console.log('Auto-creating Printful product for weekly winner:', topQuote.text);
+          printfulProduct = await printfulService.createProduct(
+            topQuote.text,
+            authorName,
+            `quote-${topQuote.id}`
+          );
+
+          // Create product in database
+          const productData = {
+            quoteId: topQuote.id,
+            weeklyWinnerId: winner.id,
+            name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`,
+            description: `Quote by ${authorName}`,
+            price: '29.99',
+            imageUrl: null,
+            printfulSyncProductId: printfulProduct.id,
+            printfulSyncVariants: printfulProduct,
+            isActive: true,
+          };
+
+          product = await storage.createProduct(productData);
+        } catch (error: any) {
+          console.error('Error creating Printful product:', error);
+          // Continue even if Printful creation fails
+        }
+      }
+
+      res.json({ 
+        winner, 
+        quote: topQuote,
+        product,
+        printfulProduct,
+        message: product ? 'Weekly winner selected and Printful product created' : 'Weekly winner selected'
+      });
     } catch (error: any) {
       res.status(500).json({ message: "Error selecting weekly winner: " + error.message });
     }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import QRCode from 'qrcode';
 
 const PRINTFUL_API_URL = 'https://api.printful.com';
 const API_TOKEN = process.env.PRINTFUL_API_TOKEN;
@@ -48,10 +49,117 @@ export interface PrintfulOrder {
 
 export class PrintfulService {
   /**
-   * Create a sync product with variants in Printful
+   * Generate QR code data URL
+   */
+  private async generateQRCode(url: string): Promise<string> {
+    try {
+      return await QRCode.toDataURL(url, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+    } catch (error) {
+      console.error('QR code generation error:', error);
+      throw new Error('Failed to generate QR code');
+    }
+  }
+
+  /**
+   * Generate simple SVG design with quote, author, and QR code
+   */
+  private async generateDesignSVG(quoteText: string, author: string): Promise<string> {
+    // Get app URL for QR code
+    const appUrl = process.env.REPLIT_DOMAINS ? 
+      `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
+      'https://quote-it.replit.app';
+
+    const qrCodeDataUrl = await this.generateQRCode(appUrl);
+
+    // Create SVG with quote text, author, and QR code
+    // Dimensions: 4500x5400px (Printful recommended for 18"x24" print area)
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="4500" height="5400" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <!-- White background -->
+  <rect width="4500" height="5400" fill="#FFFFFF"/>
+  
+  <!-- Quote text (centered, large, wrapped) -->
+  <text x="2250" y="2000" font-family="Arial, Helvetica, sans-serif" font-size="180" font-weight="bold" text-anchor="middle" fill="#000000">
+    <tspan x="2250" dy="0">"${this.escapeXml(quoteText.substring(0, 40))}"</tspan>
+    ${quoteText.length > 40 ? `<tspan x="2250" dy="220">"${this.escapeXml(quoteText.substring(40, 80))}"</tspan>` : ''}
+  </text>
+  
+  <!-- Author name -->
+  <text x="2250" y="2800" font-family="Arial, Helvetica, sans-serif" font-size="120" text-anchor="middle" fill="#666666">
+    - ${this.escapeXml(author)}
+  </text>
+  
+  <!-- QR Code (embedded as image) -->
+  <image x="1950" y="3200" width="600" height="600" xlink:href="${qrCodeDataUrl}"/>
+  
+  <!-- Small "Scan to vote" text under QR -->
+  <text x="2250" y="3950" font-family="Arial, Helvetica, sans-serif" font-size="80" text-anchor="middle" fill="#999999">
+    SCAN TO VOTE
+  </text>
+</svg>`;
+
+    return svg;
+  }
+
+  /**
+   * Escape XML special characters
+   */
+  private escapeXml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  /**
+   * Upload file to Printful
+   */
+  private async uploadFile(fileContent: string, fileName: string): Promise<{ id: number; url: string }> {
+    try {
+      // Convert SVG to base64
+      const base64Content = Buffer.from(fileContent).toString('base64');
+      
+      const data = {
+        type: 'default',
+        url: `data:image/svg+xml;base64,${base64Content}`,
+        filename: fileName,
+      };
+
+      const response = await printfulClient.post('/files', data);
+      return {
+        id: response.data.result.id,
+        url: response.data.result.url,
+      };
+    } catch (error: any) {
+      console.error('Printful file upload error:', error.response?.data || error.message);
+      throw new Error(`Failed to upload file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a sync product with variants and design file in Printful
    */
   async createProduct(quoteText: string, author: string, externalId: string): Promise<PrintfulProduct> {
     try {
+      console.log('Generating design for quote:', quoteText);
+      
+      // Generate design SVG
+      const designSVG = await this.generateDesignSVG(quoteText, author);
+      
+      // Upload design to Printful
+      console.log('Uploading design to Printful...');
+      const uploadedFile = await this.uploadFile(designSVG, `${externalId}-design.svg`);
+      console.log('Design uploaded successfully:', uploadedFile.id);
+
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
       // Variant IDs from Printful catalog:
       // 4011 - S / Black
@@ -68,15 +176,43 @@ export class PrintfulService {
           external_id: externalId,
         },
         sync_variants: [
-          { variant_id: 4011, retail_price: '29.99', external_id: `${externalId}-S` },
-          { variant_id: 4012, retail_price: '29.99', external_id: `${externalId}-M` },
-          { variant_id: 4013, retail_price: '29.99', external_id: `${externalId}-L` },
-          { variant_id: 4014, retail_price: '29.99', external_id: `${externalId}-XL` },
-          { variant_id: 4017, retail_price: '29.99', external_id: `${externalId}-2XL` },
+          { 
+            variant_id: 4011, 
+            retail_price: '29.99', 
+            external_id: `${externalId}-S`,
+            files: [{ id: uploadedFile.id }]
+          },
+          { 
+            variant_id: 4012, 
+            retail_price: '29.99', 
+            external_id: `${externalId}-M`,
+            files: [{ id: uploadedFile.id }]
+          },
+          { 
+            variant_id: 4013, 
+            retail_price: '29.99', 
+            external_id: `${externalId}-L`,
+            files: [{ id: uploadedFile.id }]
+          },
+          { 
+            variant_id: 4014, 
+            retail_price: '29.99', 
+            external_id: `${externalId}-XL`,
+            files: [{ id: uploadedFile.id }]
+          },
+          { 
+            variant_id: 4017, 
+            retail_price: '29.99', 
+            external_id: `${externalId}-2XL`,
+            files: [{ id: uploadedFile.id }]
+          },
         ],
       };
 
+      console.log('Creating Printful product...');
       const response = await printfulClient.post('/store/products', data);
+      console.log('Printful product created successfully:', response.data.result.id);
+      
       return response.data.result;
     } catch (error: any) {
       console.error('Printful create product error:', error.response?.data || error.message);
