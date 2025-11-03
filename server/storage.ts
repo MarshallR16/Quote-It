@@ -12,6 +12,7 @@ export interface IStorage {
   getAllQuotes(): Promise<Quote[]>;
   getQuotesByUser(userId: string): Promise<Quote[]>;
   createQuote(quote: InsertQuote): Promise<Quote>;
+  updateQuote(id: string, data: Partial<Quote>): Promise<Quote>;
   deleteQuote(id: string): Promise<void>;
 
   // Vote methods
@@ -31,6 +32,7 @@ export interface IStorage {
   getOrder(id: string): Promise<Order | undefined>;
   getOrdersByUser(userId: string): Promise<Order[]>;
   createOrder(order: InsertOrder): Promise<Order>;
+  updateOrder(id: string, data: Partial<Order>): Promise<Order>;
   updateOrderStatus(id: string, status: string, stripePaymentIntentId?: string): Promise<Order>;
 
   // Weekly Winner methods
@@ -82,6 +84,14 @@ export class DbStorage implements IStorage {
 
   async createQuote(insertQuote: InsertQuote): Promise<Quote> {
     const result = await db.insert(quotes).values(insertQuote).returning();
+    return result[0];
+  }
+
+  async updateQuote(id: string, data: Partial<Quote>): Promise<Quote> {
+    const result = await db.update(quotes)
+      .set(data)
+      .where(eq(quotes.id, id))
+      .returning();
     return result[0];
   }
 
@@ -182,6 +192,14 @@ export class DbStorage implements IStorage {
 
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
     const result = await db.insert(orders).values(insertOrder).returning();
+    return result[0];
+  }
+
+  async updateOrder(id: string, data: Partial<Order>): Promise<Order> {
+    const result = await db.update(orders)
+      .set(data)
+      .where(eq(orders.id, id))
+      .returning();
     return result[0];
   }
 

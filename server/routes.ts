@@ -5,15 +5,15 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertProductSchema, insertOrderSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { printfulService } from "./printful";
+import Stripe from "stripe";
 
 // Stripe will be initialized when keys are provided
-let stripe: any = null;
+let stripe: Stripe | null = null;
 
 // Check if Stripe keys are available and initialize
 if (process.env.STRIPE_SECRET_KEY) {
-  const Stripe = require("stripe");
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2023-10-16",
+    apiVersion: "2025-10-29.clover",
   });
 }
 
