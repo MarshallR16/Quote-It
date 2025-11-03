@@ -7,9 +7,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { AlertCircle } from "lucide-react";
 
 interface CreateQuoteModalProps {
   open: boolean;
@@ -25,6 +26,12 @@ export default function CreateQuoteModal({
   const [content, setContent] = useState("");
   const { toast } = useToast();
 
+  // Fetch daily post limit
+  const { data: postLimit, refetch: refetchLimit } = useQuery<{ canPost: boolean; remaining: number; limit: number }>({
+    queryKey: ["/api/users/daily-post-limit"],
+    enabled: open, // Only fetch when modal is open
+  });
+
   const createQuoteMutation = useMutation({
     mutationFn: async (text: string) => {
       const res = await apiRequest("POST", "/api/quotes", { text });
@@ -32,6 +39,7 @@ export default function CreateQuoteModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      refetchLimit(); // Refetch the limit after posting
       toast({
         title: "Quote posted!",
         description: "Your quote has been shared with the community.",
@@ -55,6 +63,8 @@ export default function CreateQuoteModal({
   };
 
   const remainingChars = MAX_CHARS - content.length;
+  const limitReached = postLimit && !postLimit.canPost;
+  const isSubmitDisabled = !content.trim() || content.length > MAX_CHARS || createQuoteMutation.isPending || limitReached;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,21 +73,35 @@ export default function CreateQuoteModal({
           <DialogTitle className="text-2xl font-display">Create Quote</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {limitReached && (
+            <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive" data-testid="alert-limit-reached">
+              <AlertCircle className="h-4 w-4" />
+              <p className="text-sm">Daily limit reached. Come back tomorrow!</p>
+            </div>
+          )}
           <Textarea
             placeholder="Share your thoughts..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="min-h-32 text-2xl resize-none border-0 focus-visible:ring-0 p-0"
             maxLength={MAX_CHARS}
+            disabled={limitReached}
             data-testid="input-quote-content"
           />
           <div className="flex items-center justify-between">
-            <span
-              className={`text-xs ${remainingChars < 20 ? "text-destructive" : "text-muted-foreground"}`}
-              data-testid="text-char-count"
-            >
-              {remainingChars} characters remaining
-            </span>
+            <div className="flex flex-col gap-1">
+              <span
+                className={`text-xs ${remainingChars < 20 ? "text-destructive" : "text-muted-foreground"}`}
+                data-testid="text-char-count"
+              >
+                {remainingChars} characters remaining
+              </span>
+              {postLimit && (
+                <span className="text-xs text-muted-foreground" data-testid="text-posts-remaining">
+                  {postLimit.remaining} {postLimit.remaining === 1 ? 'post' : 'posts'} left today
+                </span>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 variant="ghost"
@@ -90,7 +114,7 @@ export default function CreateQuoteModal({
               <Button
                 className="rounded-full"
                 onClick={handleSubmit}
-                disabled={!content.trim() || content.length > MAX_CHARS || createQuoteMutation.isPending}
+                disabled={isSubmitDisabled}
                 data-testid="button-post"
               >
                 {createQuoteMutation.isPending ? "Posting..." : "Post Quote"}

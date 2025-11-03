@@ -24,6 +24,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   await setupAuth(app);
 
+  // Helper function to check and reset daily post count
+  const checkDailyPostLimit = async (userId: string): Promise<{ canPost: boolean; remaining: number }> => {
+    const user = await storage.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const lastPostDate = user.lastPostDate ? new Date(user.lastPostDate) : null;
+    const isNewDay = !lastPostDate || lastPostDate.getTime() < today.getTime();
+
+    let currentCount = isNewDay ? 0 : (user.dailyPostCount || 0);
+    const remaining = Math.max(0, 3 - currentCount);
+    const canPost = currentCount < 3;
+
+    return { canPost, remaining };
+  };
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -36,6 +56,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Check daily post limit
+  app.get('/api/users/daily-post-limit', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { canPost, remaining } = await checkDailyPostLimit(userId);
+      res.json({ canPost, remaining, limit: 3 });
+    } catch (error: any) {
+      console.error("Error checking daily post limit:", error);
+      res.status(500).json({ message: "Failed to check post limit" });
     }
   });
 
@@ -72,12 +104,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Quote must be 280 characters or less" });
       }
 
-      const quote = await storage.createQuote({
+      // Atomically check limit, increment counter, and create quote in a single transaction
+      const result = await storage.createQuoteWithLimitCheck(userId, {
         text: text.trim(),
         authorId: userId,
       });
 
-      res.json(quote);
+      if (!result.success) {
+        if (result.error === "Daily limit reached") {
+          return res.status(429).json({ 
+            message: "Daily limit reached. You can post again tomorrow!",
+            remaining: 0,
+            limit: 3
+          });
+        }
+        return res.status(400).json({ message: result.error || "Failed to create quote" });
+      }
+
+      res.json(result.quote);
     } catch (error: any) {
       res.status(500).json({ message: "Error creating quote: " + error.message });
     }

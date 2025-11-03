@@ -6,6 +6,8 @@ export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<User>;
+  createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
 
   // Quote methods
   getQuote(id: string): Promise<Quote | undefined>;
@@ -66,6 +68,53 @@ export class DbStorage implements IStorage {
       })
       .returning();
     return result[0];
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User> {
+    const result = await db.update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }> {
+    // Use a transaction to atomically check limit, increment counter, and create quote
+    return await db.transaction(async (tx) => {
+      // Lock the user row for update
+      const user = await tx.select().from(users).where(eq(users.id, userId)).for('update').limit(1);
+      if (!user[0]) {
+        return { success: false, error: "User not found" };
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const lastPostDate = user[0].lastPostDate ? new Date(user[0].lastPostDate) : null;
+      const isNewDay = !lastPostDate || lastPostDate.getTime() < today.getTime();
+      const currentCount = isNewDay ? 0 : (user[0].dailyPostCount || 0);
+
+      // Check limit
+      if (currentCount >= 3) {
+        return { success: false, remaining: 0, error: "Daily limit reached" };
+      }
+
+      // Atomically increment the counter
+      const newCount = isNewDay ? 1 : currentCount + 1;
+      await tx.update(users)
+        .set({
+          dailyPostCount: newCount,
+          lastPostDate: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+      // Create the quote within the same transaction
+      const result = await tx.insert(quotes).values(quoteData).returning();
+      const quote = result[0];
+
+      return { success: true, quote, remaining: 3 - newCount };
+    });
   }
 
   // Quote methods
