@@ -43,62 +43,38 @@ export default function StorePage() {
 
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">
-      {/* Hero Section */}
-      <div className="relative h-96 md:h-[500px] overflow-hidden mb-12">
-        <img
-          src={heroImage}
-          alt="Featured winning quote on t-shirt"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-        <div className="absolute inset-0 flex items-center justify-center text-center px-4">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 font-display">
-              Wear Winning Quotes
-            </h1>
-            <p className="text-lg md:text-xl text-white/90 mb-6 max-w-2xl">
-              Every week, the community's favorite quote becomes a premium T-shirt
-            </p>
-            <Button
-              size="lg"
-              className="rounded-full bg-white/90 text-black hover:bg-white backdrop-blur-sm h-12"
-              data-testid="button-shop-collection"
-              onClick={() => {
-                const quotedSection = document.getElementById('quoted-section');
-                quotedSection?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              Shop the Collection
-            </Button>
-          </div>
+      {/* Simple Header Banner */}
+      <div className="bg-card border-b mb-8">
+        <div className="max-w-7xl mx-auto px-4 py-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2 font-display">
+            This Week's Design
+          </h1>
+          <p className="text-muted-foreground">
+            Every week, the community's favorite quote becomes a premium Bella+Canvas T-shirt
+          </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 space-y-16">
-        {/* "Quoted" Section - Current Weekly Winner (For Sale) */}
-        <section id="quoted-section">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-bold font-display mb-2">Quoted</h2>
-              <p className="text-muted-foreground">This week's winning design</p>
-            </div>
-          </div>
-
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Current Weekly Winner (For Sale) */}
+        <section>
           {isLoadingWeekly ? (
             <div className="flex items-center justify-center py-20">
               <p className="text-muted-foreground">Loading this week's design...</p>
             </div>
           ) : weeklyWinner ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <ProductCard
-                id={weeklyWinner.product.id}
-                imageUrl={weeklyWinner.product.imageUrl || heroImage}
-                quote={weeklyWinner.quote.text}
-                author={weeklyWinner.quote.authorId}
-                price={parseFloat(weeklyWinner.product.price)}
-                weekNumber={getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))}
-                onAddToCart={handleAddToCart}
-              />
+            <div className="flex justify-center">
+              <div className="w-full max-w-sm">
+                <ProductCard
+                  id={weeklyWinner.product.id}
+                  imageUrl={weeklyWinner.product.imageUrl || heroImage}
+                  quote={weeklyWinner.quote.text}
+                  author={weeklyWinner.quote.authorId}
+                  price={parseFloat(weeklyWinner.product.price)}
+                  weekNumber={getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))}
+                  onAddToCart={handleAddToCart}
+                />
+              </div>
             </div>
           ) : (
             <div className="text-center py-20 bg-muted/30 rounded-md">
