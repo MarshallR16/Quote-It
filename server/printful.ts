@@ -72,7 +72,7 @@ export class PrintfulService {
           { variant_id: 4012, retail_price: '29.99', external_id: `${externalId}-M` },
           { variant_id: 4013, retail_price: '29.99', external_id: `${externalId}-L` },
           { variant_id: 4014, retail_price: '29.99', external_id: `${externalId}-XL` },
-          { variant_id: 4017, retail_price: '32.99', external_id: `${externalId}-2XL` },
+          { variant_id: 4017, retail_price: '29.99', external_id: `${externalId}-2XL` },
         ],
       };
 
