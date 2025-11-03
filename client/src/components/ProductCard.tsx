@@ -21,6 +21,8 @@ export default function ProductCard({
   weekNumber,
   onAddToCart,
 }: ProductCardProps) {
+  const isForSale = onAddToCart !== undefined && price > 0;
+
   return (
     <Card className="overflow-hidden hover-elevate" data-testid={`card-product-${id}`}>
       <div className="aspect-square bg-muted overflow-hidden">
@@ -41,23 +43,29 @@ export default function ProductCard({
           "{quote}"
         </blockquote>
         <p className="text-xs text-muted-foreground" data-testid="text-product-author">
-          by {author}
+          -{author}
         </p>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-2xl font-bold" data-testid="text-product-price">
-            ${price}
-          </span>
-          <Button
-            className="rounded-full"
-            onClick={() => {
-              onAddToCart?.(id);
-              console.log(`Added product ${id} to cart`);
-            }}
-            data-testid="button-add-to-cart"
-          >
-            Add to Cart
-          </Button>
-        </div>
+        
+        {isForSale ? (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-2xl font-bold" data-testid="text-product-price">
+              ${price.toFixed(2)}
+            </span>
+            <Button
+              className="rounded-full"
+              onClick={() => onAddToCart(id)}
+              data-testid="button-add-to-cart"
+            >
+              Buy Now
+            </Button>
+          </div>
+        ) : (
+          <div className="py-2">
+            <Badge variant="outline" className="text-xs">
+              Display Only - Not For Sale
+            </Badge>
+          </div>
+        )}
       </div>
     </Card>
   );
