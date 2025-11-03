@@ -610,7 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update order status
           await storage.updateOrder(order.id, {
             status: 'completed',
-            printfulOrderId: printfulOrder.id.toString(),
+            printfulOrderId: printfulOrder.id,
           });
 
           console.log('Printful order created and confirmed:', printfulOrder.id);
@@ -619,7 +619,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update order with error status
           await storage.updateOrder(order.id, {
             status: 'failed',
-            notes: `Printful error: ${error.message}`,
           });
         }
       }
