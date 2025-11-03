@@ -81,11 +81,11 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <h2 className="text-2xl font-bold font-display" data-testid="heading-my-quotes">My Quotes</h2>
               {quotesLoading ? (
-                <div className="flex justify-center py-8">
+                <div className="flex justify-center py-8" data-testid="loading-quotes">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : userQuotes.length === 0 ? (
-                <Card>
+                <Card data-testid="empty-quotes">
                   <CardContent className="py-8 text-center text-muted-foreground">
                     You haven't posted any quotes yet
                   </CardContent>
@@ -109,11 +109,11 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <h2 className="text-2xl font-bold font-display" data-testid="heading-order-history">Order History</h2>
               {ordersLoading ? (
-                <div className="flex justify-center py-8">
+                <div className="flex justify-center py-8" data-testid="loading-orders">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : userOrders.length === 0 ? (
-                <Card>
+                <Card data-testid="empty-orders">
                   <CardContent className="py-8 text-center text-muted-foreground">
                     No orders yet
                   </CardContent>
