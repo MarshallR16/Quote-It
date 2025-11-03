@@ -7,11 +7,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface CreateQuoteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit?: (content: string) => void;
 }
 
 const MAX_CHARS = 280;
@@ -19,16 +21,36 @@ const MAX_CHARS = 280;
 export default function CreateQuoteModal({
   open,
   onOpenChange,
-  onSubmit,
 }: CreateQuoteModalProps) {
   const [content, setContent] = useState("");
+  const { toast } = useToast();
+
+  const createQuoteMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const res = await apiRequest("POST", "/api/quotes", { text });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: "Quote posted!",
+        description: "Your quote has been shared with the community.",
+      });
+      setContent("");
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to post quote",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleSubmit = () => {
     if (content.trim()) {
-      onSubmit?.(content);
-      console.log('Quote submitted:', content);
-      setContent("");
-      onOpenChange(false);
+      createQuoteMutation.mutate(content);
     }
   };
 
@@ -68,10 +90,10 @@ export default function CreateQuoteModal({
               <Button
                 className="rounded-full"
                 onClick={handleSubmit}
-                disabled={!content.trim() || content.length > MAX_CHARS}
+                disabled={!content.trim() || content.length > MAX_CHARS || createQuoteMutation.isPending}
                 data-testid="button-post"
               >
-                Post Quote
+                {createQuoteMutation.isPending ? "Posting..." : "Post Quote"}
               </Button>
             </div>
           </div>

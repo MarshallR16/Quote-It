@@ -8,8 +8,6 @@ interface QuoteCardProps {
   upvotes: number;
   downvotes: number;
   timeAgo: string;
-  userVote?: "up" | "down" | null;
-  onVote?: (quoteId: string, voteType: "up" | "down") => void;
 }
 
 export default function QuoteCard({
@@ -19,8 +17,6 @@ export default function QuoteCard({
   upvotes,
   downvotes,
   timeAgo,
-  userVote,
-  onVote,
 }: QuoteCardProps) {
   return (
     <Card className="p-6 hover-elevate" data-testid={`card-quote-${id}`}>
@@ -37,10 +33,8 @@ export default function QuoteCard({
           </p>
         </div>
         <VoteControls
-          initialUpvotes={upvotes}
-          initialDownvotes={downvotes}
-          userVote={userVote}
-          onVote={(voteType) => onVote?.(id, voteType)}
+          quoteId={id}
+          initialVoteCount={upvotes}
         />
       </div>
     </Card>

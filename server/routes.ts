@@ -38,6 +38,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
+
+  // Quote routes
+  app.get("/api/quotes", async (_req, res) => {
+    try {
+      const allQuotes = await storage.getAllQuotes();
+      res.json(allQuotes);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching quotes: " + error.message });
+    }
+  });
+
+  app.get("/api/quotes/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userQuotes = await storage.getQuotesByUser(userId);
+      res.json(userQuotes);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching user quotes: " + error.message });
+    }
+  });
+
+  app.post("/api/quotes", isAuthenticated, async (req: any, res) => {
+    try {
+      const { text } = req.body;
+      const userId = req.user.claims.sub;
+
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ message: "Quote text is required" });
+      }
+
+      if (text.length > 280) {
+        return res.status(400).json({ message: "Quote must be 280 characters or less" });
+      }
+
+      const quote = await storage.createQuote({
+        text: text.trim(),
+        authorId: userId,
+      });
+
+      res.json(quote);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error creating quote: " + error.message });
+    }
+  });
+
+  app.delete("/api/quotes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+
+      const quote = await storage.getQuote(id);
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+
+      if (quote.authorId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete this quote" });
+      }
+
+      await storage.deleteQuote(id);
+      res.json({ message: "Quote deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error deleting quote: " + error.message });
+    }
+  });
+
+  // Vote routes
+  app.post("/api/votes", isAuthenticated, async (req: any, res) => {
+    try {
+      const { quoteId, value } = req.body;
+      const userId = req.user.claims.sub;
+
+      if (!quoteId || (value !== 1 && value !== -1)) {
+        return res.status(400).json({ message: "Invalid vote data" });
+      }
+
+      // Check if user already voted
+      const existingVote = await storage.getVote(quoteId, userId);
+
+      if (existingVote) {
+        // Update existing vote if different
+        if (existingVote.value !== value) {
+          const updatedVote = await storage.updateVote(existingVote.id, value);
+          res.json(updatedVote);
+        } else {
+          // Same vote, remove it (toggle off)
+          await storage.deleteVote(existingVote.id);
+          res.json({ message: "Vote removed" });
+        }
+      } else {
+        // Create new vote
+        const vote = await storage.createVote({
+          quoteId,
+          userId,
+          value,
+        });
+        res.json(vote);
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: "Error voting: " + error.message });
+    }
+  });
+
+  app.get("/api/votes/user/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      // This would need a method in storage to get all user votes
+      // For now, return empty array
+      res.json([]);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching user votes: " + error.message });
+    }
+  });
   
   // Get all active products
   app.get("/api/products", async (_req, res) => {
@@ -156,6 +269,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(entriesWithQuotes);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching hall of fame: " + error.message });
+    }
+  });
+
+  // Select weekly winner (admin endpoint)
+  app.post("/api/admin/select-weekly-winner", isAuthenticated, async (req: any, res) => {
+    try {
+      // Get all quotes
+      const quotes = await storage.getAllQuotes();
+      
+      if (quotes.length === 0) {
+        return res.status(400).json({ message: "No quotes available to select winner" });
+      }
+
+      // Find quote with highest vote count
+      const topQuote = quotes.reduce((max, quote) => 
+        quote.voteCount > max.voteCount ? quote : max
+      , quotes[0]);
+
+      // Calculate week start/end dates (Monday to Sunday)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust when day is Sunday
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() + diff);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      // Create weekly winner
+      const winner = await storage.createWeeklyWinner({
+        quoteId: topQuote.id,
+        weekStartDate: weekStart,
+        weekEndDate: weekEnd,
+        finalVoteCount: topQuote.voteCount,
+      });
+
+      res.json({ winner, quote: topQuote });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error selecting weekly winner: " + error.message });
     }
   });
 
