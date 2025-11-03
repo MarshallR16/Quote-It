@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Flame, Clock, TrendingUp } from "lucide-react";
+import { Flame, Clock, TrendingUp, Users } from "lucide-react";
 
-export type FilterType = "recent" | "trending" | "top";
+export type FilterType = "recent" | "trending" | "top" | "friends";
 
 interface FeedFiltersProps {
   activeFilter?: FilterType;
@@ -25,6 +25,7 @@ export default function FeedFilters({
     { type: "recent", label: "Recent", icon: Clock },
     { type: "trending", label: "Trending", icon: Flame },
     { type: "top", label: "Top", icon: TrendingUp },
+    { type: "friends", label: "Friends", icon: Users },
   ];
 
   return (

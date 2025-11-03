@@ -673,6 +673,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Friend routes
+  app.get('/api/friends', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const friends = await storage.getFriends(userId);
+      res.json(friends);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching friends: " + error.message });
+    }
+  });
+
+  app.get('/api/friends/requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const requests = await storage.getPendingFriendRequests(userId);
+      res.json(requests);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching friend requests: " + error.message });
+    }
+  });
+
+  app.post('/api/friends/request', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { friendId } = req.body;
+
+      if (!friendId) {
+        return res.status(400).json({ message: "Friend ID is required" });
+      }
+
+      if (userId === friendId) {
+        return res.status(400).json({ message: "Cannot send friend request to yourself" });
+      }
+
+      // Check if friendship already exists
+      const existing = await storage.getFriendship(userId, friendId);
+      if (existing) {
+        return res.status(400).json({ message: "Friend request already sent" });
+      }
+
+      const friendship = await storage.createFriendRequest({
+        userId,
+        friendId,
+        status: 'pending',
+      });
+
+      res.json(friendship);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error sending friend request: " + error.message });
+    }
+  });
+
+  app.post('/api/friends/accept/:friendshipId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { friendshipId } = req.params;
+      
+      const result = await storage.acceptFriendRequest(friendshipId, userId);
+      
+      if (!result.success) {
+        const statusCode = result.error?.includes("Unauthorized") ? 403 :
+                          result.error?.includes("not found") ? 404 : 400;
+        return res.status(statusCode).json({ message: result.error });
+      }
+      
+      res.json(result.friendship);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error accepting friend request: " + error.message });
+    }
+  });
+
+  app.post('/api/friends/reject/:friendshipId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { friendshipId } = req.params;
+      
+      const result = await storage.rejectFriendRequest(friendshipId, userId);
+      
+      if (!result.success) {
+        const statusCode = result.error?.includes("Unauthorized") ? 403 :
+                          result.error?.includes("not found") ? 404 : 400;
+        return res.status(statusCode).json({ message: result.error });
+      }
+      
+      res.json(result.friendship);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error rejecting friend request: " + error.message });
+    }
+  });
+
+  app.get('/api/quotes/friends', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const friendsQuotes = await storage.getFriendsQuotes(userId);
+      res.json(friendsQuotes);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching friends quotes: " + error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

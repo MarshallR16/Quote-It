@@ -52,7 +52,8 @@ export interface IStorage {
   getFriends(userId: string): Promise<User[]>;
   getPendingFriendRequests(userId: string): Promise<(Friendship & { requester: User })[]>;
   createFriendRequest(friendship: InsertFriendship): Promise<Friendship>;
-  updateFriendshipStatus(id: string, status: string): Promise<Friendship>;
+  acceptFriendRequest(friendshipId: string, recipientUserId: string): Promise<{ success: boolean; friendship?: Friendship; error?: string }>;
+  rejectFriendRequest(friendshipId: string, recipientUserId: string): Promise<{ success: boolean; friendship?: Friendship; error?: string }>;
   getFriendsQuotes(userId: string): Promise<QuoteWithAuthor[]>;
 }
 
@@ -415,12 +416,56 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async updateFriendshipStatus(id: string, status: string): Promise<Friendship> {
-    const result = await db.update(friendships)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(friendships.id, id))
+  async acceptFriendRequest(friendshipId: string, recipientUserId: string): Promise<{ success: boolean; friendship?: Friendship; error?: string }> {
+    // Fetch the friendship to verify authorization
+    const result = await db.select().from(friendships).where(eq(friendships.id, friendshipId)).limit(1);
+    const friendship = result[0];
+
+    if (!friendship) {
+      return { success: false, error: "Friend request not found" };
+    }
+
+    if (friendship.friendId !== recipientUserId) {
+      return { success: false, error: "Unauthorized: You can only accept requests sent to you" };
+    }
+
+    if (friendship.status !== 'pending') {
+      return { success: false, error: "Friend request is not pending" };
+    }
+
+    // Update the friendship status
+    const updated = await db.update(friendships)
+      .set({ status: 'accepted', updatedAt: new Date() })
+      .where(eq(friendships.id, friendshipId))
       .returning();
-    return result[0];
+
+    return { success: true, friendship: updated[0] };
+  }
+
+  async rejectFriendRequest(friendshipId: string, recipientUserId: string): Promise<{ success: boolean; friendship?: Friendship; error?: string }> {
+    // Fetch the friendship to verify authorization
+    const result = await db.select().from(friendships).where(eq(friendships.id, friendshipId)).limit(1);
+    const friendship = result[0];
+
+    if (!friendship) {
+      return { success: false, error: "Friend request not found" };
+    }
+
+    if (friendship.friendId !== recipientUserId) {
+      return { success: false, error: "Unauthorized: You can only reject requests sent to you" };
+    }
+
+    if (friendship.status !== 'pending') {
+      return { success: false, error: "Friend request is not pending" };
+    }
+
+    // Update the friendship status
+    const updated = await db.update(friendships)
+      .set({ status: 'rejected', updatedAt: new Date() })
+      .where(eq(friendships.id, friendshipId))
+      .returning();
+
+    return { success: true, friendship: updated[0] };
   }
 
   async getFriendsQuotes(userId: string): Promise<QuoteWithAuthor[]> {
