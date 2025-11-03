@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Plus, User, Moon, Sun, LogOut } from "lucide-react";
+import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 interface TopNavigationProps {
   onCreateClick?: () => void;
@@ -14,6 +15,7 @@ export default function TopNavigation({
 }: TopNavigationProps) {
   const [darkMode, setDarkMode] = useState(false);
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -28,9 +30,31 @@ export default function TopNavigation({
   return (
     <header className="fixed top-0 left-0 right-0 h-16 border-b bg-background z-20">
       <div className="h-full px-4 flex items-center justify-between max-w-7xl mx-auto">
-        <h1 className="text-6xl font-bold font-display tracking-tight" data-testid="text-logo">
+        <h1 className="text-6xl font-bold font-display tracking-tight cursor-pointer" data-testid="text-logo" onClick={() => setLocation("/")}>
           IT
         </h1>
+        <nav className="hidden md:flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="default"
+            className="gap-2"
+            onClick={() => setLocation("/leaderboard")}
+            data-testid="button-nav-leaderboard"
+          >
+            <Flame className="w-4 h-4" />
+            <span>Leaderboard</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="default"
+            className="gap-2"
+            onClick={() => setLocation("/store")}
+            data-testid="button-nav-store"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>Store</span>
+          </Button>
+        </nav>
         <div className="flex items-center gap-2">
           <Button
             variant="default"
