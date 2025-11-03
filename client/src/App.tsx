@@ -3,14 +3,21 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import TopNavigation from "@/components/TopNavigation";
 import BottomNavigation, { type NavItem } from "@/components/BottomNavigation";
 import CreateQuoteModal from "@/components/CreateQuoteModal";
 
-import LandingPage from "@/pages/LandingPage";
 import FeedPage from "@/pages/FeedPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
 import StorePage from "@/pages/StorePage";
@@ -23,6 +30,13 @@ function Router() {
   const [location, setLocation] = useLocation();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const { isAuthenticated, isLoading } = useAuth();
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setLoginModalOpen(true);
+    }
+  }, [isLoading, isAuthenticated]);
 
   const handleNavigation = (item: NavItem) => {
     const routes: Record<NavItem, string> = {
@@ -41,19 +55,6 @@ function Router() {
     return "feed";
   };
 
-  // Show landing page for unauthenticated users
-  if (isLoading || !isAuthenticated) {
-    return (
-      <div className="min-h-screen">
-        <Switch>
-          <Route path="/" component={LandingPage} />
-          <Route component={LandingPage} />
-        </Switch>
-      </div>
-    );
-  }
-
-  // Show main app for authenticated users
   return (
     <div className="min-h-screen">
       <TopNavigation
@@ -79,6 +80,28 @@ function Router() {
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
       />
+      <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-3xl font-display text-center">QUOTE-IT</DialogTitle>
+            <DialogDescription className="text-center text-base pt-2">
+              Log in to share quotes, vote, and shop exclusive merch
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 pt-4">
+            <Button
+              size="lg"
+              onClick={() => {
+                window.location.href = "/api/login";
+              }}
+              className="w-full"
+              data-testid="button-login-modal"
+            >
+              Log In / Sign Up
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
