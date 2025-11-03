@@ -1,35 +1,63 @@
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import UserStats from "@/components/UserStats";
 import QuoteCard from "@/components/QuoteCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDistanceToNow } from "date-fns";
+import { Package, Loader2 } from "lucide-react";
 
-// TODO: remove mock functionality
-const userQuotes = [
-  {
-    id: "1",
-    content: "The only way to do great work is to love what you do",
-    author: "Me",
-    upvotes: 156,
-    downvotes: 12,
-    timeAgo: "2 hours ago",
-  },
-  {
-    id: "2",
-    content: "Innovation distinguishes between a leader and a follower",
-    author: "Me",
-    upvotes: 89,
-    downvotes: 5,
-    timeAgo: "1 day ago",
-  },
-  {
-    id: "3",
-    content: "Stay hungry, stay foolish",
-    author: "Me",
-    upvotes: 234,
-    downvotes: 8,
-    timeAgo: "3 days ago",
-  },
-];
+type Quote = {
+  id: string;
+  text: string;
+  authorId: string;
+  authorName: string;
+  voteCount: number;
+  createdAt: string;
+  isWeeklyWinner: boolean;
+};
+
+type Order = {
+  id: string;
+  productId: string;
+  amount: string;
+  status: string;
+  createdAt: string;
+  stripePaymentIntentId: string | null;
+  printfulOrderId: number | null;
+};
 
 export default function ProfilePage() {
+  const { user } = useAuth();
+
+  const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<Quote[]>({
+    queryKey: [`/api/quotes/user/${user?.id}`],
+    enabled: !!user?.id,
+  });
+
+  const { data: userOrders = [], isLoading: ordersLoading } = useQuery<Order[]>({
+    queryKey: [`/api/orders/user/${user?.id}`],
+    enabled: !!user?.id,
+  });
+
+  if (!user) {
+    return (
+      <div className="min-h-screen pb-20 md:pb-8 pt-16 flex items-center justify-center">
+        <p className="text-muted-foreground">Please log in to view your profile</p>
+      </div>
+    );
+  }
+
+  const totalVotes = userQuotes.reduce((sum, q) => sum + q.voteCount, 0);
+  const wins = userQuotes.filter(q => q.isWeeklyWinner).length;
+
+  const username = user.firstName && user.lastName 
+    ? `${user.firstName} ${user.lastName}`
+    : user.firstName || user.email || "Anonymous";
+
+  const joinDate = user.createdAt 
+    ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })
+    : "recently";
+
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -38,21 +66,93 @@ export default function ProfilePage() {
           <div className="md:col-span-1">
             <div className="md:sticky md:top-24">
               <UserStats
-                username="JohnDoe"
-                joinDate="January 2024"
-                postsCount={42}
-                totalVotes={1234}
-                wins={3}
+                username={username}
+                joinDate={joinDate}
+                postsCount={userQuotes.length}
+                totalVotes={totalVotes}
+                wins={wins}
               />
             </div>
           </div>
 
-          {/* User's Quotes */}
-          <div className="md:col-span-2 space-y-6">
-            <h2 className="text-2xl font-bold font-display">My Quotes</h2>
-            {userQuotes.map((quote) => (
-              <QuoteCard key={quote.id} {...quote} />
-            ))}
+          {/* User's Content */}
+          <div className="md:col-span-2 space-y-8">
+            {/* User's Quotes */}
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold font-display" data-testid="heading-my-quotes">My Quotes</h2>
+              {quotesLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : userQuotes.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    You haven't posted any quotes yet
+                  </CardContent>
+                </Card>
+              ) : (
+                userQuotes.map((quote) => (
+                  <QuoteCard
+                    key={quote.id}
+                    id={quote.id}
+                    content={quote.text}
+                    author={quote.authorName}
+                    upvotes={Math.max(0, quote.voteCount)}
+                    downvotes={0}
+                    timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Order History */}
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold font-display" data-testid="heading-order-history">Order History</h2>
+              {ordersLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : userOrders.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    No orders yet
+                  </CardContent>
+                </Card>
+              ) : (
+                userOrders.map((order) => (
+                  <Card key={order.id} data-testid={`order-${order.id}`}>
+                    <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex-1">
+                        <CardTitle className="text-base">
+                          Order #{order.id.substring(0, 8)}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">${order.amount}</p>
+                        <p className={`text-sm ${
+                          order.status === 'completed' ? 'text-green-600' : 
+                          order.status === 'failed' ? 'text-red-600' : 
+                          'text-yellow-600'
+                        }`} data-testid={`order-status-${order.id}`}>
+                          {order.status}
+                        </p>
+                      </div>
+                    </CardHeader>
+                    {order.printfulOrderId && (
+                      <CardContent className="pt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Printful Order: #{order.printfulOrderId}
+                        </p>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
