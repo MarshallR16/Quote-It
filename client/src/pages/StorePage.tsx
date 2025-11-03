@@ -29,24 +29,12 @@ interface WeeklyWinnerData {
   };
 }
 
-interface HallOfFameEntry {
-  id: string;
-  quoteId: string;
-  allTimeVoteCount: number;
-  quote: Quote;
-}
-
 export default function StorePage() {
   const [, navigate] = useLocation();
   
   // Fetch current weekly winner product
   const { data: weeklyWinner, isLoading: isLoadingWeekly } = useQuery<WeeklyWinnerData | null>({
     queryKey: ["/api/products/weekly-winner"],
-  });
-
-  // Fetch hall of fame entries
-  const { data: hallOfFame, isLoading: isLoadingHall } = useQuery<HallOfFameEntry[]>({
-    queryKey: ["/api/hall-of-fame"],
   });
 
   const handleAddToCart = (productId: string) => {
@@ -117,41 +105,6 @@ export default function StorePage() {
               <p className="text-muted-foreground text-lg mb-2">No weekly winner yet</p>
               <p className="text-sm text-muted-foreground">
                 Check back soon for this week's winning design!
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* "Hall of Fame" Section - Legendary Quotes (Display Only) */}
-        <section>
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold font-display mb-2">Hall of Fame</h2>
-            <p className="text-muted-foreground">Legendary all-time quotes</p>
-          </div>
-
-          {isLoadingHall ? (
-            <div className="flex items-center justify-center py-20">
-              <p className="text-muted-foreground">Loading hall of fame...</p>
-            </div>
-          ) : hallOfFame && hallOfFame.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {hallOfFame.map((entry) => (
-                <ProductCard
-                  key={entry.id}
-                  id={entry.id}
-                  imageUrl={heroImage}
-                  quote={entry.quote.text}
-                  author={entry.quote.authorId}
-                  price={0}
-                  onAddToCart={undefined}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-muted/30 rounded-md">
-              <p className="text-muted-foreground text-lg mb-2">Hall of Fame is empty</p>
-              <p className="text-sm text-muted-foreground">
-                The most legendary quotes will be immortalized here!
               </p>
             </div>
           )}
