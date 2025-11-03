@@ -1,13 +1,153 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { insertProductSchema, insertOrderSchema } from "@shared/schema";
+import { fromZodError } from "zod-validation-error";
+
+// Stripe will be initialized when keys are provided
+let stripe: any = null;
+
+// Check if Stripe keys are available and initialize
+if (process.env.STRIPE_SECRET_KEY) {
+  const Stripe = require("stripe");
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2023-10-16",
+  });
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  
+  // Get all active products
+  app.get("/api/products", async (_req, res) => {
+    try {
+      const products = await storage.getActiveProducts();
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching products: " + error.message });
+    }
+  });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  // Get current weekly winner product (for "Quoted" section)
+  app.get("/api/products/weekly-winner", async (_req, res) => {
+    try {
+      const winner = await storage.getCurrentWeeklyWinner();
+      if (!winner) {
+        return res.json(null);
+      }
+
+      // Get the product associated with this weekly winner
+      const products = await storage.getAllProducts();
+      const product = products.find(p => p.weeklyWinnerId === winner.id && p.isActive);
+      
+      if (!product) {
+        return res.json(null);
+      }
+
+      // Get the quote details
+      const quote = await storage.getQuote(product.quoteId);
+      
+      res.json({
+        product,
+        quote,
+        winner
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching weekly winner: " + error.message });
+    }
+  });
+
+  // Get hall of fame entries
+  app.get("/api/hall-of-fame", async (_req, res) => {
+    try {
+      const hallOfFameEntries = await storage.getHallOfFame();
+      
+      // Get quote details for each entry
+      const entriesWithQuotes = await Promise.all(
+        hallOfFameEntries.map(async (entry) => {
+          const quote = await storage.getQuote(entry.quoteId);
+          return {
+            ...entry,
+            quote
+          };
+        })
+      );
+      
+      res.json(entriesWithQuotes);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching hall of fame: " + error.message });
+    }
+  });
+
+  // Create payment intent for Stripe checkout
+  app.post("/api/create-payment-intent", async (req, res) => {
+    try {
+      if (!stripe) {
+        return res.status(503).json({ 
+          message: "Payment processing is not configured. Please contact support." 
+        });
+      }
+
+      const { amount, productId } = req.body;
+      
+      if (!amount || !productId) {
+        return res.status(400).json({ message: "Amount and productId are required" });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        metadata: {
+          productId
+        }
+      });
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error creating payment intent: " + error.message });
+    }
+  });
+
+  // Create an order (called after payment intent is created)
+  app.post("/api/orders", async (req, res) => {
+    try {
+      const result = insertOrderSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: fromZodError(result.error).toString() 
+        });
+      }
+
+      const order = await storage.createOrder(result.data);
+      res.json(order);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error creating order: " + error.message });
+    }
+  });
+
+  // Get user's orders
+  app.get("/api/orders/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const orders = await storage.getOrdersByUser(userId);
+      res.json(orders);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching orders: " + error.message });
+    }
+  });
+
+  // Update order status (webhook from Stripe would call this)
+  app.post("/api/orders/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, stripePaymentIntentId } = req.body;
+      
+      const order = await storage.updateOrderStatus(id, status, stripePaymentIntentId);
+      res.json(order);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error updating order: " + error.message });
+    }
+  });
 
   const httpServer = createServer(app);
 
