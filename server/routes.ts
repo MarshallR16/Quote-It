@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertProductSchema, insertOrderSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import { printfulService } from "./printful";
 
 // Stripe will be initialized when keys are provided
 let stripe: any = null;
@@ -15,6 +16,9 @@ if (process.env.STRIPE_SECRET_KEY) {
     apiVersion: "2023-10-16",
   });
 }
+
+// Check if Printful is configured
+const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -71,6 +75,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching weekly winner: " + error.message });
+    }
+  });
+
+  // Create Printful product from a quote (admin/automated)
+  app.post("/api/products/create-printful", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!isPrintfulConfigured) {
+        return res.status(503).json({ 
+          message: "Printful integration not configured" 
+        });
+      }
+
+      const { quoteId, weeklyWinnerId } = req.body;
+      
+      if (!quoteId) {
+        return res.status(400).json({ message: "quoteId is required" });
+      }
+
+      // Get quote details
+      const quote = await storage.getQuote(quoteId);
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+
+      // Get author info
+      const author = await storage.getUser(quote.authorId);
+      const authorName = author?.email?.split('@')[0] || 'unknown';
+
+      // Create product in Printful
+      console.log('Creating Printful product for quote:', quote.text);
+      const printfulProduct = await printfulService.createProduct(
+        quote.text,
+        authorName,
+        `quote-${quoteId}`
+      );
+
+      // Create product in our database
+      const productData = {
+        quoteId,
+        weeklyWinnerId: weeklyWinnerId || null,
+        name: `"${quote.text.substring(0, 50)}${quote.text.length > 50 ? '...' : ''}"`,
+        description: `Quote by ${authorName}`,
+        price: '29.99',
+        imageUrl: null, // Will be updated with mockup
+        printfulSyncProductId: printfulProduct.id,
+        printfulSyncVariants: printfulProduct,
+        isActive: true,
+      };
+
+      const product = await storage.createProduct(productData);
+      
+      res.json({ 
+        product,
+        printfulProduct,
+        message: 'Product created in Printful successfully'
+      });
+    } catch (error: any) {
+      console.error('Error creating Printful product:', error);
+      res.status(500).json({ message: "Error creating product: " + error.message });
     }
   });
 

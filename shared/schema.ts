@@ -101,6 +101,8 @@ export const products = pgTable("products", {
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   imageUrl: text("image_url"),
+  printfulSyncProductId: integer("printful_sync_product_id"),
+  printfulSyncVariants: jsonb("printful_sync_variants"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -118,6 +120,8 @@ export const orders = pgTable("orders", {
   userId: varchar("user_id").notNull().references(() => users.id),
   productId: varchar("product_id").notNull().references(() => products.id),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  printfulOrderId: integer("printful_order_id"),
+  shippingAddress: jsonb("shipping_address"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"), // pending, completed, failed
   createdAt: timestamp("created_at").notNull().defaultNow(),
