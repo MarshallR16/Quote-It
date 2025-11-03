@@ -7,19 +7,22 @@ import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 
-interface Quote {
+interface QuoteWithAuthor {
   id: string;
   text: string;
   authorId: string;
   createdAt: string;
   voteCount: number;
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  authorEmail: string | null;
 }
 
 export default function FeedPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("recent");
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  const { data: quotes, isLoading } = useQuery<Quote[]>({
+  const { data: quotes, isLoading } = useQuery<QuoteWithAuthor[]>({
     queryKey: ["/api/quotes"],
   });
 
@@ -51,17 +54,28 @@ export default function FeedPage() {
             <p className="text-sm text-muted-foreground">Be the first to share a quote!</p>
           </div>
         ) : (
-          sortedQuotes.map((quote) => (
-            <QuoteCard
-              key={quote.id}
-              id={quote.id}
-              content={quote.text}
-              author={quote.authorId}
-              upvotes={Math.max(0, quote.voteCount)}
-              downvotes={Math.max(0, -quote.voteCount)}
-              timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}
-            />
-          ))
+          sortedQuotes.map((quote) => {
+            // Construct author name with proper fallback logic
+            const firstName = quote.authorFirstName?.trim();
+            const lastName = quote.authorLastName?.trim();
+            const email = quote.authorEmail?.trim();
+            
+            const authorName = (firstName && lastName)
+              ? `${firstName} ${lastName}`
+              : firstName || lastName || email || 'Anonymous';
+            
+            return (
+              <QuoteCard
+                key={quote.id}
+                id={quote.id}
+                content={quote.text}
+                author={authorName}
+                upvotes={Math.max(0, quote.voteCount)}
+                downvotes={Math.max(0, -quote.voteCount)}
+                timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}
+              />
+            );
+          })
         )}
       </div>
 

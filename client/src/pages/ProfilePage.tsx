@@ -6,14 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Package, Loader2 } from "lucide-react";
 
-type Quote = {
+type QuoteWithAuthor = {
   id: string;
   text: string;
   authorId: string;
-  authorName: string;
   voteCount: number;
   createdAt: string;
-  isWeeklyWinner: boolean;
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  authorEmail: string | null;
 };
 
 type Order = {
@@ -29,7 +30,7 @@ type Order = {
 export default function ProfilePage() {
   const { user } = useAuth();
 
-  const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<Quote[]>({
+  const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<QuoteWithAuthor[]>({
     queryKey: [`/api/quotes/user/${user?.id}`],
     enabled: !!user?.id,
   });
@@ -48,7 +49,7 @@ export default function ProfilePage() {
   }
 
   const totalVotes = userQuotes.reduce((sum, q) => sum + q.voteCount, 0);
-  const wins = userQuotes.filter(q => q.isWeeklyWinner).length;
+  const wins = 0; // TODO: Implement weekly winners tracking
 
   const username = user.firstName && user.lastName 
     ? `${user.firstName} ${user.lastName}`
@@ -91,17 +92,28 @@ export default function ProfilePage() {
                   </CardContent>
                 </Card>
               ) : (
-                userQuotes.map((quote) => (
-                  <QuoteCard
-                    key={quote.id}
-                    id={quote.id}
-                    content={quote.text}
-                    author={quote.authorName}
-                    upvotes={Math.max(0, quote.voteCount)}
-                    downvotes={0}
-                    timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}
-                  />
-                ))
+                userQuotes.map((quote) => {
+                  // Construct author name with proper fallback logic
+                  const firstName = quote.authorFirstName?.trim();
+                  const lastName = quote.authorLastName?.trim();
+                  const email = quote.authorEmail?.trim();
+                  
+                  const authorName = (firstName && lastName)
+                    ? `${firstName} ${lastName}`
+                    : firstName || lastName || email || 'Anonymous';
+                  
+                  return (
+                    <QuoteCard
+                      key={quote.id}
+                      id={quote.id}
+                      content={quote.text}
+                      author={authorName}
+                      upvotes={Math.max(0, quote.voteCount)}
+                      downvotes={0}
+                      timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}
+                    />
+                  );
+                })
               )}
             </div>
 

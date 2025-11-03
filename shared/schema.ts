@@ -47,6 +47,13 @@ export const insertQuoteSchema = createInsertSchema(quotes).omit({
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type Quote = typeof quotes.$inferSelect;
 
+// Quote with author information for display
+export type QuoteWithAuthor = Quote & {
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  authorEmail: string | null;
+};
+
 export const votes = pgTable("votes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),

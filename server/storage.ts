@@ -1,4 +1,4 @@
-import { type User, type UpsertUser, type Quote, type InsertQuote, type Vote, type InsertVote, type Product, type InsertProduct, type Order, type InsertOrder, type WeeklyWinner, type InsertWeeklyWinner, type HallOfFame, type InsertHallOfFame, users, quotes, votes, products, orders, weeklyWinners, hallOfFame } from "@shared/schema";
+import { type User, type UpsertUser, type Quote, type QuoteWithAuthor, type InsertQuote, type Vote, type InsertVote, type Product, type InsertProduct, type Order, type InsertOrder, type WeeklyWinner, type InsertWeeklyWinner, type HallOfFame, type InsertHallOfFame, users, quotes, votes, products, orders, weeklyWinners, hallOfFame } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 
@@ -11,8 +11,8 @@ export interface IStorage {
 
   // Quote methods
   getQuote(id: string): Promise<Quote | undefined>;
-  getAllQuotes(): Promise<Quote[]>;
-  getQuotesByUser(userId: string): Promise<Quote[]>;
+  getAllQuotes(): Promise<QuoteWithAuthor[]>;
+  getQuotesByUser(userId: string): Promise<QuoteWithAuthor[]>;
   createQuote(quote: InsertQuote): Promise<Quote>;
   updateQuote(id: string, data: Partial<Quote>): Promise<Quote>;
   deleteQuote(id: string): Promise<void>;
@@ -123,12 +123,43 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async getAllQuotes(): Promise<Quote[]> {
-    return await db.select().from(quotes).orderBy(desc(quotes.voteCount));
+  async getAllQuotes(): Promise<QuoteWithAuthor[]> {
+    const result = await db
+      .select({
+        id: quotes.id,
+        text: quotes.text,
+        authorId: quotes.authorId,
+        createdAt: quotes.createdAt,
+        voteCount: quotes.voteCount,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorEmail: users.email,
+      })
+      .from(quotes)
+      .leftJoin(users, eq(quotes.authorId, users.id))
+      .orderBy(desc(quotes.voteCount));
+    
+    return result as QuoteWithAuthor[];
   }
 
-  async getQuotesByUser(userId: string): Promise<Quote[]> {
-    return await db.select().from(quotes).where(eq(quotes.authorId, userId)).orderBy(desc(quotes.createdAt));
+  async getQuotesByUser(userId: string): Promise<QuoteWithAuthor[]> {
+    const result = await db
+      .select({
+        id: quotes.id,
+        text: quotes.text,
+        authorId: quotes.authorId,
+        createdAt: quotes.createdAt,
+        voteCount: quotes.voteCount,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorEmail: users.email,
+      })
+      .from(quotes)
+      .leftJoin(users, eq(quotes.authorId, users.id))
+      .where(eq(quotes.authorId, userId))
+      .orderBy(desc(quotes.createdAt));
+    
+    return result as QuoteWithAuthor[];
   }
 
   async createQuote(insertQuote: InsertQuote): Promise<Quote> {
