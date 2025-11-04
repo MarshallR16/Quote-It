@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { signInWithRedirect, getRedirectResult } from "firebase/auth";
 import { auth, googleProvider, appleProvider } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,24 +34,8 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Try popup first, fall back to redirect if popup is blocked
-      try {
-        const result = await signInWithPopup(auth, googleProvider);
-        if (result.user) {
-          // Don't reset loading - App.tsx will handle the transition to feed
-          toast({
-            title: "Welcome!",
-            description: "You've successfully signed in",
-          });
-        }
-      } catch (popupError: any) {
-        // If popup was blocked, use redirect (loading state persists during redirect)
-        if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/popup-closed-by-user') {
-          await signInWithRedirect(auth, googleProvider);
-        } else {
-          throw popupError;
-        }
-      }
+      // Use redirect flow to avoid COOP errors
+      await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast({
@@ -66,24 +50,8 @@ export default function LoginPage() {
   const handleAppleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Try popup first, fall back to redirect if popup is blocked
-      try {
-        const result = await signInWithPopup(auth, appleProvider);
-        if (result.user) {
-          // Don't redirect immediately - let useAuth handle it after DB user is created
-          toast({
-            title: "Welcome!",
-            description: "You've successfully signed in",
-          });
-        }
-      } catch (popupError: any) {
-        // If popup was blocked, use redirect
-        if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/popup-closed-by-user') {
-          await signInWithRedirect(auth, appleProvider);
-        } else {
-          throw popupError;
-        }
-      }
+      // Use redirect flow to avoid COOP errors
+      await signInWithRedirect(auth, appleProvider);
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast({
