@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Flame, Clock, TrendingUp, Users } from "lucide-react";
 import WeeklyWinnerCountdown from "@/components/WeeklyWinnerCountdown";
@@ -14,10 +13,7 @@ export default function FeedFilters({
   activeFilter = "recent",
   onFilterChange,
 }: FeedFiltersProps) {
-  const [active, setActive] = useState<FilterType>(activeFilter);
-
   const handleFilterClick = (filter: FilterType) => {
-    setActive(filter);
     onFilterChange?.(filter);
     console.log(`Filter changed to: ${filter}`);
   };
@@ -40,7 +36,7 @@ export default function FeedFilters({
         {filters.map(({ type, label, icon: Icon }) => (
           <div key={type} className="relative flex-1">
             <Button
-              variant={active === type ? "default" : "ghost"}
+              variant={activeFilter === type ? "default" : "ghost"}
               size="sm"
               className="w-full rounded-full gap-1 transition-all"
               onClick={() => handleFilterClick(type)}
@@ -49,7 +45,7 @@ export default function FeedFilters({
               <Icon className="w-4 h-4" />
               <span className="font-medium">{label}</span>
             </Button>
-            {active === type && (
+            {activeFilter === type && (
               <div className="absolute -bottom-3 left-0 right-0 h-0.5 bg-primary rounded-full" />
             )}
           </div>
