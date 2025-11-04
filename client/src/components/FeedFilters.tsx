@@ -22,10 +22,9 @@ export default function FeedFilters({
   };
 
   const filters: { type: FilterType; label: string; icon: any }[] = [
-    { type: "recent", label: "Recent", icon: Clock },
-    { type: "trending", label: "Trending", icon: Flame },
-    { type: "top", label: "Top", icon: TrendingUp },
-    { type: "friends", label: "Friends", icon: Users },
+    { type: "top", label: "Ranking", icon: TrendingUp },
+    { type: "friends", label: "Following", icon: Users },
+    { type: "recent", label: "Rate It", icon: Clock },
   ];
 
   return (
