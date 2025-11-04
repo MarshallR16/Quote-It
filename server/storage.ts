@@ -65,17 +65,17 @@ export class DbStorage implements IStorage {
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    return result[0];
+    return result[0] as User | undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-    return result[0];
+    return result[0] as User | undefined;
   }
 
   async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.referralCode, referralCode)).limit(1);
-    return result[0];
+    return result[0] as User | undefined;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
@@ -90,7 +90,7 @@ export class DbStorage implements IStorage {
         },
       })
       .returning();
-    return result[0];
+    return result[0] as User;
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
@@ -98,7 +98,7 @@ export class DbStorage implements IStorage {
       .set({ ...data, updatedAt: new Date() })
       .where(eq(users.id, id))
       .returning();
-    return result[0];
+    return result[0] as User;
   }
 
   async incrementReferralCount(userId: string): Promise<void> {

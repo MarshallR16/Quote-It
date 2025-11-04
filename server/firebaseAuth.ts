@@ -159,6 +159,15 @@ export async function setupFirebaseAuth(app: Express) {
         console.log('[AUTH] User created successfully:', user);
       } else {
         console.log('[AUTH] User found in DB:', user.email);
+        
+        // BACKFILL: Check if existing user is missing a referral code
+        if (!user.referralCode) {
+          console.log('[AUTH] Existing user missing referral code, generating one...');
+          const referralCode = await generateReferralCode();
+          await storage.updateUser(user.id, { referralCode });
+          user = await storage.getUser(firebaseUser.uid);
+          console.log('[AUTH] Backfilled referral code:', referralCode);
+        }
       }
       
       res.json(user);

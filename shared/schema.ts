@@ -27,7 +27,7 @@ export const users = pgTable("users", {
   termsAccepted: boolean("terms_accepted").notNull().default(false),
   termsAcceptedAt: timestamp("terms_accepted_at"),
   referralCode: varchar("referral_code").unique(),
-  referredBy: varchar("referred_by").references(() => users.id),
+  referredBy: varchar("referred_by"),
   referralCount: integer("referral_count").notNull().default(0),
   usedReferralDiscounts: integer("used_referral_discounts").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
