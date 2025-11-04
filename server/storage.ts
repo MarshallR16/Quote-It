@@ -365,6 +365,31 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getHallOfFameUsers(): Promise<any[]> {
+    // Get user stats: weekly wins count and total votes
+    const result = await db
+      .select({
+        userId: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        weeklyWins: sql<number>`CAST(COUNT(DISTINCT ${weeklyWinners.id}) AS INTEGER)`,
+        totalVotes: sql<number>`CAST(COALESCE(SUM(${quotes.voteCount}), 0) AS INTEGER)`,
+      })
+      .from(users)
+      .leftJoin(quotes, eq(quotes.authorId, users.id))
+      .leftJoin(weeklyWinners, eq(weeklyWinners.quoteId, quotes.id))
+      .groupBy(users.id, users.username, users.firstName, users.lastName, users.profileImageUrl)
+      .orderBy(
+        desc(sql`COUNT(DISTINCT ${weeklyWinners.id})`),
+        desc(sql`COALESCE(SUM(${quotes.voteCount}), 0)`)
+      );
+    
+    // Filter out users with no activity (0 wins and 0 votes)
+    return result.filter(user => user.weeklyWins > 0 || user.totalVotes > 0);
+  }
+
   // Follow methods
   async getFollow(followerId: string, followingId: string): Promise<Follow | undefined> {
     const result = await db.select().from(follows)

@@ -323,23 +323,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get hall of fame entries
+  // Get hall of fame - top users by wins and total votes
   app.get("/api/hall-of-fame", async (_req, res) => {
     try {
-      const hallOfFameEntries = await storage.getHallOfFame();
-      
-      // Get quote details for each entry
-      const entriesWithQuotes = await Promise.all(
-        hallOfFameEntries.map(async (entry) => {
-          const quote = await storage.getQuote(entry.quoteId);
-          return {
-            ...entry,
-            quote
-          };
-        })
-      );
-      
-      res.json(entriesWithQuotes);
+      const userStats = await storage.getHallOfFameUsers();
+      res.json(userStats);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching hall of fame: " + error.message });
     }
