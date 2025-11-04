@@ -37,26 +37,48 @@ export async function setupFirebaseAuth(app: Express) {
   app.get("/api/auth/user", verifyFirebaseToken, async (req: any, res) => {
     try {
       const firebaseUser = req.firebaseUser;
+      console.log('[AUTH] Checking user in database:', firebaseUser.uid);
       
       // Get or create user in database
       let user = await storage.getUser(firebaseUser.uid);
       
       if (!user) {
+        console.log('[AUTH] User not found in DB, creating new user');
+        
+        // Fetch full user data from Firebase Admin to get display name and photo
+        let displayName = null;
+        let photoURL = null;
+        
+        try {
+          const firebaseUserRecord = await auth.getUser(firebaseUser.uid);
+          displayName = firebaseUserRecord.displayName;
+          photoURL = firebaseUserRecord.photoURL;
+          console.log('[AUTH] Firebase user details:', { displayName, photoURL, email: firebaseUserRecord.email });
+        } catch (fetchError) {
+          console.error('[AUTH] Could not fetch Firebase user details:', fetchError);
+        }
+        
         // Create new user
-        await storage.upsertUser({
+        const newUserData = {
           id: firebaseUser.uid,
-          email: firebaseUser.email,
-          firstName: firebaseUser.name?.split(' ')[0] || null,
-          lastName: firebaseUser.name?.split(' ').slice(1).join(' ') || null,
-          profileImageUrl: firebaseUser.picture || null,
-        });
+          email: firebaseUser.email || null,
+          firstName: displayName?.split(' ')[0] || null,
+          lastName: displayName?.split(' ').slice(1).join(' ') || null,
+          profileImageUrl: photoURL || null,
+        };
+        console.log('[AUTH] Creating user with data:', newUserData);
+        
+        await storage.upsertUser(newUserData);
         
         user = await storage.getUser(firebaseUser.uid);
+        console.log('[AUTH] User created successfully:', user);
+      } else {
+        console.log('[AUTH] User found in DB:', user.email);
       }
       
       res.json(user);
     } catch (error: any) {
-      console.error('Error getting user:', error);
+      console.error('[AUTH] Error getting user:', error);
       res.status(500).json({ message: "Error getting user: " + error.message });
     }
   });
