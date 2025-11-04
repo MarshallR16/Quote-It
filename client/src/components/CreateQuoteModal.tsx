@@ -39,6 +39,7 @@ export default function CreateQuoteModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] }); // Refresh user data to update streak
       refetchLimit(); // Refetch the limit after posting
       toast({
         title: "Quote posted!",

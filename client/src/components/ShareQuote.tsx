@@ -18,43 +18,77 @@ interface ShareQuoteProps {
 export default function ShareQuote({ quoteId, quoteText, authorName }: ShareQuoteProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
-
-  // Generate share URL (current page URL or quote-specific URL)
-  const quoteUrl = `${window.location.origin}/#quote-${quoteId}`;
   
   // Truncate quote if too long for social media
   const truncatedQuote = quoteText.length > 200 
     ? quoteText.substring(0, 197) + "..." 
     : quoteText;
 
-  // Generate share text
+  // Generate share text (URL will be determined at click time)
   const shareText = `"${truncatedQuote}" — ${authorName}`;
-  const shareTextWithUrl = `${shareText}\n\n${quoteUrl}`;
-  const shareTextWithHashtag = `${shareText} #QuoteIt\n\n${quoteUrl}`;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareTextWithUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast({
-      title: "Copied!",
-      description: "Quote and link copied to clipboard",
-    });
+  const getQuoteUrl = () => {
+    if (typeof window === 'undefined') return '';
+    // Return the platform URL - Quote-It is a feed-based app without individual quote pages
+    return `${window.location.origin}/`;
+  };
+
+  const handleCopyLink = async () => {
+    const quoteUrl = getQuoteUrl();
+    // Include the full quote in the share text since there's no individual quote page
+    const shareTextWithUrl = `${shareText}\n\nDiscover more quotes at Quote-It: ${quoteUrl}`;
+    
+    try {
+      // Check if clipboard API is available (requires HTTPS or localhost)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareTextWithUrl);
+      } else {
+        // Fallback for non-HTTPS environments
+        const textArea = document.createElement('textarea');
+        textArea.value = shareTextWithUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({
+        title: "Copied!",
+        description: "Quote copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to copy",
+        description: "Please copy the text manually",
+      });
+    }
   };
 
   const handleTwitterShare = () => {
+    const quoteUrl = getQuoteUrl();
+    // Include hashtag and platform URL
+    const shareTextWithHashtag = `${shareText}\n\n#QuoteIt ${quoteUrl}`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTextWithHashtag)}`;
-    window.open(twitterUrl, '_blank', 'width=550,height=420');
+    window.open(twitterUrl, '_blank', 'width=550,height=420,noopener,noreferrer');
   };
 
   const handleFacebookShare = () => {
+    const quoteUrl = getQuoteUrl();
+    // Facebook will use the quote as the share text
     const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(quoteUrl)}&quote=${encodeURIComponent(shareText)}`;
-    window.open(facebookUrl, '_blank', 'width=550,height=420');
+    window.open(facebookUrl, '_blank', 'width=550,height=420,noopener,noreferrer');
   };
 
   const handleLinkedInShare = () => {
+    const quoteUrl = getQuoteUrl();
+    // LinkedIn will preview the homepage
     const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(quoteUrl)}`;
-    window.open(linkedInUrl, '_blank', 'width=550,height=420');
+    window.open(linkedInUrl, '_blank', 'width=550,height=420,noopener,noreferrer');
   };
 
   return (

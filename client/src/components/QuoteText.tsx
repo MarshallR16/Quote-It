@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface QuoteTextProps {
   text: string;
@@ -6,24 +7,41 @@ interface QuoteTextProps {
 
 export default function QuoteText({ text }: QuoteTextProps) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
 
   const handleMentionClick = async (username: string) => {
     try {
-      // Look up user by username
-      const response = await fetch(`/api/users/by-username/${username}`);
+      // Normalize username to lowercase for lookup
+      const normalizedUsername = username.toLowerCase();
+      const response = await fetch(`/api/users/by-username/${encodeURIComponent(normalizedUsername)}`);
+      
       if (response.ok) {
         const user = await response.json();
         navigate(`/users/${user.id}`);
+      } else if (response.status === 404) {
+        toast({
+          variant: "destructive",
+          title: "User not found",
+          description: `@${username} doesn't exist`,
+        });
+      } else {
+        throw new Error('Failed to lookup user');
       }
     } catch (error) {
       console.error('Error looking up user:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load user profile",
+      });
     }
   };
 
   // Parse text and find @mentions
   const parseText = () => {
-    // Match @username pattern (letters, numbers, dots, underscores)
-    const mentionRegex = /@([a-zA-Z0-9._]+)/g;
+    // Match @username pattern - matches the username format (letters, numbers, dots)
+    // This matches firstname.lastname or firstname.lastname2 etc
+    const mentionRegex = /@([a-z0-9.]+)/gi;
     const parts: (string | JSX.Element)[] = [];
     let lastIndex = 0;
     let match;
@@ -46,6 +64,7 @@ export default function QuoteText({ text }: QuoteTextProps) {
           }}
           className="text-primary font-medium hover:underline"
           data-testid={`mention-${username}`}
+          aria-label={`Go to ${username}'s profile`}
         >
           @{username}
         </button>

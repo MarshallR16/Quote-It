@@ -143,8 +143,13 @@ export class DbStorage implements IStorage {
       // Calculate streak
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
       
       const lastStreakDate = user[0].lastStreakDate ? new Date(user[0].lastStreakDate) : null;
+      if (lastStreakDate) {
+        lastStreakDate.setHours(0, 0, 0, 0);
+      }
+      
       let newStreak = user[0].currentStreak || 0;
       
       if (isNewDay) {
@@ -157,6 +162,7 @@ export class DbStorage implements IStorage {
         // If they already posted today (lastStreakDate === today), keep current streak
       }
       
+      // Update longest streak if current streak is now higher
       const newLongestStreak = Math.max(user[0].longestStreak || 0, newStreak);
 
       // Atomically increment the counter and update streak
