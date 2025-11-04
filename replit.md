@@ -6,13 +6,21 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
-**Friends Functionality (Complete)**
-- Added Friends filter tab to feed page for viewing friends' quotes only
-- Implemented full friend request system with storage-layer authorization
-- Security: acceptFriendRequest/rejectFriendRequest methods prevent self-approval and enforce pending-only state transitions
-- New database table: friendships (requesterUserId, friendId, status, timestamps)
-- API endpoints: /api/friends (list), /api/friends/requests (pending), /api/friends/request (send), /api/friends/accept/:id, /api/friends/reject/:id
-- GET /api/quotes/friends endpoint for retrieving friends' quotes
+**Firebase Authentication Migration (Complete)**
+- Migrated from Replit Auth to Firebase Authentication for direct user sign-in
+- Users can now sign in with Google and Apple without needing a Replit account
+- Firebase Admin SDK integration for backend token verification
+- Updated all API routes to use Firebase user IDs
+- Login page with popup/redirect authentication flow
+
+**Following System (Complete)**
+- Replaced friend request system with Twitter-style following system
+- Users can follow/unfollow others instantly (no pending requests)
+- Mutual follows = friends (automatic when both users follow each other)
+- New database table: follows (followerId, followingId, createdAt)
+- API endpoints: /api/follow/:userId (POST=follow, DELETE=unfollow), /api/following, /api/followers, /api/friends (mutual follows)
+- Feed tabs renamed: "Ranking" (top votes), "Following" (friends' quotes), "Rate It" (recent)
+- GET /api/quotes/friends endpoint returns quotes from mutual follows
 
 **Store Page Simplification**
 - Removed large hero section (previously 400-500px) and "Shop the Collection" button
