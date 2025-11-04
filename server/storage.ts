@@ -140,12 +140,34 @@ export class DbStorage implements IStorage {
         return { success: false, remaining: 0, error: "Daily limit reached" };
       }
 
-      // Atomically increment the counter
+      // Calculate streak
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const lastStreakDate = user[0].lastStreakDate ? new Date(user[0].lastStreakDate) : null;
+      let newStreak = user[0].currentStreak || 0;
+      
+      if (isNewDay) {
+        // Check if they posted yesterday to maintain streak
+        if (lastStreakDate && lastStreakDate.getTime() === yesterday.getTime()) {
+          newStreak += 1; // Continue streak
+        } else if (!lastStreakDate || lastStreakDate.getTime() < yesterday.getTime()) {
+          newStreak = 1; // Start new streak
+        }
+        // If they already posted today (lastStreakDate === today), keep current streak
+      }
+      
+      const newLongestStreak = Math.max(user[0].longestStreak || 0, newStreak);
+
+      // Atomically increment the counter and update streak
       const newCount = isNewDay ? 1 : currentCount + 1;
       await tx.update(users)
         .set({
           dailyPostCount: newCount,
           lastPostDate: new Date(),
+          currentStreak: newStreak,
+          longestStreak: newLongestStreak,
+          lastStreakDate: today,
           updatedAt: new Date(),
         })
         .where(eq(users.id, userId));
