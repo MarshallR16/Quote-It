@@ -3,23 +3,12 @@ import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase
 import { auth, googleProvider, appleProvider } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { SiGoogle, SiApple } from "react-icons/si";
-import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-
-  // Redirect authenticated users to feed
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      setLocation("/");
-    }
-  }, [authLoading, isAuthenticated, setLocation]);
 
   // Handle redirect result when user returns from OAuth provider
   useEffect(() => {
@@ -30,7 +19,6 @@ export default function LoginPage() {
             title: "Welcome!",
             description: "You've successfully signed in",
           });
-          // Don't redirect here - let the isAuthenticated check handle it
         }
       })
       .catch((error) => {
@@ -42,23 +30,6 @@ export default function LoginPage() {
         });
       });
   }, [toast]);
-
-  // Show loading screen if checking auth or signing in
-  if (authLoading || isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <h1 className="text-6xl font-bold font-display tracking-tight mb-4">"IT"</h1>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render login form if already authenticated
-  if (isAuthenticated) {
-    return null;
-  }
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
