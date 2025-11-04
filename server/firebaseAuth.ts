@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 import type { Express, RequestHandler } from "express";
 import { storage } from "./storage";
+import crypto from "crypto";
 
 // Initialize Firebase Admin with minimal config for token verification
 // Using credential: none mode which only allows token verification without requiring service account
@@ -22,12 +23,32 @@ if (!admin.apps.length) {
 
 export const auth = admin.auth();
 
-// Generate a unique referral code from username
-function generateReferralCode(username: string): string {
-  // Create a code from username (first 6 chars) + random 4-digit number
-  const baseCode = username.substring(0, 6).toUpperCase().replace(/[^A-Z]/g, '');
-  const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
-  return `${baseCode}${randomNum}`;
+// Generate a cryptographically secure 8-character referral code
+// Uses base62 (alphanumeric) excluding similar-looking characters (0/O, 1/I/l)
+async function generateReferralCode(): Promise<string> {
+  const charset = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 32 chars, no ambiguous ones
+  const codeLength = 8;
+  
+  // Try up to 10 times to generate a unique code
+  for (let attempt = 0; attempt < 10; attempt++) {
+    let code = '';
+    const randomBytes = crypto.randomBytes(codeLength);
+    
+    for (let i = 0; i < codeLength; i++) {
+      code += charset[randomBytes[i] % charset.length];
+    }
+    
+    // Check if code is unique
+    const existingUser = await storage.getUserByReferralCode(code);
+    if (!existingUser) {
+      return code;
+    }
+    
+    console.log('[Referral] Code collision detected, regenerating...');
+  }
+  
+  // If we still can't generate a unique code after 10 attempts, throw error
+  throw new Error('Failed to generate unique referral code after 10 attempts');
 }
 
 // Generate a unique username from first and last name
@@ -117,7 +138,7 @@ export async function setupFirebaseAuth(app: Express) {
         console.log('[AUTH] Generated username:', username);
         
         // Generate unique referral code
-        const referralCode = generateReferralCode(username);
+        const referralCode = await generateReferralCode();
         console.log('[AUTH] Generated referral code:', referralCode);
         
         // Create new user with all required fields
@@ -228,7 +249,7 @@ export async function setupFirebaseAuth(app: Express) {
       const username = await generateUniqueUsername(firstName, lastName);
       
       // Generate unique referral code for new user
-      const referralCode = generateReferralCode(username);
+      const referralCode = await generateReferralCode();
       
       // Get photo from token if available
       const photoURL = firebaseUser.picture || null;

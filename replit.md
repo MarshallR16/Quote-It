@@ -6,6 +6,17 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Referral System (Complete - November 4, 2025)**
+- Implemented stacking referral discount system: 10% off per person referred (no cap)
+- Each user receives a unique 8-character referral code on signup
+- Referral codes use cryptographically secure randomness with collision detection
+- New users can apply referral codes during signup
+- Database fields: referralCode (unique), referredBy (referrer ID), referralCount (# of referrals)
+- Profile page displays referral code with copy-to-clipboard functionality
+- Checkout page shows discount breakdown when applicable (subtotal, discount %, final total)
+- Server-side discount calculation in payment intent creation for security
+- API endpoint: POST /api/auth/apply-referral for applying codes
+
 **Public Viewing (Complete - November 4, 2025)**
 - App is now publicly viewable without requiring sign-in
 - Anyone can browse quotes, leaderboard, and store without authentication
@@ -91,7 +102,7 @@ Preferred communication style: Simple, everyday language.
 - Schema-first design with Zod validation
 
 **Data Models**
-- Users: Authentication and profile data
+- Users: Authentication and profile data with referral tracking (referralCode, referredBy, referralCount)
 - Quotes: User-submitted content with vote tracking
 - Votes: User voting records with cascade deletion
 - Products: Printful-synced merchandise items
@@ -99,6 +110,14 @@ Preferred communication style: Simple, everyday language.
 - Weekly Winners: Historical record of winning quotes
 - Hall of Fame: Achievement tracking
 - Sessions: Persistent session storage for authentication
+
+**Referral System**
+- Cryptographically secure 8-character codes using base32 charset (excludes ambiguous characters)
+- Collision detection with retry logic (up to 10 attempts)
+- Referral tracking: referredBy links new users to their referrer
+- Automatic referralCount increment when referral code is successfully applied
+- Discount calculation: 10% × referralCount, applied server-side during checkout
+- Payment metadata includes discount information for audit trail
 
 **Authentication Flow**
 - Replit OpenID Connect integration via Passport.js strategy
