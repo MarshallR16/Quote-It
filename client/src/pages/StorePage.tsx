@@ -1,8 +1,11 @@
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { Trophy, TrendingUp, Clock } from "lucide-react";
 import heroImage from "@assets/generated_images/Hero_lifestyle_t-shirt_photo_a1c8cecb.png";
+import { useEffect, useState } from "react";
 
 interface Quote {
   id: string;
@@ -31,11 +34,45 @@ interface WeeklyWinnerData {
 
 export default function StorePage() {
   const [, navigate] = useLocation();
+  const [timeLeft, setTimeLeft] = useState<string>("");
   
   // Fetch current weekly winner product
   const { data: weeklyWinner, isLoading: isLoadingWeekly } = useQuery<WeeklyWinnerData | null>({
     queryKey: ["/api/products/weekly-winner"],
   });
+
+  // Calculate time left in the week
+  useEffect(() => {
+    if (!weeklyWinner?.winner.weekEndDate) return;
+
+    const updateTimeLeft = () => {
+      const now = new Date();
+      const end = new Date(weeklyWinner.winner.weekEndDate);
+      const diff = end.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeLeft("Ended");
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      
+      if (days > 0) {
+        setTimeLeft(`${days} day${days > 1 ? 's' : ''} left`);
+      } else if (hours > 0) {
+        setTimeLeft(`${hours} hour${hours > 1 ? 's' : ''} left`);
+      } else {
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        setTimeLeft(`${minutes} minute${minutes > 1 ? 's' : ''} left`);
+      }
+    };
+
+    updateTimeLeft();
+    const interval = setInterval(updateTimeLeft, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [weeklyWinner]);
 
   const handleAddToCart = (productId: string) => {
     navigate(`/checkout/${productId}`);
@@ -43,15 +80,50 @@ export default function StorePage() {
 
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">
-      {/* Simple Header Banner */}
+      {/* Enhanced Header Banner */}
       <div className="bg-card border-b mb-8">
-        <div className="max-w-7xl mx-auto px-4 py-8 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2 font-display">
-            This Week's Design
-          </h1>
-          <p className="text-muted-foreground">
-            Every week, the community's favorite quote becomes a premium Bella+Canvas T-shirt
-          </p>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="text-center space-y-4">
+            {/* Weekly Winner Badge */}
+            <div className="flex justify-center">
+              <Badge className="text-base px-4 py-2 gap-2" data-testid="badge-weekly-winner">
+                <Trophy className="w-4 h-4" />
+                SHIRT OF THE WEEK
+              </Badge>
+            </div>
+            
+            <h1 className="text-3xl md:text-4xl font-bold font-display">
+              This Week's Most Voted Design
+            </h1>
+            
+            {weeklyWinner && (
+              <div className="flex items-center justify-center gap-6 text-sm">
+                {/* Vote Count */}
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  <span className="font-bold text-lg" data-testid="text-vote-count">
+                    {weeklyWinner.winner.finalVoteCount.toLocaleString()}
+                  </span>
+                  <span className="text-muted-foreground">VOTES</span>
+                </div>
+                
+                {/* Time Left */}
+                {timeLeft && (
+                  <>
+                    <div className="h-4 w-px bg-border" />
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-primary" />
+                      <span className="font-semibold" data-testid="text-time-left">{timeLeft}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Every week, the community's favorite quote becomes an exclusive premium Bella+Canvas T-shirt
+            </p>
+          </div>
         </div>
       </div>
 
@@ -65,15 +137,20 @@ export default function StorePage() {
           ) : weeklyWinner ? (
             <div className="flex justify-center">
               <div className="w-full max-w-sm">
-                <ProductCard
-                  id={weeklyWinner.product.id}
-                  imageUrl={weeklyWinner.product.imageUrl || heroImage}
-                  quote={weeklyWinner.quote.text}
-                  author={weeklyWinner.quote.authorId}
-                  price={parseFloat(weeklyWinner.product.price)}
-                  weekNumber={getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))}
-                  onAddToCart={handleAddToCart}
-                />
+                {/* Winner Highlight Border */}
+                <div className="p-1 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 rounded-lg" data-testid="container-winner-product">
+                  <div className="bg-background rounded-lg">
+                    <ProductCard
+                      id={weeklyWinner.product.id}
+                      imageUrl={weeklyWinner.product.imageUrl || heroImage}
+                      quote={weeklyWinner.quote.text}
+                      author={weeklyWinner.quote.authorId}
+                      price={parseFloat(weeklyWinner.product.price)}
+                      weekNumber={getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))}
+                      onAddToCart={handleAddToCart}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
