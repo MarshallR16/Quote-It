@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import VoteControls from "./VoteControls";
+import QuoteText from "./QuoteText";
 import { useLocation } from "wouter";
 
 interface QuoteCardProps {
@@ -32,7 +33,7 @@ export default function QuoteCard({
   return (
     <Card className="p-6 hover-elevate" data-testid={`card-quote-${id}`}>
       <blockquote className="text-2xl font-medium leading-tight mb-4">
-        "{content}"
+        "<QuoteText text={content} />"
       </blockquote>
       <div className="flex items-center justify-between">
         <div>

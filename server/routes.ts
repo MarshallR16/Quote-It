@@ -70,6 +70,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user by username
+  app.get('/api/users/by-username/:username', async (req, res) => {
+    try {
+      const { username } = req.params;
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching user: " + error.message });
+    }
+  });
+
   // Quote routes
   app.get("/api/quotes", async (_req, res) => {
     try {
