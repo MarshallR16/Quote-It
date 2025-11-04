@@ -105,6 +105,8 @@ export default function LoginPage() {
         description: errorMessage,
       });
       setIsLoading(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -143,11 +145,12 @@ export default function LoginPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Update profile with display name
+      // Update profile with display name and reload to get fresh token
       if (userCredential.user) {
-        await import("firebase/auth").then(({ updateProfile }) => {
-          return updateProfile(userCredential.user, { displayName: name.trim() });
-        });
+        const { updateProfile } = await import("firebase/auth");
+        await updateProfile(userCredential.user, { displayName: name.trim() });
+        // Reload user to ensure token has updated claims
+        await userCredential.user.reload();
       }
 
       toast({
@@ -169,6 +172,8 @@ export default function LoginPage() {
         title: "Sign up failed",
         description: errorMessage,
       });
+      setIsLoading(false);
+    } finally {
       setIsLoading(false);
     }
   };
