@@ -21,8 +21,8 @@ export default function LoginPage() {
     }
   }, [authLoading, isAuthenticated, setLocation]);
 
+  // Handle redirect result when user returns from OAuth provider
   useEffect(() => {
-    // Handle redirect result when user returns from OAuth provider
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
@@ -42,6 +42,23 @@ export default function LoginPage() {
         });
       });
   }, [toast]);
+
+  // Show loading screen if checking auth or signing in
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <h1 className="text-6xl font-bold font-display tracking-tight mb-4">"IT"</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render login form if already authenticated
+  if (isAuthenticated) {
+    return null;
+  }
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
