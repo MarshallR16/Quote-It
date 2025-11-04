@@ -5,6 +5,7 @@ import { eq, desc, and, sql, inArray } from "drizzle-orm";
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
   createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
@@ -61,6 +62,11 @@ export class DbStorage implements IStorage {
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
     return result[0];
   }
 
