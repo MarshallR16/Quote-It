@@ -119,6 +119,17 @@ export default function LoginPage() {
       return;
     }
 
+    // Validate name has both first and last name
+    const nameParts = name.trim().split(/\s+/);
+    if (nameParts.length < 2) {
+      toast({
+        variant: "destructive",
+        title: "Invalid name",
+        description: "Please enter both your first and last name",
+      });
+      return;
+    }
+
     if (password.length < 6) {
       toast({
         variant: "destructive",
@@ -135,7 +146,7 @@ export default function LoginPage() {
       // Update profile with display name
       if (userCredential.user) {
         await import("firebase/auth").then(({ updateProfile }) => {
-          return updateProfile(userCredential.user, { displayName: name });
+          return updateProfile(userCredential.user, { displayName: name.trim() });
         });
       }
 
@@ -255,7 +266,7 @@ export default function LoginPage() {
             <TabsContent value="signup" className="space-y-4">
               <form onSubmit={handleEmailSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Label htmlFor="signup-name">First and Last Name</Label>
                   <Input
                     id="signup-name"
                     type="text"
@@ -265,6 +276,7 @@ export default function LoginPage() {
                     disabled={isLoading}
                     data-testid="input-signup-name"
                   />
+                  <p className="text-xs text-muted-foreground">Your real name is required</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
