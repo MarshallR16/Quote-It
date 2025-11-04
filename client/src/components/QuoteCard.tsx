@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import VoteControls from "./VoteControls";
 import QuoteText from "./QuoteText";
+import ShareQuote from "./ShareQuote";
 import { useLocation } from "wouter";
 
 interface QuoteCardProps {
@@ -54,10 +55,17 @@ export default function QuoteCard({
             {timeAgo}
           </p>
         </div>
-        <VoteControls
-          quoteId={id}
-          initialVoteCount={upvotes}
-        />
+        <div className="flex items-center gap-2">
+          <ShareQuote 
+            quoteId={id}
+            quoteText={content}
+            authorName={author}
+          />
+          <VoteControls
+            quoteId={id}
+            initialVoteCount={upvotes}
+          />
+        </div>
       </div>
     </Card>
   );
