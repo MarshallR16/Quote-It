@@ -358,7 +358,14 @@ export class DbStorage implements IStorage {
     const result = await db.insert(follows).values({
       followerId,
       followingId,
-    }).returning();
+    }).onConflictDoNothing().returning();
+    
+    // If conflict (already following), fetch existing record
+    if (!result[0]) {
+      const existing = await this.getFollow(followerId, followingId);
+      return existing!;
+    }
+    
     return result[0];
   }
 
