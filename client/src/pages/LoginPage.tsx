@@ -22,7 +22,7 @@ export default function LoginPage() {
   }, [authLoading, isAuthenticated, setLocation]);
 
   useEffect(() => {
-    // Handle redirect result when user returns from Google sign-in
+    // Handle redirect result when user returns from OAuth provider
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
@@ -30,7 +30,7 @@ export default function LoginPage() {
             title: "Welcome!",
             description: "You've successfully signed in",
           });
-          setLocation("/");
+          // Don't redirect here - let the isAuthenticated check handle it
         }
       })
       .catch((error) => {
@@ -41,7 +41,7 @@ export default function LoginPage() {
           description: error.message,
         });
       });
-  }, [setLocation, toast]);
+  }, [toast]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -50,11 +50,11 @@ export default function LoginPage() {
       try {
         const result = await signInWithPopup(auth, googleProvider);
         if (result.user) {
+          // Don't redirect immediately - let useAuth handle it after DB user is created
           toast({
             title: "Welcome!",
             description: "You've successfully signed in",
           });
-          setLocation("/");
         }
       } catch (popupError: any) {
         // If popup was blocked, use redirect
@@ -82,11 +82,11 @@ export default function LoginPage() {
       try {
         const result = await signInWithPopup(auth, appleProvider);
         if (result.user) {
+          // Don't redirect immediately - let useAuth handle it after DB user is created
           toast({
             title: "Welcome!",
             description: "You've successfully signed in",
           });
-          setLocation("/");
         }
       } catch (popupError: any) {
         // If popup was blocked, use redirect

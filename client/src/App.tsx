@@ -52,12 +52,7 @@ function Router() {
     return "feed";
   };
 
-  // Show login page if not authenticated
-  if (!isLoading && !isAuthenticated && location !== "/login") {
-    return <LoginPage />;
-  }
-
-  // Show loading state
+  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -67,6 +62,11 @@ function Router() {
         </div>
       </div>
     );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated && location !== "/login") {
+    return <LoginPage />;
   }
 
   return (
