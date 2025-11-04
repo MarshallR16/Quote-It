@@ -2,11 +2,22 @@ import admin from "firebase-admin";
 import type { Express, RequestHandler } from "express";
 import { storage } from "./storage";
 
-// Initialize Firebase Admin with project ID only (no service account needed for token verification)
+// Initialize Firebase Admin with minimal config for token verification
+// Using credential: none mode which only allows token verification without requiring service account
 if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  });
+  try {
+    admin.initializeApp({
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+      credential: admin.credential.applicationDefault(),
+    });
+  } catch (error) {
+    // If application default credentials fail (e.g., in development), initialize without credentials
+    // This still allows ID token verification
+    console.log('[Firebase Admin] Using minimal initialization for development');
+    admin.initializeApp({
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    });
+  }
 }
 
 export const auth = admin.auth();
@@ -61,25 +72,21 @@ export async function setupFirebaseAuth(app: Express) {
     try {
       const firebaseUser = req.firebaseUser;
       console.log('[AUTH] Checking user in database:', firebaseUser.uid);
+      console.log('[AUTH] Token claims:', { name: firebaseUser.name, email: firebaseUser.email, picture: firebaseUser.picture });
       
       // Get or create user in database
       let user = await storage.getUser(firebaseUser.uid);
       
       if (!user) {
-        console.log('[AUTH] User not found in DB, checking Firebase for profile info');
+        console.log('[AUTH] User not found in DB, extracting profile from token');
         
-        // Fetch full user data from Firebase Admin to get display name and photo
-        let displayName = null;
-        let photoURL = null;
+        // Extract profile data from the ID token claims
+        // Firebase ID tokens include: name, email, picture, and other claims
+        const displayName = firebaseUser.name || null;
+        const photoURL = firebaseUser.picture || null;
+        const email = firebaseUser.email || null;
         
-        try {
-          const firebaseUserRecord = await auth.getUser(firebaseUser.uid);
-          displayName = firebaseUserRecord.displayName;
-          photoURL = firebaseUserRecord.photoURL;
-          console.log('[AUTH] Firebase user details:', { displayName, photoURL, email: firebaseUserRecord.email });
-        } catch (fetchError) {
-          console.error('[AUTH] Could not fetch Firebase user details:', fetchError);
-        }
+        console.log('[AUTH] Extracted from token:', { displayName, photoURL, email });
         
         // Check if we have required information (first and last name)
         const nameParts = displayName?.split(' ') || [];
@@ -92,7 +99,7 @@ export async function setupFirebaseAuth(app: Express) {
           return res.status(400).json({ 
             requiresProfile: true,
             message: "Please complete your profile with first and last name",
-            email: firebaseUser.email,
+            email,
             profileImageUrl: photoURL
           });
         }
@@ -104,7 +111,7 @@ export async function setupFirebaseAuth(app: Express) {
         // Create new user with all required fields
         const newUserData = {
           id: firebaseUser.uid,
-          email: firebaseUser.email || null,
+          email: email || null,
           username,
           firstName,
           lastName,
@@ -146,14 +153,8 @@ export async function setupFirebaseAuth(app: Express) {
       // Generate unique username
       const username = await generateUniqueUsername(firstName, lastName);
       
-      // Fetch photo from Firebase if available
-      let photoURL = null;
-      try {
-        const firebaseUserRecord = await auth.getUser(firebaseUser.uid);
-        photoURL = firebaseUserRecord.photoURL;
-      } catch (fetchError) {
-        console.error('[AUTH] Could not fetch Firebase user photo:', fetchError);
-      }
+      // Get photo from token if available
+      const photoURL = firebaseUser.picture || null;
       
       // Create user with complete profile
       const newUserData = {
@@ -162,7 +163,7 @@ export async function setupFirebaseAuth(app: Express) {
         username,
         firstName,
         lastName,
-        profileImageUrl: photoURL || null,
+        profileImageUrl: photoURL,
       };
       
       await storage.upsertUser(newUserData);
