@@ -27,19 +27,19 @@ import FriendsPage from "@/pages/FriendsPage";
 import AdminPage from "@/pages/AdminPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
+import LoginPage from "@/pages/LoginPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   const [location, setLocation] = useLocation();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const { isAuthenticated, isLoading } = useAuth();
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setLoginModalOpen(true);
+    if (!isLoading && !isAuthenticated && location !== "/login") {
+      setLocation("/login");
     }
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, location, setLocation]);
 
   const handleNavigation = (item: NavItem) => {
     const routes: Record<NavItem, string> = {
@@ -58,6 +58,23 @@ function Router() {
     return "feed";
   };
 
+  // Show login page if not authenticated
+  if (!isLoading && !isAuthenticated && location !== "/login") {
+    return <LoginPage />;
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-6xl font-bold font-display tracking-tight mb-4">"IT"</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <TopNavigation
@@ -66,6 +83,7 @@ function Router() {
       />
       <main className="pt-16">
         <Switch>
+          <Route path="/login" component={LoginPage} />
           <Route path="/" component={FeedPage} />
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/store" component={StorePage} />
@@ -86,28 +104,6 @@ function Router() {
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
       />
-      <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-3xl font-display text-center">QUOTE-IT</DialogTitle>
-            <DialogDescription className="text-center text-base pt-2">
-              Log in to share quotes, vote, and shop exclusive merch
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 pt-4">
-            <Button
-              size="lg"
-              onClick={() => {
-                window.location.href = "/api/login";
-              }}
-              className="w-full"
-              data-testid="button-login-modal"
-            >
-              Log In / Sign Up
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

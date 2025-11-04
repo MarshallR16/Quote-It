@@ -3,6 +3,9 @@ import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users } from "lucide
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 interface TopNavigationProps {
   onCreateClick?: () => void;
@@ -16,6 +19,7 @@ export default function TopNavigation({
   const [darkMode, setDarkMode] = useState(false);
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -23,8 +27,22 @@ export default function TopNavigation({
     console.log(`Dark mode ${!darkMode ? "enabled" : "disabled"}`);
   };
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Signed out",
+        description: "You've been successfully signed out",
+      });
+      setLocation("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to sign out",
+      });
+    }
   };
 
   return (

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupFirebaseAuth, isAuthenticated } from "./firebaseAuth";
 import { insertProductSchema, insertOrderSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { printfulService } from "./printful";
@@ -21,8 +21,8 @@ if (process.env.STRIPE_SECRET_KEY) {
 const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  await setupAuth(app);
+  // Setup Firebase authentication
+  await setupFirebaseAuth(app);
 
   // Helper function to check and reset daily post count
   const checkDailyPostLimit = async (userId: string): Promise<{ canPost: boolean; remaining: number }> => {
@@ -44,25 +44,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { canPost, remaining };
   };
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      res.json(user);
-    } catch (error: any) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
   // Check daily post limit
   app.get('/api/users/daily-post-limit', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const { canPost, remaining } = await checkDailyPostLimit(userId);
       res.json({ canPost, remaining, limit: 3 });
     } catch (error: any) {
@@ -108,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/quotes", isAuthenticated, async (req: any, res) => {
     try {
       const { text } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
 
       if (!text || text.trim().length === 0) {
         return res.status(400).json({ message: "Quote text is required" });
@@ -144,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/quotes/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
 
       const quote = await storage.getQuote(id);
       if (!quote) {
@@ -166,7 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/votes", isAuthenticated, async (req: any, res) => {
     try {
       const { quoteId, value } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
 
       if (!quoteId || (value !== 1 && value !== -1)) {
         return res.status(400).json({ message: "Invalid vote data" });
@@ -220,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/votes/quote/:quoteId", isAuthenticated, async (req: any, res) => {
     try {
       const { quoteId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
 
       const vote = await storage.getVote(quoteId, userId);
       res.json(vote || null);
@@ -455,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { productId } = req.body;
-      const userId = req.user.claims.sub; // Get from authenticated session
+      const userId = req.firebaseUser.uid; // Get from authenticated session
       
       if (!productId) {
         return res.status(400).json({ message: "productId is required" });
@@ -690,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Friend routes
   app.get('/api/friends', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const friends = await storage.getFriends(userId);
       res.json(friends);
     } catch (error: any) {
@@ -701,7 +686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get friendship status with specific user
   app.get('/api/friends/status/:targetUserId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const { targetUserId } = req.params;
 
       // Check both directions for friendship
@@ -732,7 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/friends/requests', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const requests = await storage.getPendingFriendRequests(userId);
       res.json(requests);
     } catch (error: any) {
@@ -742,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/friends/request', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const { friendId } = req.body;
 
       if (!friendId) {
@@ -773,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/friends/accept/:friendshipId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const { friendshipId } = req.params;
       
       const result = await storage.acceptFriendRequest(friendshipId, userId);
@@ -792,7 +777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/friends/reject/:friendshipId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const { friendshipId } = req.params;
       
       const result = await storage.rejectFriendRequest(friendshipId, userId);
@@ -811,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/quotes/friends', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.firebaseUser.uid;
       const friendsQuotes = await storage.getFriendsQuotes(userId);
       res.json(friendsQuotes);
     } catch (error: any) {
