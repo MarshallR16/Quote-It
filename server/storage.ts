@@ -10,6 +10,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
   incrementReferralCount(userId: string): Promise<void>;
+  incrementUsedReferralDiscounts(userId: string): Promise<void>;
   createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
 
   // Quote methods
@@ -104,6 +105,15 @@ export class DbStorage implements IStorage {
     await db.update(users)
       .set({ 
         referralCount: sql`${users.referralCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async incrementUsedReferralDiscounts(userId: string): Promise<void> {
+    await db.update(users)
+      .set({ 
+        usedReferralDiscounts: sql`${users.usedReferralDiscounts} + 1`,
         updatedAt: new Date()
       })
       .where(eq(users.id, userId));

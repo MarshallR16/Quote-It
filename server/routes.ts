@@ -451,9 +451,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Calculate referral discount (flat 10% if user has any referrals)
+      // Calculate available discounts (referrals - used discounts)
       const referralCount = user.referralCount || 0;
-      const discountPercent = referralCount > 0 ? 10 : 0;
+      const usedDiscounts = user.usedReferralDiscounts || 0;
+      const availableDiscounts = referralCount - usedDiscounts;
+      const discountPercent = availableDiscounts > 0 ? 10 : 0;
       
       // Use the stored price (authoritative source)
       const originalAmount = parseFloat(product.price);
@@ -463,6 +465,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[CHECKOUT] Payment calculation:', {
         userId,
         referralCount,
+        usedDiscounts,
+        availableDiscounts,
         discountPercent: `${discountPercent}%`,
         originalAmount: `$${originalAmount.toFixed(2)}`,
         discountAmount: `$${discountAmount.toFixed(2)}`,
@@ -478,7 +482,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           originalAmount: originalAmount.toFixed(2),
           discountPercent: discountPercent.toString(),
           discountAmount: discountAmount.toFixed(2),
-          referralCount: referralCount.toString()
+          referralCount: referralCount.toString(),
+          usedDiscount: discountPercent > 0 ? 'true' : 'false'
         }
       });
 
@@ -490,7 +495,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           discountPercent,
           discountAmount,
           finalAmount,
-          referralCount
+          referralCount,
+          availableDiscounts
         }
       });
     } catch (error: any) {
@@ -614,6 +620,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shippingAddress: shippingInfo ? JSON.stringify(shippingInfo) : null,
         includeAuthor: shippingInfo?.includeAuthor !== false, // default to true if not specified
       });
+
+      // If a referral discount was used, increment the used discount counter
+      if (paymentIntent.metadata.usedDiscount === 'true') {
+        await storage.incrementUsedReferralDiscounts(userId);
+        console.log('[ORDER] Incremented used referral discount for user:', userId);
+      }
 
       // Automatically submit to Printful if configured and shipping info provided
       if (isPrintfulConfigured && shippingInfo && product.printfulSyncProductId) {

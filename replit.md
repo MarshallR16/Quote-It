@@ -14,15 +14,17 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 - Shows users with at least 1 win or votes (filters out inactive users)
 
 **Referral System (Complete - November 4, 2025)**
-- Implemented referral discount system: flat 10% off when user has any successful referrals
-- Users can earn multiple referrals (tracked in referralCount) but discount remains 10%
+- Each referral gives ONE discounted purchase at 10% off (not stacking)
+- Users can earn multiple referrals and use them across multiple purchases
+- Each successful purchase with discount uses one referral credit
 - Each user receives a unique 8-character referral code on signup
 - Referral codes use cryptographically secure randomness with collision detection
 - New users can apply referral codes during signup
-- Database fields: referralCode (unique), referredBy (referrer ID), referralCount (# of referrals)
-- Profile page displays referral code with copy-to-clipboard functionality
+- Database fields: referralCode (unique), referredBy (referrer ID), referralCount (# of referrals), usedReferralDiscounts (# used)
+- Profile page displays: total referrals, available discounts, and used discounts
 - Checkout page shows discount breakdown when applicable (subtotal, discount %, final total)
-- Server-side discount calculation in payment intent creation for security
+- Server-side discount calculation checks available credits (referralCount - usedReferralDiscounts)
+- After successful purchase with discount, usedReferralDiscounts is incremented
 - API endpoint: POST /api/auth/apply-referral for applying codes
 
 **Public Viewing (Complete - November 4, 2025)**
@@ -132,7 +134,9 @@ Preferred communication style: Simple, everyday language.
 - Collision detection with retry logic (up to 10 attempts)
 - Referral tracking: referredBy links new users to their referrer
 - Automatic referralCount increment when referral code is successfully applied
-- Discount calculation: flat 10% if referralCount > 0, applied server-side during checkout
+- Discount calculation: 10% if (referralCount - usedReferralDiscounts) > 0, applied server-side during checkout
+- After successful purchase with discount, usedReferralDiscounts is automatically incremented
+- Each referral = 1 discounted purchase, users can accumulate multiple discount credits
 - Payment metadata includes discount information for audit trail
 
 **Authentication Flow**

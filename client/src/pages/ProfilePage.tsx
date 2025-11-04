@@ -106,7 +106,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Share your referral code and get 10% off when someone signs up!
+                    Share your referral code! Each person who signs up gives you one 10% off purchase.
                   </p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-muted rounded-md px-4 py-3 font-mono text-lg font-bold">
@@ -129,18 +129,24 @@ export default function ProfilePage() {
                       {copiedReferral ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="grid grid-cols-3 gap-4 pt-2">
                     <div className="text-center">
                       <div className="text-3xl font-bold font-display" data-testid="text-referral-count">
                         {user.referralCount || 0}
                       </div>
-                      <div className="text-sm text-muted-foreground">Referrals</div>
+                      <div className="text-sm text-muted-foreground">Total Referrals</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-3xl font-bold font-display text-primary" data-testid="text-discount-amount">
-                        {(user.referralCount || 0) > 0 ? '10%' : '0%'}
+                      <div className="text-3xl font-bold font-display text-primary" data-testid="text-available-discounts">
+                        {Math.max(0, (user.referralCount || 0) - (user.usedReferralDiscounts || 0))}
                       </div>
-                      <div className="text-sm text-muted-foreground">Discount</div>
+                      <div className="text-sm text-muted-foreground">Available</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold font-display text-muted-foreground" data-testid="text-used-discounts">
+                        {user.usedReferralDiscounts || 0}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Used</div>
                     </div>
                   </div>
                 </CardContent>
