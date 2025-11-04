@@ -6,6 +6,17 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Social Features Update (Complete - November 4, 2025)**
+- Added daily posting streaks: currentStreak, longestStreak, lastStreakDate fields track consecutive posting days
+- Streak automatically increments when users post on consecutive days, resets if a day is missed
+- Profile page displays current streak with fire emoji 🔥 and longest streak with trophy 🏆
+- Motivational messages encourage users to maintain their streak
+- Implemented @mention parsing in quotes: @username becomes clickable, navigates to user profile
+- Created GET /api/users/by-username/:username endpoint with case-insensitive lookup
+- Added share to social media: Twitter (X), Facebook, LinkedIn buttons with proper open graph integration
+- Copy link functionality with clipboard API and textarea fallback for non-HTTPS environments
+- All features include proper error handling, accessibility attributes, and user feedback
+
 **Hall of Fame Update (Complete - November 4, 2025)**
 - Redesigned Hall of Fame to track top users instead of individual quotes
 - Users ranked by: 1) Number of weekly wins (most #1 shirts), 2) Total votes across all quotes
