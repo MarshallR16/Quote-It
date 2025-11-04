@@ -78,7 +78,7 @@ export default function ProfilePage() {
 
   const username = user.firstName && user.lastName 
     ? `${user.firstName} ${user.lastName}`
-    : user.firstName || user.email || "Anonymous";
+    : user.firstName || user.lastName || "Anonymous";
 
   const joinDate = user.createdAt 
     ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })
@@ -125,7 +125,7 @@ export default function ProfilePage() {
                   
                   const authorName = (firstName && lastName)
                     ? `${firstName} ${lastName}`
-                    : firstName || lastName || email || 'Anonymous';
+                    : firstName || lastName || 'Anonymous';
                   
                   return (
                     <QuoteCard

@@ -93,7 +93,7 @@ export default function FeedPage() {
             
             const authorName = (firstName && lastName)
               ? `${firstName} ${lastName}`
-              : firstName || lastName || email || 'Anonymous';
+              : firstName || lastName || 'Anonymous';
             
             return (
               <QuoteCard
