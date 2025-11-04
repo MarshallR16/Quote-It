@@ -18,8 +18,9 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
+  username: varchar("username").notNull().unique(),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   dailyPostCount: integer("daily_post_count").notNull().default(0),
   lastPostDate: timestamp("last_post_date"),
@@ -49,8 +50,9 @@ export type Quote = typeof quotes.$inferSelect;
 
 // Quote with author information for display
 export type QuoteWithAuthor = Quote & {
-  authorFirstName: string | null;
-  authorLastName: string | null;
+  authorUsername: string;
+  authorFirstName: string;
+  authorLastName: string;
   authorEmail: string | null;
 };
 
