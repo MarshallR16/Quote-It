@@ -35,12 +35,6 @@ function Router() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const { isAuthenticated, isLoading } = useAuth();
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated && location !== "/login") {
-      setLocation("/login");
-    }
-  }, [isLoading, isAuthenticated, location, setLocation]);
-
   const handleNavigation = (item: NavItem) => {
     const routes: Record<NavItem, string> = {
       feed: "/",
