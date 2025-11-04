@@ -7,17 +7,7 @@ import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { useSwipeable } from "react-swipeable";
-
-interface QuoteWithAuthor {
-  id: string;
-  text: string;
-  authorId: string;
-  createdAt: string;
-  voteCount: number;
-  authorFirstName: string | null;
-  authorLastName: string | null;
-  authorEmail: string | null;
-}
+import type { QuoteWithAuthor } from "@shared/schema";
 
 export default function FeedPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("recent");

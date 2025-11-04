@@ -10,17 +10,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-
-type QuoteWithAuthor = {
-  id: string;
-  text: string;
-  authorId: string;
-  voteCount: number;
-  createdAt: string;
-  authorFirstName: string | null;
-  authorLastName: string | null;
-  authorEmail: string | null;
-};
+import type { QuoteWithAuthor } from "@shared/schema";
 
 type Order = {
   id: string;

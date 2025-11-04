@@ -9,17 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Loader2, UserPlus, UserCheck, Clock } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-type QuoteWithAuthor = {
-  id: string;
-  text: string;
-  authorId: string;
-  voteCount: number;
-  createdAt: string;
-  authorFirstName: string | null;
-  authorLastName: string | null;
-  authorEmail: string | null;
-};
+import type { QuoteWithAuthor } from "@shared/schema";
 
 type User = {
   id: string;
