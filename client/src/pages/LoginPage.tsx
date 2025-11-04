@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const { toast } = useToast();
 
@@ -157,12 +158,37 @@ export default function LoginPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Update profile with display name and reload to get fresh token
+      // Update profile with display name, referral code, and reload to get fresh token
       if (userCredential.user) {
         const { updateProfile } = await import("firebase/auth");
-        await updateProfile(userCredential.user, { displayName: name.trim() });
+        // Store referral code in customData temporarily (we'll process it in backend)
+        await updateProfile(userCredential.user, { 
+          displayName: name.trim(),
+        });
         // Reload user to ensure token has updated claims
         await userCredential.user.reload();
+        
+        // Send referral code to backend if provided
+        if (referralCode.trim()) {
+          try {
+            const idToken = await userCredential.user.getIdToken();
+            const response = await fetch('/api/auth/apply-referral', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+              },
+              body: JSON.stringify({ referralCode: referralCode.trim() }),
+            });
+            
+            if (!response.ok) {
+              console.log('Referral code application failed:', await response.text());
+            }
+          } catch (error) {
+            console.error('Error applying referral code:', error);
+            // Don't block signup if referral fails
+          }
+        }
       }
 
       toast({
@@ -319,6 +345,19 @@ export default function LoginPage() {
                     data-testid="input-signup-password"
                   />
                   <p className="text-xs text-muted-foreground">At least 6 characters</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-referral">Referral Code (Optional)</Label>
+                  <Input
+                    id="signup-referral"
+                    type="text"
+                    placeholder="Enter code for 10% off"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    disabled={isLoading}
+                    data-testid="input-signup-referral"
+                  />
+                  <p className="text-xs text-muted-foreground">Get 10% off your first purchase</p>
                 </div>
                 
                 {/* Terms & Conditions Checkbox */}

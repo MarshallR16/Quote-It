@@ -6,8 +6,10 @@ export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByReferralCode(referralCode: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
+  incrementReferralCount(userId: string): Promise<void>;
   createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
 
   // Quote methods
@@ -70,6 +72,11 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.referralCode, referralCode)).limit(1);
+    return result[0];
+  }
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const result = await db
       .insert(users)
@@ -91,6 +98,15 @@ export class DbStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return result[0];
+  }
+
+  async incrementReferralCount(userId: string): Promise<void> {
+    await db.update(users)
+      .set({ 
+        referralCount: sql`${users.referralCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
   }
 
   async createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }> {

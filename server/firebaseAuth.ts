@@ -22,6 +22,14 @@ if (!admin.apps.length) {
 
 export const auth = admin.auth();
 
+// Generate a unique referral code from username
+function generateReferralCode(username: string): string {
+  // Create a code from username (first 6 chars) + random 4-digit number
+  const baseCode = username.substring(0, 6).toUpperCase().replace(/[^A-Z]/g, '');
+  const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
+  return `${baseCode}${randomNum}`;
+}
+
 // Generate a unique username from first and last name
 async function generateUniqueUsername(firstName: string, lastName: string): Promise<string> {
   // Start with firstname.lastname format
@@ -108,6 +116,10 @@ export async function setupFirebaseAuth(app: Express) {
         const username = await generateUniqueUsername(firstName, lastName);
         console.log('[AUTH] Generated username:', username);
         
+        // Generate unique referral code
+        const referralCode = generateReferralCode(username);
+        console.log('[AUTH] Generated referral code:', referralCode);
+        
         // Create new user with all required fields
         const newUserData = {
           id: firebaseUser.uid,
@@ -116,6 +128,7 @@ export async function setupFirebaseAuth(app: Express) {
           firstName,
           lastName,
           profileImageUrl: photoURL || null,
+          referralCode,
         };
         console.log('[AUTH] Creating user with data:', newUserData);
         
@@ -134,11 +147,58 @@ export async function setupFirebaseAuth(app: Express) {
     }
   });
   
+  // Apply referral code to existing user
+  app.post("/api/auth/apply-referral", verifyFirebaseToken, async (req: any, res) => {
+    try {
+      const firebaseUser = req.firebaseUser;
+      const { referralCode } = req.body;
+      
+      if (!referralCode) {
+        return res.status(400).json({ message: "Referral code is required" });
+      }
+      
+      // Get current user
+      const user = await storage.getUser(firebaseUser.uid);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user already has a referrer
+      if (user.referredBy) {
+        return res.status(400).json({ message: "User already has a referral code applied" });
+      }
+      
+      // Find referrer by code
+      const referrer = await storage.getUserByReferralCode(referralCode.trim().toUpperCase());
+      if (!referrer) {
+        return res.status(404).json({ message: "Invalid referral code" });
+      }
+      
+      // Can't refer yourself
+      if (referrer.id === user.id) {
+        return res.status(400).json({ message: "Cannot use your own referral code" });
+      }
+      
+      // Update user with referrer
+      await storage.updateUser(user.id, { referredBy: referrer.id });
+      
+      // Increment referrer's count
+      await storage.incrementReferralCount(referrer.id);
+      
+      console.log('[AUTH] Applied referral code:', referralCode, 'from', referrer.username, 'to', user.username);
+      
+      res.json({ success: true, message: "Referral code applied successfully" });
+    } catch (error: any) {
+      console.error('[AUTH] Error applying referral code:', error);
+      res.status(500).json({ message: "Error applying referral code: " + error.message });
+    }
+  });
+
   // Complete user profile (for OAuth users who need to provide name)
   app.post("/api/auth/complete-profile", verifyFirebaseToken, async (req: any, res) => {
     try {
       const firebaseUser = req.firebaseUser;
-      const { firstName, lastName } = req.body;
+      const { firstName, lastName, referralCode: inputReferralCode } = req.body;
       
       if (!firstName || !lastName) {
         return res.status(400).json({ message: "First name and last name are required" });
@@ -150,8 +210,25 @@ export async function setupFirebaseAuth(app: Express) {
         return res.status(400).json({ message: "User already exists" });
       }
       
+      // Handle referral code if provided
+      let referrerId = null;
+      if (inputReferralCode) {
+        const referrer = await storage.getUserByReferralCode(inputReferralCode.trim().toUpperCase());
+        if (referrer) {
+          referrerId = referrer.id;
+          // Increment referrer's referral count
+          await storage.incrementReferralCount(referrer.id);
+          console.log('[AUTH] User referred by:', referrer.username);
+        } else {
+          console.log('[AUTH] Invalid referral code provided:', inputReferralCode);
+        }
+      }
+      
       // Generate unique username
       const username = await generateUniqueUsername(firstName, lastName);
+      
+      // Generate unique referral code for new user
+      const referralCode = generateReferralCode(username);
       
       // Get photo from token if available
       const photoURL = firebaseUser.picture || null;
@@ -164,6 +241,8 @@ export async function setupFirebaseAuth(app: Express) {
         firstName,
         lastName,
         profileImageUrl: photoURL,
+        referralCode,
+        referredBy: referrerId,
       };
       
       await storage.upsertUser(newUserData);
