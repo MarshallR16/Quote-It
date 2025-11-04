@@ -38,14 +38,14 @@ export default function LoginPage() {
       try {
         const result = await signInWithPopup(auth, googleProvider);
         if (result.user) {
-          // Don't redirect immediately - let useAuth handle it after DB user is created
+          // Don't reset loading - App.tsx will handle the transition to feed
           toast({
             title: "Welcome!",
             description: "You've successfully signed in",
           });
         }
       } catch (popupError: any) {
-        // If popup was blocked, use redirect
+        // If popup was blocked, use redirect (loading state persists during redirect)
         if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/popup-closed-by-user') {
           await signInWithRedirect(auth, googleProvider);
         } else {

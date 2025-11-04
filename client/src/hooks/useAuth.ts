@@ -19,7 +19,7 @@ export function useAuth() {
 
   // Fetch user from database using Firebase UID
   const { data: dbUser, isLoading: isLoadingDb } = useQuery<User>({
-    queryKey: ["/api/auth/user", firebaseUser?.uid],
+    queryKey: ["/api/auth/user"],
     enabled: !!firebaseUser,
     retry: false,
   });
