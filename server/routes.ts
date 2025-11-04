@@ -672,7 +672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Friend routes
+  // Follow routes
   app.get('/api/friends', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.firebaseUser.uid;
@@ -683,114 +683,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get friendship status with specific user
-  app.get('/api/friends/status/:targetUserId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/following', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const following = await storage.getFollowing(userId);
+      res.json(following);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching following: " + error.message });
+    }
+  });
+
+  app.get('/api/followers', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const followers = await storage.getFollowers(userId);
+      res.json(followers);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching followers: " + error.message });
+    }
+  });
+
+  // Get follow status with specific user
+  app.get('/api/follow/status/:targetUserId', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.firebaseUser.uid;
       const { targetUserId } = req.params;
 
-      // Check both directions for friendship
-      const sentRequest = await storage.getFriendship(userId, targetUserId);
-      const receivedRequest = await storage.getFriendship(targetUserId, userId);
+      // Check if I'm following them
+      const iAmFollowing = await storage.getFollow(userId, targetUserId);
+      
+      // Check if they're following me
+      const theyAreFollowing = await storage.getFollow(targetUserId, userId);
 
-      if (sentRequest) {
-        if (sentRequest.status === 'accepted') {
-          return res.json({ status: 'accepted', friendshipId: sentRequest.id });
-        } else if (sentRequest.status === 'pending') {
-          return res.json({ status: 'pending_sent', friendshipId: sentRequest.id });
-        }
+      if (iAmFollowing && theyAreFollowing) {
+        return res.json({ status: 'friends', isFollowing: true, isFollowedBy: true });
+      } else if (iAmFollowing) {
+        return res.json({ status: 'following', isFollowing: true, isFollowedBy: false });
+      } else if (theyAreFollowing) {
+        return res.json({ status: 'follower', isFollowing: false, isFollowedBy: true });
       }
 
-      if (receivedRequest) {
-        if (receivedRequest.status === 'accepted') {
-          return res.json({ status: 'accepted', friendshipId: receivedRequest.id });
-        } else if (receivedRequest.status === 'pending') {
-          return res.json({ status: 'pending_received', friendshipId: receivedRequest.id });
-        }
-      }
-
-      res.json({ status: 'none' });
+      res.json({ status: 'none', isFollowing: false, isFollowedBy: false });
     } catch (error: any) {
-      res.status(500).json({ message: "Error fetching friendship status: " + error.message });
+      res.status(500).json({ message: "Error fetching follow status: " + error.message });
     }
   });
 
-  app.get('/api/friends/requests', isAuthenticated, async (req: any, res) => {
+  app.post('/api/follow/:targetUserId', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.firebaseUser.uid;
-      const requests = await storage.getPendingFriendRequests(userId);
-      res.json(requests);
-    } catch (error: any) {
-      res.status(500).json({ message: "Error fetching friend requests: " + error.message });
-    }
-  });
+      const { targetUserId } = req.params;
 
-  app.post('/api/friends/request', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.firebaseUser.uid;
-      const { friendId } = req.body;
-
-      if (!friendId) {
-        return res.status(400).json({ message: "Friend ID is required" });
+      if (userId === targetUserId) {
+        return res.status(400).json({ message: "Cannot follow yourself" });
       }
 
-      if (userId === friendId) {
-        return res.status(400).json({ message: "Cannot send friend request to yourself" });
-      }
-
-      // Check if friendship already exists
-      const existing = await storage.getFriendship(userId, friendId);
+      // Check if already following
+      const existing = await storage.getFollow(userId, targetUserId);
       if (existing) {
-        return res.status(400).json({ message: "Friend request already sent" });
+        return res.status(400).json({ message: "Already following this user" });
       }
 
-      const friendship = await storage.createFriendRequest({
-        userId,
-        friendId,
-        status: 'pending',
-      });
-
-      res.json(friendship);
+      const follow = await storage.followUser(userId, targetUserId);
+      res.json(follow);
     } catch (error: any) {
-      res.status(500).json({ message: "Error sending friend request: " + error.message });
+      res.status(500).json({ message: "Error following user: " + error.message });
     }
   });
 
-  app.post('/api/friends/accept/:friendshipId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/follow/:targetUserId', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.firebaseUser.uid;
-      const { friendshipId } = req.params;
-      
-      const result = await storage.acceptFriendRequest(friendshipId, userId);
-      
-      if (!result.success) {
-        const statusCode = result.error?.includes("Unauthorized") ? 403 :
-                          result.error?.includes("not found") ? 404 : 400;
-        return res.status(statusCode).json({ message: result.error });
-      }
-      
-      res.json(result.friendship);
-    } catch (error: any) {
-      res.status(500).json({ message: "Error accepting friend request: " + error.message });
-    }
-  });
+      const { targetUserId } = req.params;
 
-  app.post('/api/friends/reject/:friendshipId', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.firebaseUser.uid;
-      const { friendshipId } = req.params;
-      
-      const result = await storage.rejectFriendRequest(friendshipId, userId);
-      
-      if (!result.success) {
-        const statusCode = result.error?.includes("Unauthorized") ? 403 :
-                          result.error?.includes("not found") ? 404 : 400;
-        return res.status(statusCode).json({ message: result.error });
-      }
-      
-      res.json(result.friendship);
+      await storage.unfollowUser(userId, targetUserId);
+      res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ message: "Error rejecting friend request: " + error.message });
+      res.status(500).json({ message: "Error unfollowing user: " + error.message });
     }
   });
 
