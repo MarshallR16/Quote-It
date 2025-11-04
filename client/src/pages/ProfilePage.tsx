@@ -3,8 +3,13 @@ import { useAuth } from "@/hooks/useAuth";
 import UserStats from "@/components/UserStats";
 import QuoteCard from "@/components/QuoteCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
-import { Package, Loader2 } from "lucide-react";
+import { Package, Loader2, LogOut, Settings } from "lucide-react";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 type QuoteWithAuthor = {
   id: string;
@@ -29,6 +34,8 @@ type Order = {
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<QuoteWithAuthor[]>({
     queryKey: [`/api/quotes/user/${user?.id}`],
@@ -39,6 +46,24 @@ export default function ProfilePage() {
     queryKey: [`/api/orders/user/${user?.id}`],
     enabled: !!user?.id,
   });
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Signed out",
+        description: "You've been signed out successfully",
+      });
+      setLocation("/login");
+    } catch (error: any) {
+      console.error("Error signing out:", error);
+      toast({
+        variant: "destructive",
+        title: "Sign out failed",
+        description: error.message,
+      });
+    }
+  };
 
   if (!user) {
     return (
@@ -165,6 +190,47 @@ export default function ProfilePage() {
                   </Card>
                 ))
               )}
+            </div>
+
+            {/* Settings */}
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold font-display flex items-center gap-2" data-testid="heading-settings">
+                <Settings className="h-6 w-6" />
+                Settings
+              </h2>
+              <Card data-testid="card-settings">
+                <CardHeader>
+                  <CardTitle className="text-lg">Account</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Email</p>
+                    <p className="text-base" data-testid="text-account-email">{user.email}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Display Name</p>
+                    <p className="text-base" data-testid="text-account-name">{username}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Member Since</p>
+                    <p className="text-base" data-testid="text-account-joined">{joinDate}</p>
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={handleSignOut}
+                      className="w-full gap-2"
+                      data-testid="button-sign-out"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
