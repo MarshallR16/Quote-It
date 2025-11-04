@@ -31,7 +31,7 @@ export default function TopNavigation({
     <header className="fixed top-0 left-0 right-0 h-16 border-b bg-background z-20">
       <div className="h-full px-4 flex items-center justify-between max-w-7xl mx-auto">
         <h1 className="text-6xl font-bold font-display tracking-tight cursor-pointer" data-testid="text-logo" onClick={() => setLocation("/")}>
-          IT
+          "IT"
         </h1>
         <nav className="hidden md:flex items-center gap-2">
           <Button
