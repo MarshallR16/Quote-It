@@ -10,6 +10,7 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('[useAuth] Firebase auth state changed:', user ? `User: ${user.email}` : 'No user');
       setFirebaseUser(user);
       setIsLoadingAuth(false);
     });
@@ -18,10 +19,19 @@ export function useAuth() {
   }, []);
 
   // Fetch user from database using Firebase UID
-  const { data: dbUser, isLoading: isLoadingDb } = useQuery<User>({
+  const { data: dbUser, isLoading: isLoadingDb, error } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     enabled: !!firebaseUser,
     retry: false,
+  });
+
+  console.log('[useAuth] State:', {
+    firebaseUser: firebaseUser?.email || null,
+    dbUser: dbUser?.email || null,
+    isLoadingAuth,
+    isLoadingDb,
+    error: error?.message || null,
+    isAuthenticated: !!firebaseUser && !!dbUser,
   });
 
   return {
