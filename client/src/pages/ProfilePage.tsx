@@ -6,7 +6,7 @@ import QuoteCard from "@/components/QuoteCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
-import { Package, Loader2, LogOut, Settings, Share2, Copy, Check } from "lucide-react";
+import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useLocation } from "wouter";
@@ -95,6 +95,48 @@ export default function ProfilePage() {
 
           {/* User's Content */}
           <div className="md:col-span-2 space-y-8">
+            {/* Daily Streak Section */}
+            <Card data-testid="card-streak">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Flame className="w-5 h-5 text-orange-500" />
+                  Daily Posting Streak
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="text-center space-y-2">
+                    <div className="flex items-center justify-center gap-2">
+                      <Flame className="w-8 h-8 text-orange-500" />
+                      <div className="text-4xl font-bold font-display" data-testid="text-current-streak">
+                        {user.currentStreak || 0}
+                      </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">Current Streak</div>
+                    <p className="text-xs text-muted-foreground">
+                      {user.currentStreak === 0 ? "Post today to start a streak!" : 
+                       user.currentStreak === 1 ? "Keep it going! Post tomorrow" :
+                       `${user.currentStreak} days in a row!`}
+                    </p>
+                  </div>
+                  <div className="text-center space-y-2">
+                    <div className="flex items-center justify-center gap-2">
+                      <Trophy className="w-8 h-8 text-yellow-500" />
+                      <div className="text-4xl font-bold font-display text-muted-foreground" data-testid="text-longest-streak">
+                        {user.longestStreak || 0}
+                      </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">Best Streak</div>
+                    <p className="text-xs text-muted-foreground">
+                      {user.longestStreak === 0 ? "Your personal record" : 
+                       user.longestStreak === user.currentStreak ? "You're at your best!" :
+                       `Can you beat ${user.longestStreak}?`}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Referral Section */}
             {user.referralCode && (
               <Card data-testid="card-referral">
