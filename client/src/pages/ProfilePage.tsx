@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import UserStats from "@/components/UserStats";
@@ -5,7 +6,7 @@ import QuoteCard from "@/components/QuoteCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
-import { Package, Loader2, LogOut, Settings } from "lucide-react";
+import { Package, Loader2, LogOut, Settings, Share2, Copy, Check } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useLocation } from "wouter";
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [copiedReferral, setCopiedReferral] = useState(false);
 
   const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<QuoteWithAuthor[]>({
     queryKey: [`/api/quotes/user/${user?.id}`],
@@ -93,6 +95,58 @@ export default function ProfilePage() {
 
           {/* User's Content */}
           <div className="md:col-span-2 space-y-8">
+            {/* Referral Section */}
+            {user.referralCode && (
+              <Card data-testid="card-referral">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Share2 className="w-5 h-5" />
+                    Referral Program
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Share your referral code and get 10% off for each person who signs up!
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-muted rounded-md px-4 py-3 font-mono text-lg font-bold">
+                      {user.referralCode}
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(user.referralCode || '');
+                        setCopiedReferral(true);
+                        setTimeout(() => setCopiedReferral(false), 2000);
+                        toast({
+                          title: "Copied!",
+                          description: "Referral code copied to clipboard",
+                        });
+                      }}
+                      data-testid="button-copy-referral"
+                    >
+                      {copiedReferral ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold font-display" data-testid="text-referral-count">
+                        {user.referralCount || 0}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Referrals</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold font-display text-primary" data-testid="text-discount-amount">
+                        {(user.referralCount || 0) * 10}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">Discount</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* User's Quotes */}
             <div className="space-y-4">
               <h2 className="text-2xl font-bold font-display" data-testid="heading-my-quotes">My Quotes</h2>

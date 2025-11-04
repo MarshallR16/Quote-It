@@ -113,6 +113,7 @@ export default function CheckoutPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [discountInfo, setDiscountInfo] = useState<any>(null);
   
   // Shipping information state
   const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({
@@ -143,6 +144,7 @@ export default function CheckoutPage() {
     },
     onSuccess: (data: any) => {
       setClientSecret(data.clientSecret);
+      setDiscountInfo(data.discountInfo);
       // Store payment intent ID for later use
       sessionStorage.setItem('paymentIntentId', data.paymentIntentId);
     },
@@ -251,12 +253,31 @@ export default function CheckoutPage() {
                 </p>
               </div>
             </div>
-            <div className="flex justify-between items-center pt-4">
-              <span className="font-semibold">Total</span>
-              <span className="text-2xl font-bold" data-testid="text-checkout-total">
-                ${parseFloat(product.price).toFixed(2)}
-              </span>
-            </div>
+            {discountInfo && discountInfo.discountPercent > 0 ? (
+              <div className="space-y-2 pt-4 border-t">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${discountInfo.originalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-primary">
+                  <span>Referral Discount ({discountInfo.discountPercent}%)</span>
+                  <span>-${discountInfo.discountAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="font-semibold">Total</span>
+                  <span className="text-2xl font-bold" data-testid="text-checkout-total">
+                    ${discountInfo.finalAmount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center pt-4">
+                <span className="font-semibold">Total</span>
+                <span className="text-2xl font-bold" data-testid="text-checkout-total">
+                  ${parseFloat(product.price).toFixed(2)}
+                </span>
+              </div>
+            )}
           </Card>
 
           <Card className="p-6">

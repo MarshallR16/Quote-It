@@ -457,21 +457,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Product is not available for purchase" });
       }
 
+      // Get user to check referral count for discount
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Calculate referral discount (10% per referral, max 100%)
+      const referralCount = user.referralCount || 0;
+      const discountPercent = Math.min(referralCount * 10, 100);
+      
       // Use the stored price (authoritative source)
-      const amount = parseFloat(product.price);
+      const originalAmount = parseFloat(product.price);
+      const discountAmount = originalAmount * (discountPercent / 100);
+      const finalAmount = originalAmount - discountAmount;
+
+      console.log('[CHECKOUT] Payment calculation:', {
+        userId,
+        referralCount,
+        discountPercent: `${discountPercent}%`,
+        originalAmount: `$${originalAmount.toFixed(2)}`,
+        discountAmount: `$${discountAmount.toFixed(2)}`,
+        finalAmount: `$${finalAmount.toFixed(2)}`
+      });
 
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: Math.round(finalAmount * 100), // Convert to cents
         currency: "usd",
         metadata: {
           productId,
-          userId // Store userId in metadata for verification
+          userId, // Store userId in metadata for verification
+          originalAmount: originalAmount.toFixed(2),
+          discountPercent: discountPercent.toString(),
+          discountAmount: discountAmount.toFixed(2),
+          referralCount: referralCount.toString()
         }
       });
 
       res.json({ 
         clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id 
+        paymentIntentId: paymentIntent.id,
+        discountInfo: {
+          originalAmount,
+          discountPercent,
+          discountAmount,
+          finalAmount,
+          referralCount
+        }
       });
     } catch (error: any) {
       res.status(500).json({ message: "Error creating payment intent: " + error.message });
