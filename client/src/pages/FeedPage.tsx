@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import { useSwipeable } from "react-swipeable";
 
 interface QuoteWithAuthor {
   id: string;
@@ -32,6 +33,26 @@ export default function FeedPage() {
     enabled: activeFilter === "friends",
   });
 
+  // Tab order for swiping
+  const tabOrder: FilterType[] = ["top", "friends", "recent"];
+  
+  const handleSwipe = (direction: "left" | "right") => {
+    const currentIndex = tabOrder.indexOf(activeFilter);
+    
+    if (direction === "left" && currentIndex < tabOrder.length - 1) {
+      setActiveFilter(tabOrder[currentIndex + 1]);
+    } else if (direction === "right" && currentIndex > 0) {
+      setActiveFilter(tabOrder[currentIndex - 1]);
+    }
+  };
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => handleSwipe("left"),
+    onSwipedRight: () => handleSwipe("right"),
+    trackMouse: false,
+    preventScrollOnSwipe: true,
+  });
+
   const getSortedQuotes = () => {
     const sourceQuotes = activeFilter === "friends" ? friendsQuotes : quotes;
     if (!sourceQuotes) return [];
@@ -53,7 +74,7 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen pb-20 md:pb-8">
       <FeedFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div {...swipeHandlers} className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {currentLoading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading quotes...</p>

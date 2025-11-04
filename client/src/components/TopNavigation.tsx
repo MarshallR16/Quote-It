@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import WeeklyWinnerCountdown from "@/components/WeeklyWinnerCountdown";
 
 interface TopNavigationProps {
   onCreateClick?: () => void;
@@ -47,10 +48,13 @@ export default function TopNavigation({
 
   return (
     <header className="fixed top-0 left-0 right-0 h-16 border-b bg-background z-20">
-      <div className="h-full px-4 flex items-center justify-between max-w-7xl mx-auto">
+      <div className="h-full px-4 flex items-center justify-between max-w-7xl mx-auto gap-4">
         <h1 className="text-6xl font-bold font-display tracking-tight cursor-pointer" data-testid="text-logo" onClick={() => setLocation("/")}>
           "IT"
         </h1>
+        <div className="hidden lg:block">
+          <WeeklyWinnerCountdown />
+        </div>
         <nav className="hidden md:flex items-center gap-2">
           <Button
             variant="ghost"

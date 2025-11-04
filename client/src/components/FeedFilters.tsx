@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Flame, Clock, TrendingUp, Users } from "lucide-react";
+import WeeklyWinnerCountdown from "@/components/WeeklyWinnerCountdown";
 
 export type FilterType = "recent" | "trending" | "top" | "friends";
 
@@ -28,23 +29,32 @@ export default function FeedFilters({
   ];
 
   return (
-    <div
-      className="flex gap-2 border-b sticky top-16 bg-background z-10 px-4 py-2"
-      data-testid="feed-filters"
-    >
-      {filters.map(({ type, label, icon: Icon }) => (
-        <Button
-          key={type}
-          variant={active === type ? "default" : "ghost"}
-          size="sm"
-          className="rounded-full gap-1"
-          onClick={() => handleFilterClick(type)}
-          data-testid={`button-filter-${type}`}
-        >
-          <Icon className="w-4 h-4" />
-          {label}
-        </Button>
-      ))}
+    <div className="sticky top-16 bg-background z-10 border-b">
+      <div className="px-4 py-2 lg:hidden flex justify-center">
+        <WeeklyWinnerCountdown />
+      </div>
+      <div
+        className="flex gap-2 px-4 py-3"
+        data-testid="feed-filters"
+      >
+        {filters.map(({ type, label, icon: Icon }) => (
+          <div key={type} className="relative flex-1">
+            <Button
+              variant={active === type ? "default" : "ghost"}
+              size="sm"
+              className="w-full rounded-full gap-1 transition-all"
+              onClick={() => handleFilterClick(type)}
+              data-testid={`button-filter-${type}`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="font-medium">{label}</span>
+            </Button>
+            {active === type && (
+              <div className="absolute -bottom-3 left-0 right-0 h-0.5 bg-primary rounded-full" />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
