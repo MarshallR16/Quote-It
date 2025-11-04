@@ -86,21 +86,12 @@ export default function FeedPage() {
           </div>
         ) : (
           sortedQuotes.map((quote) => {
-            // Construct author name with proper fallback logic
-            const firstName = quote.authorFirstName?.trim();
-            const lastName = quote.authorLastName?.trim();
-            const email = quote.authorEmail?.trim();
-            
-            const authorName = (firstName && lastName)
-              ? `${firstName} ${lastName}`
-              : firstName || lastName || 'Anonymous';
-            
             return (
               <QuoteCard
                 key={quote.id}
                 id={quote.id}
                 content={quote.text}
-                author={authorName}
+                author={quote.authorUsername}
                 authorId={quote.authorId}
                 upvotes={Math.max(0, quote.voteCount)}
                 downvotes={Math.max(0, -quote.voteCount)}

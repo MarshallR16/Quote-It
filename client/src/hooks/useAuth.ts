@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 export function useAuth() {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [requiresProfileCompletion, setRequiresProfileCompletion] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -22,7 +23,14 @@ export function useAuth() {
   const { data: dbUser, isLoading: isLoadingDb, error } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     enabled: !!firebaseUser,
-    retry: false,
+    retry: (failureCount, error: any) => {
+      // Don't retry if profile completion is required
+      if (error?.response?.data?.requiresProfile) {
+        setRequiresProfileCompletion(true);
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   console.log('[useAuth] State:', {
@@ -30,6 +38,7 @@ export function useAuth() {
     dbUser: dbUser?.email || null,
     isLoadingAuth,
     isLoadingDb,
+    requiresProfileCompletion,
     error: error?.message || null,
     isAuthenticated: !!firebaseUser && !!dbUser,
   });
@@ -39,5 +48,6 @@ export function useAuth() {
     firebaseUser,
     isLoading: isLoadingAuth || isLoadingDb,
     isAuthenticated: !!firebaseUser && !!dbUser,
+    requiresProfileCompletion,
   };
 }
