@@ -6,6 +6,13 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Hall of Fame Update (Complete - November 4, 2025)**
+- Redesigned Hall of Fame to track top users instead of individual quotes
+- Users ranked by: 1) Number of weekly wins (most #1 shirts), 2) Total votes across all quotes
+- API endpoint aggregates user statistics from weeklyWinners and quotes tables
+- Leaderboard page displays user rankings with win count and total vote count
+- Shows users with at least 1 win or votes (filters out inactive users)
+
 **Referral System (Complete - November 4, 2025)**
 - Implemented referral discount system: flat 10% off when user has any successful referrals
 - Users can earn multiple referrals (tracked in referralCount) but discount remains 10%
@@ -108,9 +115,17 @@ Preferred communication style: Simple, everyday language.
 - Votes: User voting records with cascade deletion
 - Products: Printful-synced merchandise items
 - Orders: Purchase records with Stripe payment tracking
-- Weekly Winners: Historical record of winning quotes
-- Hall of Fame: Achievement tracking
+- Weekly Winners: Historical record of winning quotes (links to quote and product)
+- Hall of Fame: Legacy table (now unused, replaced by dynamic user rankings)
 - Sessions: Persistent session storage for authentication
+
+**Hall of Fame System**
+- Dynamically calculates user rankings based on weekly wins and total votes
+- Uses SQL aggregation across weeklyWinners and quotes tables
+- Primary sort: number of weekly wins (DESC)
+- Secondary sort: total votes across all user's quotes (DESC)
+- Only displays users with activity (at least 1 win or votes)
+- GET /api/hall-of-fame returns top users with stats
 
 **Referral System**
 - Cryptographically secure 8-character codes using base32 charset (excludes ambiguous characters)
