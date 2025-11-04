@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 interface VoteControlsProps {
   quoteId: string;
@@ -15,10 +17,13 @@ export default function VoteControls({
 }: VoteControlsProps) {
   const [currentVote, setCurrentVote] = useState<1 | -1 | null>(null);
   const [optimisticVoteCount, setOptimisticVoteCount] = useState(initialVoteCount);
+  const { isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
 
-  // Load user's existing vote
+  // Load user's existing vote only if authenticated
   const { data: existingVote } = useQuery<{ value: number } | null>({
     queryKey: [`/api/votes/quote/${quoteId}`],
+    enabled: isAuthenticated,
   });
 
   // Set initial vote state when loaded
@@ -39,6 +44,12 @@ export default function VoteControls({
   });
 
   const handleVote = (voteType: "up" | "down") => {
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+      setLocation("/login");
+      return;
+    }
+
     const value = voteType === "up" ? 1 : -1;
     
     // Optimistic update

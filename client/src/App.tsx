@@ -37,6 +37,12 @@ function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
   const handleNavigation = (item: NavItem) => {
+    // Redirect to login if trying to access profile without authentication
+    if (item === "profile" && !isAuthenticated) {
+      setLocation("/login");
+      return;
+    }
+
     const routes: Record<NavItem, string> = {
       feed: "/",
       leaderboard: "/leaderboard",
@@ -53,8 +59,17 @@ function Router() {
     return "feed";
   };
 
-  // Show loading state while checking authentication
-  if (isLoading) {
+  // Protected routes that require authentication
+  const protectedRoutes = ['/profile', '/friends', '/admin', '/checkout'];
+  const needsAuth = protectedRoutes.some(route => location.startsWith(route));
+
+  // Redirect to login if trying to access protected route without auth
+  if (needsAuth && !isAuthenticated && !isLoading) {
+    return <LoginPage />;
+  }
+
+  // Show loading state only when needed
+  if (isLoading && needsAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -65,16 +80,23 @@ function Router() {
     );
   }
 
-  // Show login page if not authenticated (except for terms page)
-  if (!isAuthenticated && location !== "/login" && location !== "/terms") {
-    return <LoginPage />;
-  }
-
   return (
     <div className="min-h-screen">
       <TopNavigation
-        onCreateClick={() => setCreateModalOpen(true)}
-        onProfileClick={() => setLocation("/profile")}
+        onCreateClick={() => {
+          if (!isAuthenticated) {
+            setLocation("/login");
+          } else {
+            setCreateModalOpen(true);
+          }
+        }}
+        onProfileClick={() => {
+          if (!isAuthenticated) {
+            setLocation("/login");
+          } else {
+            setLocation("/profile");
+          }
+        }}
       />
       <main className="pt-16">
         <Switch>

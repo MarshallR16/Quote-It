@@ -18,7 +18,7 @@ export default function TopNavigation({
   onProfileClick,
 }: TopNavigationProps) {
   const [darkMode, setDarkMode] = useState(false);
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -56,16 +56,18 @@ export default function TopNavigation({
           <WeeklyWinnerCountdown />
         </div>
         <nav className="hidden md:flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="default"
-            className="gap-2"
-            onClick={() => setLocation("/friends")}
-            data-testid="button-nav-friends"
-          >
-            <Users className="w-4 h-4" />
-            <span>Friends</span>
-          </Button>
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="default"
+              className="gap-2"
+              onClick={() => setLocation("/friends")}
+              data-testid="button-nav-friends"
+            >
+              <Users className="w-4 h-4" />
+              <span>Friends</span>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="default"
@@ -88,57 +90,82 @@ export default function TopNavigation({
           </Button>
         </nav>
         <div className="flex items-center gap-2">
-          <Button
-            variant="default"
-            size="default"
-            className="rounded-full gap-2"
-            onClick={() => {
-              onCreateClick?.();
-              console.log('Create Quote clicked');
-            }}
-            data-testid="button-create-quote"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Create</span>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="rounded-full"
-            onClick={toggleDarkMode}
-            data-testid="button-theme-toggle"
-          >
-            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="rounded-full"
-            onClick={() => {
-              onProfileClick?.();
-              console.log('Profile clicked');
-            }}
-            data-testid="button-profile"
-          >
-            {user?.profileImageUrl ? (
-              <img
-                src={user.profileImageUrl}
-                alt={user.email || "User"}
-                className="w-7 h-7 rounded-full object-cover"
-              />
-            ) : (
-              <User className="w-5 h-5" />
-            )}
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="rounded-full"
-            onClick={handleLogout}
-            data-testid="button-logout"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
+          {isAuthenticated ? (
+            <>
+              <Button
+                variant="default"
+                size="default"
+                className="rounded-full gap-2"
+                onClick={() => {
+                  onCreateClick?.();
+                  console.log('Create Quote clicked');
+                }}
+                data-testid="button-create-quote"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Create</span>
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="rounded-full"
+                onClick={toggleDarkMode}
+                data-testid="button-theme-toggle"
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="rounded-full"
+                onClick={() => {
+                  onProfileClick?.();
+                  console.log('Profile clicked');
+                }}
+                data-testid="button-profile"
+              >
+                {user?.profileImageUrl ? (
+                  <img
+                    src={user.profileImageUrl}
+                    alt={user.email || "User"}
+                    className="w-7 h-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="w-5 h-5" />
+                )}
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="rounded-full"
+                onClick={handleLogout}
+                data-testid="button-logout"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="rounded-full"
+                onClick={toggleDarkMode}
+                data-testid="button-theme-toggle"
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
+              <Button
+                variant="default"
+                size="default"
+                className="rounded-full"
+                onClick={() => setLocation("/login")}
+                data-testid="button-sign-in"
+              >
+                Sign In
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

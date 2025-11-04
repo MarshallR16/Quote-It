@@ -6,6 +6,14 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Public Viewing (Complete - November 4, 2025)**
+- App is now publicly viewable without requiring sign-in
+- Anyone can browse quotes, leaderboard, and store without authentication
+- Sign-in only required for interactions: posting quotes, voting, following users, and purchasing
+- Unauthenticated users see "Sign In" button in navigation
+- Vote buttons and profile actions redirect to login when not authenticated
+- Friends navigation link hidden for non-authenticated users
+
 **Firebase Authentication Migration (Complete)**
 - Migrated from Replit Auth to Firebase Authentication for direct user sign-in
 - Users can now sign in with Google and Apple without needing a Replit account
