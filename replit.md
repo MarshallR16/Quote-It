@@ -7,7 +7,8 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 ## Recent Changes (November 2025)
 
 **Referral System (Complete - November 4, 2025)**
-- Implemented stacking referral discount system: 10% off per person referred (no cap)
+- Implemented referral discount system: flat 10% off when user has any successful referrals
+- Users can earn multiple referrals (tracked in referralCount) but discount remains 10%
 - Each user receives a unique 8-character referral code on signup
 - Referral codes use cryptographically secure randomness with collision detection
 - New users can apply referral codes during signup
@@ -116,7 +117,7 @@ Preferred communication style: Simple, everyday language.
 - Collision detection with retry logic (up to 10 attempts)
 - Referral tracking: referredBy links new users to their referrer
 - Automatic referralCount increment when referral code is successfully applied
-- Discount calculation: 10% × referralCount, applied server-side during checkout
+- Discount calculation: flat 10% if referralCount > 0, applied server-side during checkout
 - Payment metadata includes discount information for audit trail
 
 **Authentication Flow**

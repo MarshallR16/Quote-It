@@ -463,9 +463,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Calculate referral discount (10% per referral, max 100%)
+      // Calculate referral discount (flat 10% if user has any referrals)
       const referralCount = user.referralCount || 0;
-      const discountPercent = Math.min(referralCount * 10, 100);
+      const discountPercent = referralCount > 0 ? 10 : 0;
       
       // Use the stored price (authoritative source)
       const originalAmount = parseFloat(product.price);

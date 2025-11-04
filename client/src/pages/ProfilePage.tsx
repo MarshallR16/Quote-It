@@ -106,7 +106,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Share your referral code and get 10% off for each person who signs up!
+                    Share your referral code and get 10% off when someone signs up!
                   </p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-muted rounded-md px-4 py-3 font-mono text-lg font-bold">
@@ -138,7 +138,7 @@ export default function ProfilePage() {
                     </div>
                     <div className="text-center">
                       <div className="text-3xl font-bold font-display text-primary" data-testid="text-discount-amount">
-                        {(user.referralCount || 0) * 10}%
+                        {(user.referralCount || 0) > 0 ? '10%' : '0%'}
                       </div>
                       <div className="text-sm text-muted-foreground">Discount</div>
                     </div>
