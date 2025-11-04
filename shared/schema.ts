@@ -50,9 +50,9 @@ export type Quote = typeof quotes.$inferSelect;
 
 // Quote with author information for display
 export type QuoteWithAuthor = Quote & {
-  authorUsername: string;
-  authorFirstName: string;
-  authorLastName: string;
+  authorUsername: string | null;
+  authorFirstName: string | null;
+  authorLastName: string | null;
   authorEmail: string | null;
 };
 

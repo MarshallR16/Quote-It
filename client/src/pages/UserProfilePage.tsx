@@ -244,7 +244,7 @@ export default function UserProfilePage() {
                       key={quote.id}
                       id={quote.id}
                       content={quote.text}
-                      author={quote.authorUsername}
+                      author={quote.authorUsername || 'Unknown'}
                       authorId={quote.authorId}
                       upvotes={Math.max(0, quote.voteCount)}
                       downvotes={0}
