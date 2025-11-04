@@ -1,13 +1,21 @@
 import { useState, useEffect } from "react";
-import { signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, googleProvider, appleProvider } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { SiGoogle, SiApple } from "react-icons/si";
+import { Mail } from "lucide-react";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const { toast } = useToast();
 
   // Handle redirect result when user returns from OAuth provider
@@ -63,6 +71,95 @@ export default function LoginPage() {
     }
   };
 
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast({
+        variant: "destructive",
+        title: "Missing fields",
+        description: "Please enter your email and password",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({
+        title: "Welcome back!",
+        description: "You've successfully signed in",
+      });
+    } catch (error: any) {
+      console.error("Error signing in:", error);
+      let errorMessage = error.message;
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+        errorMessage = "Invalid email or password";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email address";
+      }
+      toast({
+        variant: "destructive",
+        title: "Sign in failed",
+        description: errorMessage,
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || !name) {
+      toast({
+        variant: "destructive",
+        title: "Missing fields",
+        description: "Please fill in all fields",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Weak password",
+        description: "Password must be at least 6 characters",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Update profile with display name
+      if (userCredential.user) {
+        await import("firebase/auth").then(({ updateProfile }) => {
+          return updateProfile(userCredential.user, { displayName: name });
+        });
+      }
+
+      toast({
+        title: "Account created!",
+        description: "Welcome to Quote-It",
+      });
+    } catch (error: any) {
+      console.error("Error signing up:", error);
+      let errorMessage = error.message;
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "This email is already registered";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email address";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Password is too weak";
+      }
+      toast({
+        variant: "destructive",
+        title: "Sign up failed",
+        description: errorMessage,
+      });
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -72,31 +169,140 @@ export default function LoginPage() {
             Share quotes, vote on favorites, and shop the best
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Button
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className="w-full gap-2"
-            size="lg"
-            data-testid="button-google-signin"
-          >
-            <SiGoogle className="w-5 h-5" />
-            {isLoading ? "Signing in..." : "Continue with Google"}
-          </Button>
+        <CardContent className="space-y-6">
+          {/* OAuth Sign In Options */}
+          <div className="space-y-3">
+            <Button
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="w-full gap-2"
+              size="lg"
+              data-testid="button-google-signin"
+            >
+              <SiGoogle className="w-5 h-5" />
+              Continue with Google
+            </Button>
 
-          <Button
-            onClick={handleAppleSignIn}
-            disabled={isLoading}
-            className="w-full gap-2"
-            size="lg"
-            variant="outline"
-            data-testid="button-apple-signin"
-          >
-            <SiApple className="w-5 h-5" />
-            {isLoading ? "Signing in..." : "Continue with Apple"}
-          </Button>
+            <Button
+              onClick={handleAppleSignIn}
+              disabled={isLoading}
+              className="w-full gap-2"
+              size="lg"
+              variant="outline"
+              data-testid="button-apple-signin"
+            >
+              <SiApple className="w-5 h-5" />
+              Continue with Apple
+            </Button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+
+          {/* Email/Password Authentication */}
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin" data-testid="tab-signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" data-testid="tab-signup">Sign Up</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="signin" className="space-y-4">
+              <form onSubmit={handleEmailSignIn} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signin-email">Email</Label>
+                  <Input
+                    id="signin-email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                    data-testid="input-signin-email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-password">Password</Label>
+                  <Input
+                    id="signin-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    data-testid="input-signin-password"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full gap-2"
+                  disabled={isLoading}
+                  data-testid="button-email-signin"
+                >
+                  <Mail className="w-4 h-4" />
+                  {isLoading ? "Signing in..." : "Sign In with Email"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup" className="space-y-4">
+              <form onSubmit={handleEmailSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="John Smith"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
+                    data-testid="input-signup-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                    data-testid="input-signup-email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    data-testid="input-signup-password"
+                  />
+                  <p className="text-xs text-muted-foreground">At least 6 characters</p>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full gap-2"
+                  disabled={isLoading}
+                  data-testid="button-email-signup"
+                >
+                  <Mail className="w-4 h-4" />
+                  {isLoading ? "Creating account..." : "Create Account"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
           
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             Sign in to post quotes, vote, and purchase merchandise
           </p>
         </CardContent>
