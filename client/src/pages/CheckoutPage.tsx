@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,7 @@ interface ShippingInfo {
   country_code: string;
   zip: string;
   size: string;
+  includeAuthor: boolean;
 }
 
 function CheckoutForm({ 
@@ -122,6 +124,7 @@ export default function CheckoutPage() {
     country_code: 'US',
     zip: '',
     size: 'M',
+    includeAuthor: true,
   });
 
   // Fetch product details
@@ -346,6 +349,27 @@ export default function CheckoutPage() {
                     <SelectItem value="2XL">2X-Large</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Author Attribution Option */}
+              <div className="flex items-start space-x-3 pt-4 border-t">
+                <Checkbox
+                  id="includeAuthor"
+                  checked={shippingInfo.includeAuthor}
+                  onCheckedChange={(checked) => setShippingInfo({ ...shippingInfo, includeAuthor: checked === true })}
+                  data-testid="checkbox-include-author"
+                />
+                <div className="space-y-1 leading-none">
+                  <Label
+                    htmlFor="includeAuthor"
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Include author attribution on shirt
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Uncheck this if you prefer the quote without the author's username
+                  </p>
+                </div>
               </div>
             </div>
           </Card>

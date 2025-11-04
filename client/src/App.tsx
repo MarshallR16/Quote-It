@@ -28,6 +28,7 @@ import AdminPage from "@/pages/AdminPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
 import LoginPage from "@/pages/LoginPage";
+import TermsPage from "@/pages/TermsPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -64,8 +65,8 @@ function Router() {
     );
   }
 
-  // Show login page if not authenticated
-  if (!isAuthenticated && location !== "/login") {
+  // Show login page if not authenticated (except for terms page)
+  if (!isAuthenticated && location !== "/login" && location !== "/terms") {
     return <LoginPage />;
   }
 
@@ -78,6 +79,7 @@ function Router() {
       <main className="pt-16">
         <Switch>
           <Route path="/login" component={LoginPage} />
+          <Route path="/terms" component={TermsPage} />
           <Route path="/" component={FeedPage} />
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/store" component={StorePage} />

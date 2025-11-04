@@ -7,15 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { SiGoogle, SiApple } from "react-icons/si";
 import { Mail } from "lucide-react";
+import { Link } from "wouter";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const { toast } = useToast();
 
   // Handle redirect result when user returns from OAuth provider
@@ -137,6 +140,15 @@ export default function LoginPage() {
         variant: "destructive",
         title: "Weak password",
         description: "Password must be at least 6 characters",
+      });
+      return;
+    }
+
+    if (!termsAccepted) {
+      toast({
+        variant: "destructive",
+        title: "Terms required",
+        description: "Please accept the Terms of Service to continue",
       });
       return;
     }
@@ -308,6 +320,29 @@ export default function LoginPage() {
                   />
                   <p className="text-xs text-muted-foreground">At least 6 characters</p>
                 </div>
+                
+                {/* Terms & Conditions Checkbox */}
+                <div className="flex items-start space-x-3 pt-2">
+                  <Checkbox
+                    id="terms"
+                    checked={termsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                    disabled={isLoading}
+                    data-testid="checkbox-terms"
+                  />
+                  <div className="space-y-1 leading-none">
+                    <Label
+                      htmlFor="terms"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      I agree that my quotes can be used on merchandise as described in the{" "}
+                      <Link href="/terms">
+                        <span className="text-primary hover:underline">Terms of Service</span>
+                      </Link>
+                    </Label>
+                  </div>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full gap-2"

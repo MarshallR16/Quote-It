@@ -24,6 +24,8 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   dailyPostCount: integer("daily_post_count").notNull().default(0),
   lastPostDate: timestamp("last_post_date"),
+  termsAccepted: boolean("terms_accepted").notNull().default(false),
+  termsAcceptedAt: timestamp("terms_accepted_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -135,6 +137,7 @@ export const orders = pgTable("orders", {
   shippingAddress: jsonb("shipping_address"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"), // pending, completed, failed
+  includeAuthor: boolean("include_author").notNull().default(true), // whether to include author attribution on shirt
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -592,6 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: product.price,
         status: "processing",
         shippingAddress: shippingInfo ? JSON.stringify(shippingInfo) : null,
+        includeAuthor: shippingInfo?.includeAuthor !== false, // default to true if not specified
       });
 
       // Automatically submit to Printful if configured and shipping info provided
