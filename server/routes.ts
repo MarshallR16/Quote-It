@@ -87,6 +87,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update profile image
+  app.put('/api/users/profile-image', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { profileImageUrl } = req.body;
+
+      if (!profileImageUrl || typeof profileImageUrl !== 'string') {
+        return res.status(400).json({ message: "Profile image URL is required" });
+      }
+
+      await storage.updateUserProfileImage(userId, profileImageUrl);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error updating profile image:", error);
+      res.status(500).json({ message: "Error updating profile image: " + error.message });
+    }
+  });
+
   // Quote routes
   app.get("/api/quotes", async (_req, res) => {
     try {

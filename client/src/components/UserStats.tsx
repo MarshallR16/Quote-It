@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { User, Camera } from "lucide-react";
 
 interface UserStatsProps {
   username: string;
@@ -9,6 +10,7 @@ interface UserStatsProps {
   totalVotes: number;
   wins: number;
   profileImageUrl?: string | null;
+  onEditProfilePicture?: () => void;
 }
 
 export default function UserStats({
@@ -18,6 +20,7 @@ export default function UserStats({
   totalVotes,
   wins,
   profileImageUrl,
+  onEditProfilePicture,
 }: UserStatsProps) {
   const stats = [
     { label: "Posts", value: postsCount },
@@ -28,12 +31,25 @@ export default function UserStats({
   return (
     <Card className="p-6" data-testid="card-user-stats">
       <div className="mb-6 flex flex-col items-center text-center">
-        <Avatar className="w-24 h-24 mb-4" data-testid="avatar-profile">
-          <AvatarImage src={profileImageUrl || undefined} alt={username} />
-          <AvatarFallback>
-            <User className="w-12 h-12" />
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative mb-4">
+          <Avatar className="w-24 h-24" data-testid="avatar-profile">
+            <AvatarImage src={profileImageUrl || undefined} alt={username} />
+            <AvatarFallback>
+              <User className="w-12 h-12" />
+            </AvatarFallback>
+          </Avatar>
+          {onEditProfilePicture && (
+            <Button
+              size="icon"
+              variant="default"
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full"
+              onClick={onEditProfilePicture}
+              data-testid="button-edit-profile-picture"
+            >
+              <Camera className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
         <h2 className="text-2xl font-bold mb-1" data-testid="text-username">
           {username}
         </h2>

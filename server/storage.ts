@@ -9,6 +9,7 @@ export interface IStorage {
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
+  updateUserProfileImage(userId: string, profileImageUrl: string): Promise<void>;
   incrementReferralCount(userId: string): Promise<void>;
   incrementUsedReferralDiscounts(userId: string): Promise<void>;
   createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
@@ -99,6 +100,12 @@ export class DbStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return result[0] as User;
+  }
+
+  async updateUserProfileImage(userId: string, profileImageUrl: string): Promise<void> {
+    await db.update(users)
+      .set({ profileImageUrl, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   async incrementReferralCount(userId: string): Promise<void> {

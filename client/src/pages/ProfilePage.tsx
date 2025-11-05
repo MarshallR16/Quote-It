@@ -1,16 +1,18 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import UserStats from "@/components/UserStats";
 import QuoteCard from "@/components/QuoteCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDistanceToNow } from "date-fns";
-import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy } from "lucide-react";
+import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy, Upload, X } from "lucide-react";
 import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, uploadProfileImage } from "@/lib/firebase";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { QuoteWithAuthor } from "@shared/schema";
 
 type Order = {
@@ -28,6 +30,10 @@ export default function ProfilePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [copiedReferral, setCopiedReferral] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<QuoteWithAuthor[]>({
     queryKey: [`/api/quotes/user/${user?.id}`],
@@ -38,6 +44,80 @@ export default function ProfilePage() {
     queryKey: [`/api/orders/user/${user?.id}`],
     enabled: !!user?.id,
   });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      const url = await uploadProfileImage(user.id, file);
+      await apiRequest("PUT", "/api/users/profile-image", { profileImageUrl: url });
+      return url;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Profile picture updated",
+        description: "Your profile picture has been updated successfully",
+      });
+      setUploadDialogOpen(false);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: error.message || "Failed to upload profile picture",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+  });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "Invalid file type",
+        description: "Please select an image file",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Image must be less than 5MB",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUpload = () => {
+    if (!selectedFile) return;
+    uploadMutation.mutate(selectedFile);
+  };
 
   const handleSignOut = async () => {
     try {
@@ -90,6 +170,7 @@ export default function ProfilePage() {
                 totalVotes={totalVotes}
                 wins={wins}
                 profileImageUrl={user.profileImageUrl}
+                onEditProfilePicture={() => setUploadDialogOpen(true)}
               />
             </div>
           </div>
@@ -320,6 +401,117 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Profile Picture Upload Dialog */}
+      <Dialog 
+        open={uploadDialogOpen} 
+        onOpenChange={(open) => {
+          setUploadDialogOpen(open);
+          if (!open) {
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            if (fileInputRef.current) {
+              fileInputRef.current.value = "";
+            }
+          }
+        }}
+      >
+        <DialogContent data-testid="dialog-upload-profile-picture">
+          <DialogHeader>
+            <DialogTitle>Upload Profile Picture</DialogTitle>
+            <DialogDescription>
+              Choose an image to use as your profile picture. Maximum size: 5MB.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {previewUrl ? (
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <div className="relative w-48 h-48">
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover rounded-full"
+                      data-testid="img-preview"
+                    />
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      className="absolute top-0 right-0 rounded-full"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setPreviewUrl(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                      }}
+                      data-testid="button-clear-preview"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    onClick={handleUpload}
+                    disabled={uploadMutation.isPending}
+                    data-testid="button-upload-confirm"
+                  >
+                    {uploadMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = "";
+                      }
+                    }}
+                    disabled={uploadMutation.isPending}
+                    data-testid="button-choose-different"
+                  >
+                    Choose Different
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover-elevate"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="dropzone-select-image"
+              >
+                <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  Click to select an image
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  JPG, PNG, GIF up to 5MB
+                </p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              data-testid="input-file"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
