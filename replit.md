@@ -6,6 +6,17 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Profile Picture Upload (Complete - November 5, 2025)**
+- Users can now upload custom profile pictures via Firebase Storage
+- Camera icon overlay on profile avatar opens upload dialog
+- File validation: images only, 5MB maximum size
+- Preview before upload with ability to clear and reselect
+- Uploads stored in Firebase Storage at profile-images/{userId}/{timestamp}_{filename}
+- Backend endpoint PUT /api/users/profile-image updates profileImageUrl in database
+- Avatars update immediately throughout app via query invalidation
+- Proper cleanup on all paths: validation errors, upload success/failure, dialog close
+- Fallback chain: custom profileImageUrl → Firebase Auth photoURL → generic user icon
+
 **Weekly Winner Free Shirt (Complete - November 5, 2025)**
 - Added isComplimentary field to orders table to track free winner shirts
 - When weekly winner is selected, a complimentary order is automatically created for the quote author
