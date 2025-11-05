@@ -6,6 +6,8 @@ import { insertProductSchema, insertOrderSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { printfulService } from "./printful";
 import Stripe from "stripe";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 // Stripe will be initialized when keys are provided
 let stripe: Stripe | null = null;
@@ -429,6 +431,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       res.status(500).json({ message: "Error selecting weekly winner: " + error.message });
+    }
+  });
+
+  // Admin analytics endpoint
+  app.get("/api/admin/analytics", isAuthenticated, async (req: any, res) => {
+    try {
+      const analytics = await db.execute(sql`
+        SELECT 
+          (SELECT COUNT(*) FROM orders WHERE status = 'completed') as total_orders,
+          (SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'completed') as total_revenue,
+          (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
+          (SELECT COUNT(DISTINCT product_id) FROM orders WHERE status = 'completed') as products_sold_count,
+          (SELECT COUNT(*) FROM products WHERE is_active = true) as active_products
+      `);
+      
+      res.json(analytics.rows[0]);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching analytics: " + error.message });
+    }
+  });
+
+  // Recent orders endpoint
+  app.get("/api/admin/recent-orders", isAuthenticated, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const orders = await db.execute(sql`
+        SELECT 
+          o.id,
+          o.user_id,
+          o.product_id,
+          o.amount,
+          o.status,
+          o.include_author,
+          o.created_at,
+          u.email as customer_email,
+          u.first_name || ' ' || u.last_name as customer_name,
+          p.name as product_name
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.id
+        LEFT JOIN products p ON o.product_id = p.id
+        ORDER BY o.created_at DESC
+        LIMIT ${limit}
+      `);
+      
+      res.json(orders.rows);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching orders: " + error.message });
     }
   });
 

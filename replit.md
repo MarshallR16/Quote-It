@@ -6,6 +6,15 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Store Automation & Admin Analytics (Complete - November 5, 2025)**
+- Automated weekly winner selection with node-cron (runs every Sunday at 11:59 PM)
+- Scheduler automatically selects highest-voted quote and creates Printful product
+- Created comprehensive test data: 5 users, 10 quotes (67 votes on top quote), 5 orders ($116.96 revenue)
+- Built admin dashboard showing total revenue, completed orders, products sold, and pending orders
+- Recent orders list with customer info, amounts, and status
+- Admin analytics endpoints: /api/admin/analytics and /api/admin/recent-orders
+- Dashboard accessible at /admin route (requires authentication)
+
 **Social Features Update (Complete - November 4, 2025)**
 - Added daily posting streaks: currentStreak, longestStreak, lastStreakDate fields track consecutive posting days
 - Streak automatically increments when users post on consecutive days, resets if a day is missed
