@@ -204,6 +204,7 @@ export class DbStorage implements IStorage {
         authorFirstName: users.firstName,
         authorLastName: users.lastName,
         authorEmail: users.email,
+        authorProfileImageUrl: users.profileImageUrl,
       })
       .from(quotes)
       .leftJoin(users, eq(quotes.authorId, users.id))
@@ -224,6 +225,7 @@ export class DbStorage implements IStorage {
         authorFirstName: users.firstName,
         authorLastName: users.lastName,
         authorEmail: users.email,
+        authorProfileImageUrl: users.profileImageUrl,
       })
       .from(quotes)
       .leftJoin(users, eq(quotes.authorId, users.id))

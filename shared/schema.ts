@@ -64,6 +64,7 @@ export type QuoteWithAuthor = Quote & {
   authorFirstName: string | null;
   authorLastName: string | null;
   authorEmail: string | null;
+  authorProfileImageUrl: string | null;
 };
 
 export const votes = pgTable("votes", {

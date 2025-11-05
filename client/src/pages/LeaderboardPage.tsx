@@ -2,7 +2,8 @@ import WinnerCard from "@/components/WinnerCard";
 import QuoteCard from "@/components/QuoteCard";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { Trophy } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Trophy, User } from "lucide-react";
 
 // TODO: remove mock functionality
 const currentWinner = {
@@ -69,7 +70,7 @@ export default function LeaderboardPage() {
           <h3 className="text-2xl font-bold font-display mb-4">Runners Up</h3>
           <div className="grid gap-6 md:grid-cols-2">
             {runnersUp.map((quote) => (
-              <QuoteCard key={quote.id} {...quote} />
+              <QuoteCard key={quote.id} {...quote} authorProfileImageUrl={null} />
             ))}
           </div>
         </div>
@@ -101,6 +102,12 @@ export default function LeaderboardPage() {
                       <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <span className="text-xl font-bold">#{index + 1}</span>
                       </div>
+                      <Avatar className="w-10 h-10" data-testid={`avatar-user-${index}`}>
+                        <AvatarImage src={user.profileImageUrl || undefined} alt={displayName} />
+                        <AvatarFallback>
+                          <User className="w-5 h-5" />
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex-1">
                         <p className="text-lg font-medium mb-1">{displayName}</p>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">

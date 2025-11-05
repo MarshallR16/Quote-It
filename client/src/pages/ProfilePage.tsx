@@ -89,6 +89,7 @@ export default function ProfilePage() {
                 postsCount={userQuotes.length}
                 totalVotes={totalVotes}
                 wins={wins}
+                profileImageUrl={user.profileImageUrl}
               />
             </div>
           </div>
@@ -217,6 +218,7 @@ export default function ProfilePage() {
                       content={quote.text}
                       author={quote.authorUsername || 'Unknown'}
                       authorId={quote.authorId}
+                      authorProfileImageUrl={quote.authorProfileImageUrl}
                       upvotes={Math.max(0, quote.voteCount)}
                       downvotes={0}
                       timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}

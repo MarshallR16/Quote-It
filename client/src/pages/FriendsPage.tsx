@@ -1,8 +1,9 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserCheck, UserPlus, Clock, X } from "lucide-react";
+import { Loader2, UserCheck, UserPlus, Clock, X, User as UserIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -12,6 +13,7 @@ type User = {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  profileImageUrl: string | null;
 };
 
 type Friend = {
@@ -127,9 +129,12 @@ export default function FriendsPage() {
               {requests.map((request) => (
                 <Card key={request.id} data-testid={`request-${request.id}`}>
                   <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <UserPlus className="w-6 h-6" />
-                    </div>
+                    <Avatar className="w-12 h-12" data-testid={`avatar-requester-${request.id}`}>
+                      <AvatarImage src={request.requester.profileImageUrl || undefined} alt={getUserName(request.requester)} />
+                      <AvatarFallback>
+                        <UserIcon className="w-6 h-6" />
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex-1">
                       <CardTitle 
                         className="text-base cursor-pointer hover:underline"
@@ -202,9 +207,12 @@ export default function FriendsPage() {
                   data-testid={`friend-${friendship.id}`}
                 >
                   <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <UserCheck className="w-6 h-6" />
-                    </div>
+                    <Avatar className="w-12 h-12" data-testid={`avatar-friend-${friendship.id}`}>
+                      <AvatarImage src={friendship.friend.profileImageUrl || undefined} alt={getUserName(friendship.friend)} />
+                      <AvatarFallback>
+                        <UserIcon className="w-6 h-6" />
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex-1">
                       <CardTitle className="text-base" data-testid={`text-friend-${friendship.id}`}>
                         {getUserName(friendship.friend)}

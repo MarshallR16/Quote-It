@@ -16,6 +16,7 @@ type User = {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  profileImageUrl: string | null;
   createdAt: string;
 };
 
@@ -205,6 +206,7 @@ export default function UserProfilePage() {
                 postsCount={userQuotes.length}
                 totalVotes={totalVotes}
                 wins={wins}
+                profileImageUrl={profileUser.profileImageUrl}
               />
               {renderFriendButton()}
             </div>
@@ -236,6 +238,7 @@ export default function UserProfilePage() {
                       content={quote.text}
                       author={quote.authorUsername || 'Unknown'}
                       authorId={quote.authorId}
+                      authorProfileImageUrl={quote.authorProfileImageUrl}
                       upvotes={Math.max(0, quote.voteCount)}
                       downvotes={0}
                       timeAgo={formatDistanceToNow(new Date(quote.createdAt), { addSuffix: true })}

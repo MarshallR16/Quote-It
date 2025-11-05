@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users, Shield, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
@@ -156,9 +157,7 @@ export default function TopNavigation({
               >
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
-              <Button
-                size="icon"
-                variant="ghost"
+              <button
                 className="rounded-full"
                 onClick={() => {
                   onProfileClick?.();
@@ -166,16 +165,13 @@ export default function TopNavigation({
                 }}
                 data-testid="button-profile"
               >
-                {user?.profileImageUrl ? (
-                  <img
-                    src={user.profileImageUrl}
-                    alt={user.email || "User"}
-                    className="w-7 h-7 rounded-full object-cover"
-                  />
-                ) : (
-                  <User className="w-5 h-5" />
-                )}
-              </Button>
+                <Avatar className="w-9 h-9">
+                  <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.email || "User"} />
+                  <AvatarFallback>
+                    <User className="w-5 h-5" />
+                  </AvatarFallback>
+                </Avatar>
+              </button>
               <Button
                 size="icon"
                 variant="ghost"
