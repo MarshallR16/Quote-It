@@ -34,10 +34,12 @@ export default function AdminPage() {
 
   const { data: analytics, isLoading: isLoadingAnalytics } = useQuery<Analytics>({
     queryKey: ["/api/admin/analytics"],
+    enabled: !!user?.isAdmin,
   });
 
   const { data: recentOrders, isLoading: isLoadingOrders } = useQuery<Order[]>({
     queryKey: ["/api/admin/recent-orders"],
+    enabled: !!user?.isAdmin,
   });
 
   const makeMeAdminMutation = useMutation({

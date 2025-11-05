@@ -351,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Select weekly winner and create Printful product automatically
-  app.post("/api/admin/select-weekly-winner", requireAdmin, async (req: any, res) => {
+  app.post("/api/admin/select-weekly-winner", requireAdmin, async (req: any, res: any) => {
     try {
       // Get all quotes
       const quotes = await storage.getAllQuotes();
@@ -436,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin analytics endpoint
-  app.get("/api/admin/analytics", requireAdmin, async (req: any, res) => {
+  app.get("/api/admin/analytics", requireAdmin, async (req: any, res: any) => {
     try {
       const analytics = await db.execute(sql`
         SELECT 
@@ -454,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recent orders endpoint
-  app.get("/api/admin/recent-orders", requireAdmin, async (req: any, res) => {
+  app.get("/api/admin/recent-orders", requireAdmin, async (req: any, res: any) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const orders = await db.execute(sql`
