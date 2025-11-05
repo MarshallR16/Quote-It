@@ -368,6 +368,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get most recent weekly winner with quote and product details
+  app.get("/api/weekly-winner/current", async (_req, res) => {
+    try {
+      const winner = await storage.getMostRecentWeeklyWinnerWithDetails();
+      res.json(winner || null);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching current weekly winner: " + error.message });
+    }
+  });
+
   // Select weekly winner and create Printful product automatically
   app.post("/api/admin/select-weekly-winner", requireAdmin, async (req: any, res: any) => {
     try {

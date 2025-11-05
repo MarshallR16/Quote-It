@@ -45,6 +45,7 @@ export interface IStorage {
   // Weekly Winner methods
   getWeeklyWinner(id: string): Promise<WeeklyWinner | undefined>;
   getCurrentWeeklyWinner(): Promise<WeeklyWinner | undefined>;
+  getMostRecentWeeklyWinnerWithDetails(): Promise<any | undefined>;
   getAllWeeklyWinners(): Promise<WeeklyWinner[]>;
   createWeeklyWinner(winner: InsertWeeklyWinner): Promise<WeeklyWinner>;
 
@@ -395,6 +396,36 @@ export class DbStorage implements IStorage {
 
   async getAllWeeklyWinners(): Promise<WeeklyWinner[]> {
     return await db.select().from(weeklyWinners).orderBy(desc(weeklyWinners.weekStartDate));
+  }
+
+  async getMostRecentWeeklyWinnerWithDetails(): Promise<any | undefined> {
+    const result = await db
+      .select({
+        winnerId: weeklyWinners.id,
+        quoteId: quotes.id,
+        quoteText: quotes.text,
+        voteCount: quotes.voteCount,
+        authorId: users.id,
+        authorUsername: users.username,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorProfileImageUrl: users.profileImageUrl,
+        productId: products.id,
+        productName: products.name,
+        productPrice: products.price,
+        productImageUrl: products.imageUrl,
+        weekStartDate: weeklyWinners.weekStartDate,
+        weekEndDate: weeklyWinners.weekEndDate,
+        createdAt: weeklyWinners.createdAt,
+      })
+      .from(weeklyWinners)
+      .innerJoin(quotes, eq(weeklyWinners.quoteId, quotes.id))
+      .innerJoin(users, eq(quotes.authorId, users.id))
+      .leftJoin(products, eq(products.weeklyWinnerId, weeklyWinners.id))
+      .orderBy(desc(weeklyWinners.createdAt))
+      .limit(1);
+    
+    return result[0];
   }
 
   async createWeeklyWinner(insertWinner: InsertWeeklyWinner): Promise<WeeklyWinner> {
