@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name").notNull(),
   lastName: varchar("last_name").notNull(),
   profileImageUrl: varchar("profile_image_url"),
+  isAdmin: boolean("is_admin").notNull().default(false),
   dailyPostCount: integer("daily_post_count").notNull().default(0),
   lastPostDate: timestamp("last_post_date"),
   currentStreak: integer("current_streak").notNull().default(0),

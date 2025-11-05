@@ -94,6 +94,28 @@ export const verifyFirebaseToken: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Middleware to verify user is admin
+export const isAdmin: RequestHandler = async (req, res, next) => {
+  try {
+    const firebaseUser = (req as any).firebaseUser;
+    
+    if (!firebaseUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await storage.getUser(firebaseUser.uid);
+    
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({ message: "Forbidden - Admin access required" });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // Setup Firebase auth routes
 export async function setupFirebaseAuth(app: Express) {
   // Get current user from Firebase token
@@ -288,3 +310,6 @@ export async function setupFirebaseAuth(app: Express) {
 
 // Export for use in protected routes
 export const isAuthenticated = verifyFirebaseToken;
+
+// Middleware that requires both authentication and admin status
+export const requireAdmin = [verifyFirebaseToken, isAdmin];
