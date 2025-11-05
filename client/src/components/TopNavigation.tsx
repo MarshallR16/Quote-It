@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users, Shield, Gift } from "lucide-react";
+import { User, Moon, Sun, LogOut, ShoppingBag, Flame, Users, Shield, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -138,15 +138,14 @@ export default function TopNavigation({
               <Button
                 variant="default"
                 size="default"
-                className="rounded-full gap-2"
+                className="rounded-full"
                 onClick={() => {
                   onCreateClick?.();
                   console.log('Create Quote clicked');
                 }}
                 data-testid="button-create-quote"
               >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Create</span>
+                Post
               </Button>
               <Button
                 size="icon"
