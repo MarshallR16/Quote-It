@@ -144,7 +144,8 @@ export const orders = pgTable("orders", {
   printfulOrderId: integer("printful_order_id"),
   shippingAddress: jsonb("shipping_address"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  status: text("status").notNull().default("pending"), // pending, completed, failed
+  status: text("status").notNull().default("pending"), // pending, completed, failed, awaiting_address
+  isComplimentary: boolean("is_complimentary").notNull().default(false), // true for free winner shirts
   includeAuthor: boolean("include_author").notNull().default(true), // whether to include author attribution on shirt
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
