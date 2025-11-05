@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Trophy, DollarSign, Package, ShoppingCart, Clock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Trophy, DollarSign, Package, ShoppingCart, Clock, Shield } from "lucide-react";
 
 interface Analytics {
   total_orders: number;
@@ -25,6 +26,7 @@ interface Order {
 
 export default function AdminPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: weeklyWinner, isLoading: isLoadingWinner } = useQuery<any>({
     queryKey: ["/api/products/weekly-winner"],
@@ -36,6 +38,27 @@ export default function AdminPage() {
 
   const { data: recentOrders, isLoading: isLoadingOrders } = useQuery<Order[]>({
     queryKey: ["/api/admin/recent-orders"],
+  });
+
+  const makeMeAdminMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/make-me-admin", {});
+      return res;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success!",
+        description: "You are now an admin. Refresh the page to see admin features.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to become admin",
+      });
+    },
   });
 
   const selectWinnerMutation = useMutation({
@@ -61,6 +84,33 @@ export default function AdminPage() {
       });
     },
   });
+
+  // Check if user is admin
+  if (!user?.isAdmin) {
+    return (
+      <div className="min-h-screen pb-20 md:pb-8 pt-16">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <Card className="p-8 text-center">
+            <Shield className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <h1 className="text-2xl font-bold font-display mb-2">Admin Access Required</h1>
+            <p className="text-muted-foreground mb-6">
+              You need admin privileges to access this page.
+            </p>
+            <Button
+              onClick={() => makeMeAdminMutation.mutate()}
+              disabled={makeMeAdminMutation.isPending}
+              data-testid="button-make-me-admin"
+            >
+              {makeMeAdminMutation.isPending ? "Processing..." : "Make Me Admin (First User Only)"}
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              This button only works if there are no existing admins.
+            </p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">

@@ -6,6 +6,15 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Admin Role System (Complete - November 5, 2025)**
+- Added isAdmin boolean field to users table (defaults to false)
+- Created isAdmin middleware and requireAdmin middleware to protect admin routes
+- Admin-only endpoints: /api/admin/select-weekly-winner, /api/admin/analytics, /api/admin/recent-orders
+- Admin navigation link appears in TopNavigation only for admin users (Shield icon)
+- Admin panel shows access denied screen for non-admin users
+- First-time admin setup: POST /api/admin/make-me-admin (only works if no admins exist)
+- Admin dashboard displays: revenue, orders, products sold, recent order history
+
 **Store Automation & Admin Analytics (Complete - November 5, 2025)**
 - Automated weekly winner selection with node-cron (runs every Sunday at 11:59 PM)
 - Scheduler automatically selects highest-voted quote and creates Printful product
@@ -13,7 +22,7 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 - Built admin dashboard showing total revenue, completed orders, products sold, and pending orders
 - Recent orders list with customer info, amounts, and status
 - Admin analytics endpoints: /api/admin/analytics and /api/admin/recent-orders
-- Dashboard accessible at /admin route (requires authentication)
+- Dashboard accessible at /admin route (requires admin privileges)
 
 **Social Features Update (Complete - November 4, 2025)**
 - Added daily posting streaks: currentStreak, longestStreak, lastStreakDate fields track consecutive posting days
@@ -85,6 +94,16 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Admin Setup
+
+To become the first admin:
+1. Sign in to the app with your account
+2. Navigate to `/admin`
+3. Click the "Make Me Admin (First User Only)" button
+4. Refresh the page to see the full admin dashboard
+
+Note: This only works for the first admin. After that, existing admins must manually grant admin privileges via database update.
 
 ## System Architecture
 
