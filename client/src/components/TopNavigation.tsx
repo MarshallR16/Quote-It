@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users } from "lucide-react";
+import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users, Shield } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -88,6 +88,18 @@ export default function TopNavigation({
             <ShoppingBag className="w-4 h-4" />
             <span>Store</span>
           </Button>
+          {isAuthenticated && user?.isAdmin && (
+            <Button
+              variant="ghost"
+              size="default"
+              className="gap-2"
+              onClick={() => setLocation("/admin")}
+              data-testid="button-nav-admin"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Admin</span>
+            </Button>
+          )}
         </nav>
         <div className="flex items-center gap-2">
           {isAuthenticated ? (

@@ -8,6 +8,7 @@ import { printfulService } from "./printful";
 import Stripe from "stripe";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import { users } from "@shared/schema";
 
 // Stripe will be initialized when keys are provided
 let stripe: Stripe | null = null;
@@ -866,6 +867,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(friendsQuotes);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching friends quotes: " + error.message });
+    }
+  });
+
+  // Endpoint to make yourself admin (only works if no admins exist)
+  app.post("/api/admin/make-me-admin", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      
+      // Check if any admins exist
+      const allUsers = await db.select().from(users);
+      const existingAdmin = allUsers.find(u => u.isAdmin);
+      
+      if (existingAdmin) {
+        return res.status(403).json({ 
+          message: "An admin already exists. Contact the existing admin to grant you admin privileges.",
+          adminEmail: existingAdmin.email
+        });
+      }
+      
+      // Make this user admin
+      const updatedUser = await storage.updateUser(userId, { isAdmin: true });
+      
+      res.json({ 
+        message: "You are now an admin!",
+        user: updatedUser
+      });
+    } catch (error: any) {
+      console.error("Error making user admin:", error);
+      res.status(500).json({ message: "Error making user admin: " + error.message });
     }
   });
 
