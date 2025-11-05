@@ -1,44 +1,10 @@
-import WinnerCard from "@/components/WinnerCard";
-import QuoteCard from "@/components/QuoteCard";
 import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, User } from "lucide-react";
-
-// TODO: remove mock functionality
-const currentWinner = {
-  weekNumber: 42,
-  content: "Be yourself; everyone else is already taken",
-  author: "Oscar Wilde",
-  votes: 892,
-};
-
-const runnersUp = [
-  {
-    id: "2",
-    content: "The future belongs to those who believe in the beauty of their dreams",
-    author: "Eleanor Roosevelt",
-    upvotes: 678,
-    downvotes: 23,
-    timeAgo: "3 days ago",
-  },
-  {
-    id: "3",
-    content: "Life is what happens when you're busy making other plans",
-    author: "John Lennon",
-    upvotes: 445,
-    downvotes: 32,
-    timeAgo: "2 days ago",
-  },
-  {
-    id: "4",
-    content: "In the middle of difficulty lies opportunity",
-    author: "Albert Einstein",
-    upvotes: 234,
-    downvotes: 18,
-    timeAgo: "1 day ago",
-  },
-];
+import { Button } from "@/components/ui/button";
+import { Trophy, User, ShoppingBag } from "lucide-react";
+import { useLocation } from "wouter";
+import { formatDistanceToNow } from "date-fns";
 
 interface HallOfFameUser {
   userId: string;
@@ -51,29 +17,91 @@ interface HallOfFameUser {
 }
 
 export default function LeaderboardPage() {
+  const [, setLocation] = useLocation();
+
+  // Fetch most recent weekly winner
+  const { data: currentWinner, isLoading: isLoadingWinner } = useQuery<any>({
+    queryKey: ["/api/weekly-winner/current"],
+  });
+
   // Fetch hall of fame users
   const { data: hallOfFame, isLoading: isLoadingHall } = useQuery<HallOfFameUser[]>({
     queryKey: ["/api/hall-of-fame"],
   });
+
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        <div>
-          <h2 className="text-3xl font-bold font-display mb-2">This Week's Leader</h2>
-          <p className="text-muted-foreground mb-6">
-            The most voted quote will be available as a T-shirt
-          </p>
-          <WinnerCard {...currentWinner} />
-        </div>
-
-        <div>
-          <h3 className="text-2xl font-bold font-display mb-4">Runners Up</h3>
-          <div className="grid gap-6 md:grid-cols-2">
-            {runnersUp.map((quote) => (
-              <QuoteCard key={quote.id} {...quote} authorProfileImageUrl={null} />
-            ))}
+        {/* Current T-Shirt for Sale */}
+        {isLoadingWinner ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-muted-foreground">Loading current winner...</p>
           </div>
-        </div>
+        ) : currentWinner ? (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-3xl font-bold font-display mb-2">Now Available</h2>
+                <p className="text-muted-foreground">
+                  Last week's winning quote, now on a premium T-shirt
+                </p>
+              </div>
+              <Button
+                onClick={() => setLocation("/store")}
+                className="gap-2"
+                data-testid="button-shop-winner"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Shop Now
+              </Button>
+            </div>
+            <Card className="overflow-hidden" data-testid="card-current-winner">
+              <CardContent className="p-8">
+                <div className="flex flex-col items-center text-center space-y-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Trophy className="w-8 h-8 text-primary" />
+                  </div>
+                  <blockquote className="text-2xl md:text-3xl font-display leading-relaxed">
+                    "{currentWinner.quoteText}"
+                  </blockquote>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-10 h-10" data-testid="avatar-winner">
+                      <AvatarImage 
+                        src={currentWinner.authorProfileImageUrl || undefined} 
+                        alt={currentWinner.authorUsername} 
+                      />
+                      <AvatarFallback>
+                        <User className="w-5 h-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-left">
+                      <p className="font-medium" data-testid="text-winner-author">
+                        {currentWinner.authorFirstName && currentWinner.authorLastName
+                          ? `${currentWinner.authorFirstName} ${currentWinner.authorLastName}`
+                          : currentWinner.authorUsername}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {currentWinner.voteCount} votes • ${currentWinner.productPrice || '29.99'}
+                      </p>
+                    </div>
+                  </div>
+                  {currentWinner.createdAt && (
+                    <p className="text-sm text-muted-foreground">
+                      Selected {formatDistanceToNow(new Date(currentWinner.createdAt), { addSuffix: true })}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-muted/30 rounded-md">
+            <p className="text-muted-foreground text-lg mb-2">No winner selected yet</p>
+            <p className="text-sm text-muted-foreground">
+              The first weekly winner will appear here!
+            </p>
+          </div>
+        )}
 
         {/* Hall of Fame Section */}
         <div className="pt-8 border-t">
