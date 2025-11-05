@@ -456,10 +456,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const analytics = await db.execute(sql`
         SELECT 
-          (SELECT COUNT(*) FROM orders WHERE status = 'completed') as total_orders,
-          (SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'completed') as total_revenue,
+          (SELECT COUNT(*) FROM orders WHERE status = 'completed' AND is_complimentary = false) as total_orders,
+          (SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'completed' AND is_complimentary = false) as total_revenue,
           (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
-          (SELECT COUNT(DISTINCT product_id) FROM orders WHERE status = 'completed') as products_sold_count,
+          (SELECT COUNT(DISTINCT product_id) FROM orders WHERE status = 'completed' AND is_complimentary = false) as products_sold_count,
           (SELECT COUNT(*) FROM products WHERE is_active = true) as active_products
       `);
       
