@@ -613,6 +613,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get complimentary orders for current user
+  app.get("/api/orders/my-complimentary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const allOrders = await storage.getOrdersByUser(userId);
+      const complimentaryOrders = allOrders.filter((order: any) => order.isComplimentary);
+      res.json(complimentaryOrders);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching complimentary orders: " + error.message });
+    }
+  });
+
   // Update order status (webhook from Stripe would call this)
   app.post("/api/orders/:id/status", async (req, res) => {
     try {

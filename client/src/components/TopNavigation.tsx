@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users, Shield } from "lucide-react";
+import { Plus, User, Moon, Sun, LogOut, ShoppingBag, Flame, Users, Shield, Gift } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import WeeklyWinnerCountdown from "@/components/WeeklyWinnerCountdown";
 
 interface TopNavigationProps {
@@ -21,6 +23,16 @@ export default function TopNavigation({
   const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  // Check for complimentary orders (free shirts)
+  const { data: complimentaryOrders } = useQuery<any[]>({
+    queryKey: ["/api/orders/my-complimentary"],
+    enabled: isAuthenticated,
+  });
+
+  const hasPendingFreeShirt = complimentaryOrders?.some(
+    (order) => order.status === "awaiting_address"
+  ) || false;
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -104,6 +116,24 @@ export default function TopNavigation({
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <>
+              {hasPendingFreeShirt && (
+                <Button
+                  variant="default"
+                  size="default"
+                  className="rounded-full gap-2 bg-green-600 hover:bg-green-700"
+                  onClick={() => {
+                    setLocation("/profile");
+                    toast({
+                      title: "You won!",
+                      description: "Claim your free shirt on your profile page",
+                    });
+                  }}
+                  data-testid="button-free-shirt"
+                >
+                  <Gift className="w-4 h-4" />
+                  <span className="hidden sm:inline">Free Shirt!</span>
+                </Button>
+              )}
               <Button
                 variant="default"
                 size="default"

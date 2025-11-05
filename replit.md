@@ -6,6 +6,14 @@ Quote-It is a minimalist social media platform where users share quotes and thou
 
 ## Recent Changes (November 2025)
 
+**Weekly Winner Free Shirt (Complete - November 5, 2025)**
+- Added isComplimentary field to orders table to track free winner shirts
+- When weekly winner is selected, a complimentary order is automatically created for the quote author
+- Winner receives a free shirt of their winning quote design
+- Green "Free Shirt!" button appears in navigation when user has a pending free shirt (Gift icon)
+- Order status "awaiting_address" indicates winner needs to provide shipping info to claim
+- Complimentary orders have $0.00 amount and skip payment processing
+
 **Admin Role System (Complete - November 5, 2025)**
 - Added isAdmin boolean field to users table (defaults to false)
 - Created isAdmin middleware and requireAdmin middleware to protect admin routes
