@@ -417,6 +417,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           product = await storage.createProduct(productData);
+
+          // Create complimentary order for the winner
+          try {
+            const complimentaryOrder = await storage.createOrder({
+              userId: topQuote.authorId,
+              productId: product.id,
+              amount: '0.00',
+              status: 'awaiting_address',
+              isComplimentary: true,
+              includeAuthor: true,
+            });
+            console.log('Created complimentary order for winner:', complimentaryOrder.id);
+          } catch (error: any) {
+            console.error('Error creating complimentary order:', error);
+            // Continue even if order creation fails
+          }
         } catch (error: any) {
           console.error('Error creating Printful product:', error);
           // Continue even if Printful creation fails
@@ -428,7 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quote: topQuote,
         product,
         printfulProduct,
-        message: product ? 'Weekly winner selected and Printful product created' : 'Weekly winner selected'
+        message: product ? 'Weekly winner selected, Printful product created, and free shirt awarded to winner' : 'Weekly winner selected'
       });
     } catch (error: any) {
       res.status(500).json({ message: "Error selecting weekly winner: " + error.message });
