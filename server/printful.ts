@@ -96,10 +96,8 @@ export class PrintfulService {
    * Generate simple SVG design with quote, author, and QR code
    */
   private async generateDesignSVG(quoteText: string, author: string): Promise<string> {
-    // Get app URL for QR code
-    const appUrl = process.env.REPLIT_DOMAINS ? 
-      `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 
-      'https://quote-it.replit.app';
+    // Use custom domain for QR code on all shirts
+    const appUrl = 'https://quote-it.co';
 
     const qrCodeDataUrl = await this.generateQRCode(appUrl);
 
