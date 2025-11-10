@@ -2,240 +2,43 @@
 
 ## Overview
 
-Quote-It is a minimalist social media platform where users share quotes and thoughts, vote on posts, and purchase winning quotes as premium T-shirts. The platform features a clean, typography-first design inspired by Twitter's feed structure and Apple's minimalist aesthetic. Every week, the most voted quote is selected and made available as a merchandise item through Printful integration.
-
-## Recent Changes (November 2025)
-
-**Profile Picture Upload (Complete - November 5, 2025)**
-- Users can now upload custom profile pictures via Firebase Storage
-- Camera icon overlay on profile avatar opens upload dialog
-- File validation: images only, 5MB maximum size
-- Preview before upload with ability to clear and reselect
-- Uploads stored in Firebase Storage at profile-images/{userId}/{timestamp}_{filename}
-- Backend endpoint PUT /api/users/profile-image updates profileImageUrl in database
-- Avatars update immediately throughout app via query invalidation
-- Proper cleanup on all paths: validation errors, upload success/failure, dialog close
-- Fallback chain: custom profileImageUrl → Firebase Auth photoURL → generic user icon
-
-**Weekly Winner Free Shirt (Complete - November 5, 2025)**
-- Added isComplimentary field to orders table to track free winner shirts
-- When weekly winner is selected, a complimentary order is automatically created for the quote author
-- Winner receives a free shirt of their winning quote design
-- Green "Free Shirt!" button appears in navigation when user has a pending free shirt (Gift icon)
-- Order status "awaiting_address" indicates winner needs to provide shipping info to claim
-- Complimentary orders have $0.00 amount and skip payment processing
-
-**Admin Role System (Complete - November 5, 2025)**
-- Added isAdmin boolean field to users table (defaults to false)
-- Created isAdmin middleware and requireAdmin middleware to protect admin routes
-- Admin-only endpoints: /api/admin/select-weekly-winner, /api/admin/analytics, /api/admin/recent-orders
-- Admin navigation link appears in TopNavigation only for admin users (Shield icon)
-- Admin panel shows access denied screen for non-admin users
-- First-time admin setup: POST /api/admin/make-me-admin (only works if no admins exist)
-- Admin dashboard displays: revenue, orders, products sold, recent order history
-
-**Store Automation & Admin Analytics (Complete - November 5, 2025)**
-- Automated weekly winner selection with node-cron (runs every Sunday at 11:59 PM)
-- Scheduler automatically selects highest-voted quote and creates Printful product
-- Created comprehensive test data: 5 users, 10 quotes (67 votes on top quote), 5 orders ($116.96 revenue)
-- Built admin dashboard showing total revenue, completed orders, products sold, and pending orders
-- Recent orders list with customer info, amounts, and status
-- Admin analytics endpoints: /api/admin/analytics and /api/admin/recent-orders
-- Dashboard accessible at /admin route (requires admin privileges)
-
-**Social Features Update (Complete - November 4, 2025)**
-- Added daily posting streaks: currentStreak, longestStreak, lastStreakDate fields track consecutive posting days
-- Streak automatically increments when users post on consecutive days, resets if a day is missed
-- Profile page displays current streak with fire emoji 🔥 and longest streak with trophy 🏆
-- Motivational messages encourage users to maintain their streak
-- Implemented @mention parsing in quotes: @username becomes clickable, navigates to user profile
-- Created GET /api/users/by-username/:username endpoint with case-insensitive lookup
-- Added share to social media: Twitter (X), Facebook, LinkedIn buttons with proper open graph integration
-- Copy link functionality with clipboard API and textarea fallback for non-HTTPS environments
-- All features include proper error handling, accessibility attributes, and user feedback
-
-**Hall of Fame Update (Complete - November 4, 2025)**
-- Redesigned Hall of Fame to track top users instead of individual quotes
-- Users ranked by: 1) Number of weekly wins (most #1 shirts), 2) Total votes across all quotes
-- API endpoint aggregates user statistics from weeklyWinners and quotes tables
-- Leaderboard page displays user rankings with win count and total vote count
-- Shows users with at least 1 win or votes (filters out inactive users)
-
-**Referral System (Complete - November 4, 2025)**
-- Each referral gives ONE discounted purchase at 10% off (not stacking)
-- Users can earn multiple referrals and use them across multiple purchases
-- Each successful purchase with discount uses one referral credit
-- Each user receives a unique 8-character referral code on signup
-- Referral codes use cryptographically secure randomness with collision detection
-- New users can apply referral codes during signup
-- Database fields: referralCode (unique), referredBy (referrer ID), referralCount (# of referrals), usedReferralDiscounts (# used)
-- Profile page displays: total referrals, available discounts, and used discounts
-- Checkout page shows discount breakdown when applicable (subtotal, discount %, final total)
-- Server-side discount calculation checks available credits (referralCount - usedReferralDiscounts)
-- After successful purchase with discount, usedReferralDiscounts is incremented
-- API endpoint: POST /api/auth/apply-referral for applying codes
-
-**Public Viewing (Complete - November 4, 2025)**
-- App is now publicly viewable without requiring sign-in
-- Anyone can browse quotes, leaderboard, and store without authentication
-- Sign-in only required for interactions: posting quotes, voting, following users, and purchasing
-- Unauthenticated users see "Sign In" button in navigation
-- Vote buttons and profile actions redirect to login when not authenticated
-- Friends navigation link hidden for non-authenticated users
-
-**Firebase Authentication Migration (Complete)**
-- Migrated from Replit Auth to Firebase Authentication for direct user sign-in
-- Users can now sign in with Google and Apple without needing a Replit account
-- Firebase Admin SDK integration for backend token verification
-- Updated all API routes to use Firebase user IDs
-- Login page with popup/redirect authentication flow
-
-**Following System (Complete)**
-- Replaced friend request system with Twitter-style following system
-- Users can follow/unfollow others instantly (no pending requests)
-- Mutual follows = friends (automatic when both users follow each other)
-- New database table: follows (followerId, followingId, createdAt)
-- API endpoints: /api/follow/:userId (POST=follow, DELETE=unfollow), /api/following, /api/followers, /api/friends (mutual follows)
-- Feed tabs renamed: "Ranking" (top votes), "Following" (friends' quotes), "Rate It" (recent)
-- GET /api/quotes/friends endpoint returns quotes from mutual follows
-
-**Store Page Simplification**
-- Removed large hero section (previously 400-500px) and "Shop the Collection" button
-- Replaced with compact header banner (64px) for immediate product visibility
-- Single product now displays above the fold, centered on page
-- Simplified layout appropriate for one-product-at-a-time store model
-
-**Navigation Enhancement**
-- Added Store and Leaderboard links to desktop TopNavigation
-- Logo is clickable to return to feed
-- Improved desktop navigation UX with clear visual hierarchy
+Quote-It is a minimalist social media platform where users share quotes and thoughts, vote on posts, and purchase winning quotes as premium T-shirts. The platform aims to combine social interaction with a unique merchandise integration, featuring a clean, typography-first design. Each week, the most voted quote is selected and made available as a merchandise item through Printful integration, allowing users to earn a free shirt if their quote wins. The project also supports iOS via Capacitor, offers a referral system, and includes an admin panel for platform management and analytics.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Admin Setup
-
-To become the first admin:
-1. Sign in to the app with your account
-2. Navigate to `/admin`
-3. Click the "Make Me Admin (First User Only)" button
-4. Refresh the page to see the full admin dashboard
-
-Note: This only works for the first admin. After that, existing admins must manually grant admin privileges via database update.
-
 ## System Architecture
 
 ### Frontend Architecture
 
-**Framework & Tooling**
-- React with TypeScript for type safety and modern component development
-- Vite as the build tool for fast development and optimized production builds
-- Wouter for lightweight client-side routing
-- TanStack Query for server state management and data fetching
-
-**UI Component System**
-- Shadcn/UI component library built on Radix UI primitives
-- Tailwind CSS for utility-first styling with custom design tokens
-- Custom design system defined in `design_guidelines.md` with brutalist touches and typography-first approach
-- Font stack: Inter for UI elements, Space Grotesk for display typography
-
-**State Management Strategy**
-- TanStack Query for server state with configured defaults (no refetching, infinite stale time)
-- React hooks for local component state
-- Custom hooks for shared logic (useAuth, useIsMobile)
-
-**Design Patterns**
-- Component composition with reusable UI primitives
-- Custom query client with centralized API request handling
-- Optimistic updates for voting interactions to improve perceived performance
-- Error boundaries and unauthorized error handling
+The frontend is built with React and TypeScript, using Vite for fast builds. UI components are developed with Shadcn/UI (based on Radix UI) and styled with Tailwind CSS, following a custom design system with brutalist and typography-first elements. Wouter handles client-side routing, and TanStack Query manages server state and data fetching. The application uses component composition, custom hooks, optimistic updates for interactions, and error boundaries.
 
 ### Backend Architecture
 
-**Runtime & Framework**
-- Node.js with Express server
-- TypeScript throughout for type consistency between client and server
-- ESM module system
+The backend utilizes Node.js with Express and TypeScript, running on an ESM module system. It provides a RESTful API. The database layer uses Drizzle ORM with Neon serverless PostgreSQL, supporting type-safe operations and connection pooling. Data models include Users (with referral tracking), Quotes, Votes, Products, Orders (with Stripe integration), and Weekly Winners. The Hall of Fame dynamically ranks users based on wins and votes. The referral system uses cryptographically secure 8-character codes for discounts. Authentication is managed via Firebase Authentication for direct user sign-in (Google/Apple) with backend token verification, replacing a previous Replit Auth integration. A Twitter-style following system allows users to follow others, creating "friends" for mutual follows. The app is publicly viewable, with sign-in required only for interactive features.
 
-**API Design**
-- RESTful API endpoints organized in `/api` routes
-- Session-based authentication using Replit's OpenID Connect
-- Express middleware for request logging, JSON parsing, and raw body preservation (for webhook verification)
+### System Design Choices
 
-**Database Layer**
-- Drizzle ORM for type-safe database operations
-- Neon serverless PostgreSQL as the database provider
-- WebSocket connection pooling for serverless environment
-- Schema-first design with Zod validation
+The platform features a minimalist UI with a compact header for product visibility. Key features include:
+- **iOS App Support**: Configured via Capacitor, enabling native iOS deployment.
+- **Leaderboard**: Displays the weekly winning quote and current T-shirt for sale.
+- **Profile Picture Upload**: Users can upload custom profile pictures via Firebase Storage.
+- **Weekly Winner Free Shirt**: Automated complimentary order for authors of winning quotes.
+- **Admin Role System**: `isAdmin` field and middleware protect admin-only routes and provide a dashboard for analytics (revenue, orders, products).
+- **Store Automation**: Automated weekly winner selection and Printful product creation via node-cron.
+- **Social Features**: Daily posting streaks, @mention parsing, and social media sharing (Twitter, Facebook, LinkedIn).
+- **Hall of Fame**: Tracks top users based on weekly wins and total votes.
+- **Referral System**: Unique referral codes provide 10% off for each earned referral, applied during checkout.
+- **Public Viewing**: Allows unauthenticated users to browse content; sign-in is required for interactions.
+- **Following System**: Replaced friend requests with a Twitter-style follow/unfollow system, impacting feed content.
 
-**Data Models**
-- Users: Authentication and profile data with referral tracking (referralCode, referredBy, referralCount)
-- Quotes: User-submitted content with vote tracking
-- Votes: User voting records with cascade deletion
-- Products: Printful-synced merchandise items
-- Orders: Purchase records with Stripe payment tracking
-- Weekly Winners: Historical record of winning quotes (links to quote and product)
-- Hall of Fame: Legacy table (now unused, replaced by dynamic user rankings)
-- Sessions: Persistent session storage for authentication
+## External Dependencies
 
-**Hall of Fame System**
-- Dynamically calculates user rankings based on weekly wins and total votes
-- Uses SQL aggregation across weeklyWinners and quotes tables
-- Primary sort: number of weekly wins (DESC)
-- Secondary sort: total votes across all user's quotes (DESC)
-- Only displays users with activity (at least 1 win or votes)
-- GET /api/hall-of-fame returns top users with stats
-
-**Referral System**
-- Cryptographically secure 8-character codes using base32 charset (excludes ambiguous characters)
-- Collision detection with retry logic (up to 10 attempts)
-- Referral tracking: referredBy links new users to their referrer
-- Automatic referralCount increment when referral code is successfully applied
-- Discount calculation: 10% if (referralCount - usedReferralDiscounts) > 0, applied server-side during checkout
-- After successful purchase with discount, usedReferralDiscounts is automatically incremented
-- Each referral = 1 discounted purchase, users can accumulate multiple discount credits
-- Payment metadata includes discount information for audit trail
-
-**Authentication Flow**
-- Replit OpenID Connect integration via Passport.js strategy
-- Session management with connect-pg-simple for PostgreSQL-backed sessions
-- Token refresh handling with automatic session updates
-- Protected routes using isAuthenticated middleware
-
-### External Dependencies
-
-**Payment Processing**
-- Stripe integration for payment collection
-- Client-side Elements for secure payment form rendering
-- Server-side payment intent creation and verification
-- Webhook support for payment status updates
-
-**Print-on-Demand**
-- Printful API integration for product creation and order fulfillment
-- Automated product generation from winning quotes
-- QR code generation for product linking
-- Order status synchronization
-
-**Authentication Service**
-- Replit OpenID Connect for user authentication
-- No password management required - delegated to Replit platform
-
-**Database Provider**
-- Neon serverless PostgreSQL with WebSocket support
-- Connection pooling for optimal serverless performance
-
-**Development Tools**
-- Replit-specific Vite plugins for development experience (cartographer, dev-banner, runtime-error-modal)
-- Drizzle Kit for database migrations and schema management
-
-**Frontend Libraries**
-- React Hook Form with Zod resolvers for form validation
-- date-fns for date formatting and relative time display
-- Axios for HTTP requests (primarily in Printful service)
-- QRCode library for generating product QR codes
-
-**Configuration Requirements**
-- Environment variables required: DATABASE_URL, SESSION_SECRET, REPL_ID, ISSUER_URL
-- Optional: STRIPE_SECRET_KEY, STRIPE_PUBLIC_KEY, PRINTFUL_API_TOKEN
-- Graceful degradation when optional services are not configured
+- **Payment Processing**: Stripe for secure payments, client-side Elements, and server-side intent verification.
+- **Print-on-Demand**: Printful API for automated product creation, order fulfillment, and QR code generation.
+- **Authentication Service**: Firebase Authentication for user sign-in (Google, Apple).
+- **Database Provider**: Neon serverless PostgreSQL for data storage.
+- **Cloud Storage**: Firebase Storage for profile picture uploads.
+- **Scheduling**: node-cron for automated tasks (e.g., weekly winner selection).
+- **Frontend Libraries**: React Hook Form (with Zod) for validation, date-fns for date formatting, Axios for HTTP requests, and QRCode for QR code generation.
