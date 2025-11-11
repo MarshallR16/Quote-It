@@ -95,7 +95,7 @@ export class PrintfulService {
   /**
    * Generate simple SVG design with quote, author, and QR code
    */
-  private async generateDesignSVG(quoteText: string, author: string): Promise<string> {
+  private async generateDesignSVG(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white'): Promise<string> {
     // Use custom domain for QR code on all shirts
     const appUrl = 'https://quote-it.co';
 
@@ -103,6 +103,10 @@ export class PrintfulService {
 
     // Wrap quote text to fit nicely on the shirt (40 chars per line)
     const wrappedLines = this.wrapText(quoteText, 40);
+    
+    // Set text colors based on version
+    const quoteColor = textColor === 'gold' ? '#FFD700' : '#FFFFFF';
+    const authorColor = textColor === 'gold' ? '#DAA520' : '#CCCCCC';
     
     // Generate tspan elements for each line
     const quoteTspans = wrappedLines.map((line, index) => 
@@ -115,18 +119,19 @@ export class PrintfulService {
 
     // Create SVG with quote text, author, and QR code
     // Dimensions: 4500x5400px (Printful recommended for 18"x24" print area)
+    // Background is transparent - will print on black shirt
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="4500" height="5400" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-  <!-- White background -->
-  <rect width="4500" height="5400" fill="#FFFFFF"/>
+  <!-- Transparent background (will be black shirt) -->
+  <rect width="4500" height="5400" fill="none"/>
   
   <!-- Quote text (centered, large, wrapped) -->
-  <text x="2250" y="2000" font-family="Arial, Helvetica, sans-serif" font-size="180" font-weight="bold" text-anchor="middle" fill="#000000">
+  <text x="2250" y="2000" font-family="Arial, Helvetica, sans-serif" font-size="180" font-weight="bold" text-anchor="middle" fill="${quoteColor}">
     ${quoteTspans}
   </text>
   
   <!-- Author name -->
-  <text x="2250" y="${authorY}" font-family="Arial, Helvetica, sans-serif" font-size="120" text-anchor="middle" fill="#666666">
+  <text x="2250" y="${authorY}" font-family="Arial, Helvetica, sans-serif" font-size="120" text-anchor="middle" fill="${authorColor}">
     - ${this.escapeXml(author)}
   </text>
   
@@ -177,16 +182,16 @@ export class PrintfulService {
   /**
    * Create a sync product with variants and design file in Printful
    */
-  async createProduct(quoteText: string, author: string, externalId: string): Promise<PrintfulProduct> {
+  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white'): Promise<PrintfulProduct> {
     try {
-      console.log('Generating design for quote:', quoteText);
+      console.log(`Generating design for quote with ${textColor} text:`, quoteText);
       
-      // Generate design SVG
-      const designSVG = await this.generateDesignSVG(quoteText, author);
+      // Generate design SVG with specified text color
+      const designSVG = await this.generateDesignSVG(quoteText, author, textColor);
       
       // Upload design to Printful
       console.log('Uploading design to Printful...');
-      const uploadedFile = await this.uploadFile(designSVG, `${externalId}-design.svg`);
+      const uploadedFile = await this.uploadFile(designSVG, `${externalId}-${textColor}-design.svg`);
       console.log('Design uploaded successfully:', uploadedFile.id);
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)

@@ -48,6 +48,7 @@ export interface IStorage {
   getMostRecentWeeklyWinnerWithDetails(): Promise<any | undefined>;
   getAllWeeklyWinners(): Promise<WeeklyWinner[]>;
   createWeeklyWinner(winner: InsertWeeklyWinner): Promise<WeeklyWinner>;
+  updateWeeklyWinner(id: string, data: Partial<InsertWeeklyWinner>): Promise<WeeklyWinner>;
 
   // Hall of Fame methods
   getHallOfFame(): Promise<HallOfFame[]>;
@@ -430,6 +431,11 @@ export class DbStorage implements IStorage {
 
   async createWeeklyWinner(insertWinner: InsertWeeklyWinner): Promise<WeeklyWinner> {
     const result = await db.insert(weeklyWinners).values(insertWinner).returning();
+    return result[0];
+  }
+
+  async updateWeeklyWinner(id: string, data: Partial<InsertWeeklyWinner>): Promise<WeeklyWinner> {
+    const result = await db.update(weeklyWinners).set(data).where(eq(weeklyWinners.id, id)).returning();
     return result[0];
   }
 

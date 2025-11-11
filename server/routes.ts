@@ -413,9 +413,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalVoteCount: topQuote.voteCount,
       });
 
-      // Automatically create Printful product if configured
+      // Automatically create Printful products if configured
       let product = null;
+      let winnerProduct = null;
       let printfulProduct = null;
+      let printfulWinnerProduct = null;
       
       if (isPrintfulConfigured) {
         try {
@@ -423,12 +425,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const author = await storage.getUser(topQuote.authorId);
           const authorName = author?.email?.split('@')[0] || 'unknown';
 
-          // Create product in Printful
-          console.log('Auto-creating Printful product for weekly winner:', topQuote.text);
+          // Create WHITE text version (for store)
+          console.log('Creating white text product for store:', topQuote.text);
           printfulProduct = await printfulService.createProduct(
             topQuote.text,
             authorName,
-            `quote-${topQuote.id}`
+            `quote-${topQuote.id}-white`,
+            'white'
           );
 
           // Create product in database
@@ -446,17 +449,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           product = await storage.createProduct(productData);
 
-          // Create complimentary order for the winner
+          // Create GOLD text version (exclusive for winner)
+          console.log('Creating gold text product for winner:', topQuote.text);
+          printfulWinnerProduct = await printfulService.createProduct(
+            topQuote.text,
+            authorName,
+            `quote-${topQuote.id}-gold`,
+            'gold'
+          );
+
+          // Create winner's exclusive product in database
+          const winnerProductData = {
+            quoteId: topQuote.id,
+            weeklyWinnerId: winner.id,
+            name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
+            description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
+            price: '29.99',
+            imageUrl: null,
+            printfulSyncProductId: printfulWinnerProduct.id,
+            printfulSyncVariants: printfulWinnerProduct,
+            isActive: false, // Not for sale - winner exclusive
+          };
+
+          winnerProduct = await storage.createProduct(winnerProductData);
+
+          // Update weekly winner with both product IDs
+          await storage.updateWeeklyWinner(winner.id, {
+            productId: product.id,
+            winnerProductId: winnerProduct.id,
+          });
+
+          // Create complimentary order for the winner using GOLD text version
           try {
             const complimentaryOrder = await storage.createOrder({
               userId: topQuote.authorId,
-              productId: product.id,
+              productId: winnerProduct.id, // Use gold text version
               amount: '0.00',
               status: 'awaiting_address',
               isComplimentary: true,
               includeAuthor: true,
             });
-            console.log('Created complimentary order for winner:', complimentaryOrder.id);
+            console.log('Created complimentary order with gold text for winner:', complimentaryOrder.id);
           } catch (error: any) {
             console.error('Error creating complimentary order:', error);
             // Continue even if order creation fails

@@ -89,6 +89,8 @@ export const weeklyWinners = pgTable("weekly_winners", {
   weekStartDate: timestamp("week_start_date").notNull(),
   weekEndDate: timestamp("week_end_date").notNull(),
   finalVoteCount: integer("final_vote_count").notNull(),
+  productId: varchar("product_id"), // White text version (for store) - manual FK to avoid circular reference
+  winnerProductId: varchar("winner_product_id"), // Gold text version (for winner) - manual FK to avoid circular reference
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

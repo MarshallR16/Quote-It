@@ -50,18 +50,20 @@ export function startWeeklyWinnerScheduler() {
 
       console.log(`[SCHEDULER] Weekly winner created: ${winner.id}`);
 
-      // Automatically create Printful product if configured
+      // Automatically create Printful products if configured
       if (isPrintfulConfigured && printfulService) {
         try {
           // Get author info
           const author = await storage.getUser(topQuote.authorId);
           const authorName = author?.email?.split('@')[0] || 'unknown';
 
-          console.log('[SCHEDULER] Creating Printful product...');
+          // Create WHITE text version (for store)
+          console.log('[SCHEDULER] Creating white text product for store...');
           const printfulProduct = await printfulService.createProduct(
             topQuote.text,
             authorName,
-            `quote-${topQuote.id}`
+            `quote-${topQuote.id}-white`,
+            'white'
           );
 
           // Create product in database
@@ -78,7 +80,53 @@ export function startWeeklyWinnerScheduler() {
           };
 
           const product = await storage.createProduct(productData);
-          console.log(`[SCHEDULER] Printful product created successfully: ${product.id}`);
+          console.log(`[SCHEDULER] White text product created: ${product.id}`);
+
+          // Create GOLD text version (exclusive for winner)
+          console.log('[SCHEDULER] Creating gold text product for winner...');
+          const printfulWinnerProduct = await printfulService.createProduct(
+            topQuote.text,
+            authorName,
+            `quote-${topQuote.id}-gold`,
+            'gold'
+          );
+
+          // Create winner's exclusive product in database
+          const winnerProductData = {
+            quoteId: topQuote.id,
+            weeklyWinnerId: winner.id,
+            name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
+            description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
+            price: '29.99',
+            imageUrl: null,
+            printfulSyncProductId: printfulWinnerProduct.id,
+            printfulSyncVariants: printfulWinnerProduct,
+            isActive: false, // Not for sale - winner exclusive
+          };
+
+          const winnerProduct = await storage.createProduct(winnerProductData);
+          console.log(`[SCHEDULER] Gold text product created: ${winnerProduct.id}`);
+
+          // Update weekly winner with both product IDs
+          await storage.updateWeeklyWinner(winner.id, {
+            productId: product.id,
+            winnerProductId: winnerProduct.id,
+          });
+
+          // Create complimentary order for the winner using GOLD text version
+          try {
+            const complimentaryOrder = await storage.createOrder({
+              userId: topQuote.authorId,
+              productId: winnerProduct.id, // Use gold text version
+              amount: '0.00',
+              status: 'awaiting_address',
+              isComplimentary: true,
+              includeAuthor: true,
+            });
+            console.log('[SCHEDULER] Created complimentary order with gold text for winner:', complimentaryOrder.id);
+          } catch (error: any) {
+            console.error('[SCHEDULER] Error creating complimentary order:', error.message);
+          }
         } catch (error: any) {
           console.error('[SCHEDULER] Error creating Printful product:', error.message);
         }
