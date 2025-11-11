@@ -24,7 +24,7 @@ The platform features a minimalist UI with a compact header for product visibili
 - **iOS App Support**: Configured via Capacitor, enabling native iOS deployment.
 - **Leaderboard**: Displays the weekly winning quote and current T-shirt for sale.
 - **Profile Picture Upload**: Users can upload custom profile pictures via Firebase Storage.
-- **Weekly Winner Free Shirt**: Automated complimentary order for authors of winning quotes.
+- **Weekly Winner Free Shirt**: Automated complimentary order for authors of winning quotes with exclusive gold text design. Winners receive a black shirt with gold lettering, while the store sells the same quote with white lettering. Two Printful products are created automatically: white text version (active, for sale) and gold text version (inactive, winner exclusive).
 - **Admin Role System**: `isAdmin` field and middleware protect admin-only routes and provide a dashboard for analytics (revenue, orders, products).
 - **Store Automation**: Automated weekly winner selection and Printful product creation via node-cron.
 - **Social Features**: Daily posting streaks, @mention parsing, and social media sharing (Twitter, Facebook, LinkedIn).
