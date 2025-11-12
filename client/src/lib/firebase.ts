@@ -14,7 +14,11 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Configure Apple provider with required scopes
 export const appleProvider = new OAuthProvider('apple.com');
+appleProvider.addScope('email');
+appleProvider.addScope('name');
 
 export async function uploadProfileImage(userId: string, file: File): Promise<string> {
   const storageRef = ref(storage, `profile-images/${userId}/${Date.now()}-${file.name}`);
