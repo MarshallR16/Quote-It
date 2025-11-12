@@ -37,8 +37,15 @@ The platform features a minimalist UI with a compact header for product visibili
 
 - **Payment Processing**: Stripe for secure payments, client-side Elements, and server-side intent verification.
 - **Print-on-Demand**: Printful API for automated product creation, order fulfillment, and QR code generation.
-- **Authentication Service**: Firebase Authentication for user sign-in (Google, Apple).
+- **Authentication Service**: Firebase Authentication for user sign-in (Google, Apple, Email/Password). Apple Sign-In configured with Services ID (co.quoteit.service), App ID (co.quoteit.app), and OAuth private key for web authentication.
 - **Database Provider**: Neon serverless PostgreSQL for data storage.
 - **Cloud Storage**: Firebase Storage for profile picture uploads.
 - **Scheduling**: node-cron for automated tasks (e.g., weekly winner selection).
 - **Frontend Libraries**: React Hook Form (with Zod) for validation, date-fns for date formatting, Axios for HTTP requests, and QRCode for QR code generation.
+
+## Deployment Configuration
+
+- **Custom Domain**: quote-it.co (live and configured)
+- **Apple Developer Account**: Active with App ID and Services ID configured for Sign In with Apple
+- **Firebase Project**: quote-it-3a250 with authorized domains including quote-it.co
+- **iOS Deployment**: Capacitor configured for native iOS app (requires Node.js installation for build)
