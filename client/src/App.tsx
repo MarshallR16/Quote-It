@@ -98,7 +98,7 @@ function Router() {
           }
         }}
       />
-      <main style={{ paddingTop: 'calc(4rem + var(--safe-area-inset-top))' }}>
+      <main className="pt-16 mt-safe">
         <Switch>
           <Route path="/login" component={LoginPage} />
           <Route path="/terms" component={TermsPage} />
