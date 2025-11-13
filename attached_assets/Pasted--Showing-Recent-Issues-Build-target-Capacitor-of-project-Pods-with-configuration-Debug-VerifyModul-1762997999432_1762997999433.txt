@@ -1,0 +1,38 @@
+
+Showing Recent Issues
+
+Build target Capacitor of project Pods with configuration Debug
+
+VerifyModule /Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Products/Debug-iphonesimulator/Capacitor/Capacitor.framework (in target 'Capacitor' from project 'Pods')
+    cd /Users/jaretruzicka/Desktop/Quote-it/ios/App/Pods
+    /Users/jaretruzicka/Desktop/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/modules-verifier /Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Products/Debug-iphonesimulator/Capacitor/Capacitor.framework --clang /Users/jaretruzicka/Desktop/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang --diagnostic-filename-map /Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Capacitor-diagnostic-filename-map.json --sdk /Users/jaretruzicka/Desktop/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.1.sdk --intermediates-directory /Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/VerifyModule --target x86_64-apple-ios14.0-simulator --language objective-c --standard gnu11 --standard gnu++14
+
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPBridgedPlugin.h:1:9: error: double-quoted include "CAPPluginMethod.h" in framework header, expected angle-bracketed instead
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPPluginMethod.h:1:9: error: double-quoted include "CAPPluginCall.h" in framework header, expected angle-bracketed instead
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPPluginMethod.h:2:9: error: double-quoted include "CAPPlugin.h" in framework header, expected angle-bracketed instead
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPInstanceDescriptor.h:4:1: error: use of '@import' in framework header is discouraged, including this header requires -fmodules
+/Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/VerifyModule/Capacitor_objective-c_x86_64-apple-ios14.0-simulator_gnu11/Test/Test.framework/Headers/Test.h:1:9: error: (fatal) could not build module 'Capacitor'
+/Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/VerifyModule/Capacitor_objective-c_x86_64-apple-ios14.0-simulator_gnu11/Test/Test.m:1:9: error: (fatal) could not build module 'Test'
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPInstanceDescriptor.h:5:9: error: (fatal) module 'Cordova' not found
+
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPBridgedPlugin.h:1:9: double-quoted include "CAPPluginMethod.h" in framework header, expected angle-bracketed instead
+
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPPluginMethod.h:1:9: double-quoted include "CAPPluginCall.h" in framework header, expected angle-bracketed instead
+
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPPluginMethod.h:2:9: double-quoted include "CAPPlugin.h" in framework header, expected angle-bracketed instead
+
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPInstanceDescriptor.h:4:1: use of '@import' in framework header is discouraged, including this header requires -fmodules
+
+/Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/VerifyModule/Capacitor_objective-c_x86_64-apple-ios14.0-simulator_gnu11/Test/Test.framework/Headers/Test.h:1:9: (fatal) could not build module 'Capacitor'
+
+/Users/jaretruzicka/Library/Developer/Xcode/DerivedData/App-fmxnyvqmooyavlbmisaaywgizbbg/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/VerifyModule/Capacitor_objective-c_x86_64-apple-ios14.0-simulator_gnu11/Test/Test.m:1:9: (fatal) could not build module 'Test'
+
+/Users/jaretruzicka/Desktop/Quote-it/node_modules/@capacitor/ios/Capacitor/Capacitor/CAPInstanceDescriptor.h:5:9: (fatal) module 'Cordova' not found
+
+
+Build target App of project App with configuration Debug
+warning: Run script build phase '[CP] Embed Pods Frameworks' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'App' from project 'App')
+
+
+Run script build phase '[CP] Embed Pods Frameworks' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase.
+
