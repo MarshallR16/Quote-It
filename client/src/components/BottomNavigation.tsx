@@ -29,7 +29,7 @@ export default function BottomNavigation({
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 pb-safe border-t bg-background z-20">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 pb-safe border-t bg-background z-20">
       <div className="h-16 flex items-center justify-around">
         {navItems.map(({ type, label, icon: Icon }) => (
           <Button

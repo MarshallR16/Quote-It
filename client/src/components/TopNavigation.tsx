@@ -60,7 +60,7 @@ export default function TopNavigation({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 pt-safe border-b bg-background z-20">
+    <header className="fixed top-0 left-0 right-0 pt-safe border-b bg-background z-20">
       <div className="h-16 px-4 flex items-center justify-between max-w-7xl mx-auto gap-4">
         <h1 className="text-6xl font-bold font-display tracking-tight cursor-pointer" data-testid="text-logo" onClick={() => setLocation("/")}>
           "IT"
