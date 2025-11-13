@@ -42,14 +42,14 @@ export default function TermsAcceptanceModal({ open, onClose }: TermsAcceptanceM
 
     setIsLoading(true);
     try {
-      await apiRequest({
-        url: "/api/users/accept-terms",
-        method: "POST",
-        data: {
+      await apiRequest(
+        "POST",
+        "/api/users/accept-terms",
+        {
           accepted: true,
           timestamp: Date.now(),
-        },
-      });
+        }
+      );
 
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
