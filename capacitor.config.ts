@@ -5,8 +5,10 @@ const config: CapacitorConfig = {
   appName: 'Quote-It',
   webDir: 'dist/public',
   server: {
+    url: 'https://quote-it.co',
     androidScheme: 'https',
     iosScheme: 'https',
+    cleartext: true,
   },
   plugins: {
     SplashScreen: {
