@@ -32,6 +32,7 @@ The platform features a minimalist UI with a compact header for product visibili
 - **Referral System**: Unique referral codes provide 10% off for each earned referral, applied during checkout.
 - **Public Viewing**: Allows unauthenticated users to browse content; sign-in is required for interactions.
 - **Following System**: Replaced friend requests with a Twitter-style follow/unfollow system, impacting feed content.
+- **Personalized Feed Algorithm**: The "Rate It" feed uses a smart personalization algorithm for authenticated users that scores quotes based on: author affinity (40% - learns from upvote history), recency (30% - exponential decay over 7 days), engagement sweet spot (20% - prioritizes 5-50 vote range), and diversity (10% - prevents author clustering). Anonymous users see chronological feed. Time window of 14 days with fallback to last 100 quotes.
 
 ## External Dependencies
 
