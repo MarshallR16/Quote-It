@@ -51,7 +51,7 @@ export default function TermsAcceptanceModal({ open, onClose }: TermsAcceptanceM
         },
       });
 
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
       toast({
         title: "Terms accepted",

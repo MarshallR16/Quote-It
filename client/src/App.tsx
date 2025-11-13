@@ -41,7 +41,7 @@ function Router() {
   const [showTermsModal, setShowTermsModal] = useState(false);
 
   const { data: currentUser } = useQuery<User>({
-    queryKey: ["/api/user"],
+    queryKey: ["/api/auth/user"],
     enabled: isAuthenticated,
   });
 
