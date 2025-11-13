@@ -1,0 +1,25 @@
+Failed to resolve host network app id to config: bundleID: com.apple.WebKit.Networking instance ID: Optional([_EXExtensionInstanceIdentifier: 10CAE0D4-38B2-4478-9261-A97208A72443])
+⚡️  Loading app at capacitor://localhost...
+Failed to send CA Event for app launch measurements for ca_event_type: 0 event_name: com.apple.app_launch_measurement.FirstFramePresentationMetric
+Failed to request storage access quirks from WebPrivacy.
+Failed to request storage access user agent string quirks from WebPrivacy.
+Networking process (0x11f058190) took 5.858464 seconds to launch
+WebContent process (0x11f02c680) took 5.702238 seconds to launch
+GPU process (0x11f059660) took 5.393097 seconds to launch
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  Can only perform input operation for an active session. sessionID = 3C4DEB22-3D34-4EA2-B32E-F1235169E3D7
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 3C4DEB22-3D34-4EA2-B32E-F1235169E3D7
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 3C4DEB22-3D34-4EA2-B32E-F1235169E3D7
+Failed to send CA Event for app launch measurements for ca_event_type: 1 event_name: com.apple.app_launch_measurement.ExtendedLaunchMetrics
+AddInstanceForFactory: No factory registered for id <CFUUID 0x6000002aebc0> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+       LoudnessManager.mm:709   unable to open stream for LoudnessManager plist
+NSBundle file:///Library/Developer/CoreSimulator/Volumes/iOS_22B81/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS%2018.1.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/MetalTools.framework/ principal class is nil because all fallbacks have failed
+ 90627          HALC_ProxyIOContext.cpp:1621  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+Failed to request query parameters from WebPrivacy.
+SplashScreen.hideSplash: SplashScreen was automatically hidden after default timeout. You should call `SplashScreen.hide()` as soon as your web app is loaded (or increase the timeout). Read more at https://capacitorjs.com/docs/apis/splash-screen#hiding-the-splash-screen
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 3C4DEB22-3D34-4EA2-B32E-F1235169E3D7
+Failed to request allowed query parameters from WebPrivacy.
+ 90627          HALC_ProxyIOContext.cpp:1621  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+⚡️  [log] - [useAuth] State: {"firebaseUser":null,"dbUser":null,"isLoadingAuth":true,"isLoadingDb":false,"requiresProfileCompletion":false,"error":null,"isAuthenticated":false}
+ 90627          HALC_ProxyIOContext.cpp:1621  HALC_ProxyIOContext::IOWorkLoop: skipping cycle due to overload
+⚡️  WebView loaded
+Failed to request restricted opener domains from WebPrivacy
