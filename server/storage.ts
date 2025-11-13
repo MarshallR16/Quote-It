@@ -18,6 +18,7 @@ export interface IStorage {
   getQuote(id: string): Promise<Quote | undefined>;
   getAllQuotes(): Promise<QuoteWithAuthor[]>;
   getQuotesByUser(userId: string): Promise<QuoteWithAuthor[]>;
+  getPersonalizedQuotes(userId: string): Promise<QuoteWithAuthor[]>;
   createQuote(quote: InsertQuote): Promise<Quote>;
   updateQuote(id: string, data: Partial<Quote>): Promise<Quote>;
   deleteQuote(id: string): Promise<void>;
@@ -259,6 +260,154 @@ export class DbStorage implements IStorage {
 
   async deleteQuote(id: string): Promise<void> {
     await db.delete(quotes).where(eq(quotes.id, id));
+  }
+
+  async getPersonalizedQuotes(userId: string): Promise<QuoteWithAuthor[]> {
+    // Time window: last 14 days of quotes for performance
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    // Fetch recent quotes with author info
+    let recentQuotes = await db
+      .select({
+        id: quotes.id,
+        text: quotes.text,
+        authorId: quotes.authorId,
+        createdAt: quotes.createdAt,
+        voteCount: quotes.voteCount,
+        authorUsername: users.username,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorEmail: users.email,
+        authorProfileImageUrl: users.profileImageUrl,
+      })
+      .from(quotes)
+      .leftJoin(users, eq(quotes.authorId, users.id))
+      .where(sql`${quotes.createdAt} >= ${fourteenDaysAgo.toISOString()}`)
+      .orderBy(desc(quotes.createdAt));
+
+    // Fallback: if fewer than 20 quotes in window, fetch all quotes
+    if (recentQuotes.length < 20) {
+      recentQuotes = await db
+        .select({
+          id: quotes.id,
+          text: quotes.text,
+          authorId: quotes.authorId,
+          createdAt: quotes.createdAt,
+          voteCount: quotes.voteCount,
+          authorUsername: users.username,
+          authorFirstName: users.firstName,
+          authorLastName: users.lastName,
+          authorEmail: users.email,
+          authorProfileImageUrl: users.profileImageUrl,
+        })
+        .from(quotes)
+        .leftJoin(users, eq(quotes.authorId, users.id))
+        .orderBy(desc(quotes.createdAt))
+        .limit(100);
+    }
+
+    // Fetch user's voting history (upvotes only for affinity)
+    const userVotes = await db
+      .select({
+        quoteId: votes.quoteId,
+        authorId: quotes.authorId,
+        value: votes.value,
+      })
+      .from(votes)
+      .leftJoin(quotes, eq(votes.quoteId, quotes.id))
+      .where(eq(votes.userId, userId));
+
+    // Build author affinity map (count of upvotes per author)
+    const authorAffinity = new Map<string, number>();
+    const votedQuoteIds = new Set<string>();
+    
+    userVotes.forEach(vote => {
+      votedQuoteIds.add(vote.quoteId);
+      if (vote.value === 1 && vote.authorId) {
+        authorAffinity.set(vote.authorId, (authorAffinity.get(vote.authorId) || 0) + 1);
+      }
+    });
+
+    // Filter out quotes user already voted on
+    const unvotedQuotes = recentQuotes.filter(q => !votedQuoteIds.has(q.id));
+
+    // Scoring weights (configurable)
+    const WEIGHTS = {
+      authorAffinity: 0.40,
+      recency: 0.30,
+      engagement: 0.20,
+      diversity: 0.10,
+    };
+
+    // Scoring constants
+    const RECENCY_HALF_LIFE_DAYS = 7; // Exponential decay
+    const OPTIMAL_VOTE_RANGE = [5, 50]; // Sweet spot for engagement
+    const now = Date.now();
+
+    // Pre-calculate author affinity normalization (hoist outside map)
+    const affinityValues = Array.from(authorAffinity.values());
+    const maxAffinity = affinityValues.length > 0 ? Math.max(...affinityValues) : 1;
+    const hasAffinity = affinityValues.length > 0 && isFinite(maxAffinity) && maxAffinity > 0;
+
+    // Calculate scores
+    const scoredQuotes = unvotedQuotes.map(quote => {
+      // 1. Author affinity score (normalized by max upvotes to any author)
+      const affinityScore = hasAffinity ? (authorAffinity.get(quote.authorId) || 0) / maxAffinity : 0;
+
+      // 2. Recency score (exponential decay)
+      const ageInDays = (now - new Date(quote.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      const recencyScore = Math.exp(-ageInDays / RECENCY_HALF_LIFE_DAYS);
+
+      // 3. Engagement score (bell curve around optimal range)
+      let engagementScore = 0;
+      const voteCount = quote.voteCount;
+      if (voteCount >= OPTIMAL_VOTE_RANGE[0] && voteCount <= OPTIMAL_VOTE_RANGE[1]) {
+        // In sweet spot - max score
+        engagementScore = 1.0;
+      } else if (voteCount < OPTIMAL_VOTE_RANGE[0]) {
+        // Too few votes - scale up from 0
+        engagementScore = voteCount / OPTIMAL_VOTE_RANGE[0];
+      } else {
+        // Too many votes - scale down from 1
+        const excess = voteCount - OPTIMAL_VOTE_RANGE[1];
+        engagementScore = Math.max(0, 1 - (excess / 100));
+      }
+
+      // 4. Combined score (diversity applied later)
+      const baseScore = 
+        (affinityScore * WEIGHTS.authorAffinity) +
+        (recencyScore * WEIGHTS.recency) +
+        (engagementScore * WEIGHTS.engagement);
+
+      return {
+        ...quote,
+        _score: baseScore,
+      };
+    });
+
+    // Sort by score descending
+    scoredQuotes.sort((a, b) => b._score - a._score);
+
+    // 5. Apply diversity penalty (single pass, track occurrences monotonically)
+    const diversityPenalty = 0.3; // Reduce score by 30% for each repeat
+    const authorOccurrences = new Map<string, number>();
+    
+    scoredQuotes.forEach(quote => {
+      const previousOccurrences = authorOccurrences.get(quote.authorId) || 0;
+      if (previousOccurrences > 0) {
+        // Apply penalty for repeated authors (first occurrence = no penalty, second = 30% reduction, etc.)
+        quote._score *= Math.pow(1 - diversityPenalty, previousOccurrences);
+      }
+      // Increment occurrence count for this author
+      authorOccurrences.set(quote.authorId, previousOccurrences + 1);
+    });
+
+    // Re-sort after diversity penalty
+    scoredQuotes.sort((a, b) => b._score - a._score);
+
+    // Remove score field and return
+    return scoredQuotes.map(({ _score, ...quote }) => quote) as QuoteWithAuthor[];
   }
 
   // Vote methods

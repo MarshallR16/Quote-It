@@ -1027,6 +1027,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/quotes/personalized', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const personalizedQuotes = await storage.getPersonalizedQuotes(userId);
+      res.json(personalizedQuotes);
+    } catch (error: any) {
+      console.error('[PERSONALIZATION] Error:', error);
+      res.status(500).json({ message: "Error fetching personalized quotes: " + error.message });
+    }
+  });
+
   // Endpoint to make yourself admin (only works if no admins exist)
   app.post("/api/admin/make-me-admin", isAuthenticated, async (req: any, res) => {
     try {

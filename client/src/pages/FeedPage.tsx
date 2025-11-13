@@ -8,19 +8,27 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { useSwipeable } from "react-swipeable";
 import type { QuoteWithAuthor } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function FeedPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("recent");
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const { user } = useAuth();
 
+  // All quotes - always enabled to keep cache warm for "top" filter
   const { data: quotes, isLoading } = useQuery<QuoteWithAuthor[]>({
     queryKey: ["/api/quotes"],
-    enabled: activeFilter !== "friends",
   });
 
   const { data: friendsQuotes, isLoading: friendsLoading } = useQuery<QuoteWithAuthor[]>({
     queryKey: ["/api/quotes/friends"],
     enabled: activeFilter === "friends",
+  });
+
+  // Personalized feed for authenticated users on "recent" filter
+  const { data: personalizedQuotes, isLoading: personalizedLoading } = useQuery<QuoteWithAuthor[]>({
+    queryKey: ["/api/quotes/personalized"],
+    enabled: activeFilter === "recent" && !!user,
   });
 
   // Tab order for swiping
@@ -44,11 +52,22 @@ export default function FeedPage() {
   });
 
   const getSortedQuotes = () => {
-    const sourceQuotes = activeFilter === "friends" ? friendsQuotes : quotes;
+    let sourceQuotes: QuoteWithAuthor[] | undefined;
+    
+    if (activeFilter === "friends") {
+      sourceQuotes = friendsQuotes;
+    } else if (activeFilter === "recent") {
+      // Use personalized feed for authenticated users, chronological for anonymous
+      sourceQuotes = user ? personalizedQuotes : quotes;
+    } else if (activeFilter === "top") {
+      sourceQuotes = quotes;
+    }
+    
     if (!sourceQuotes) return [];
     
     const sorted = [...sourceQuotes];
-    if (activeFilter === "recent") {
+    if (activeFilter === "recent" && !user) {
+      // Only sort chronologically for anonymous users (personalized is already sorted)
       return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else if (activeFilter === "top") {
       return sorted.sort((a, b) => b.voteCount - a.voteCount);
@@ -58,7 +77,14 @@ export default function FeedPage() {
     return sorted;
   };
 
-  const currentLoading = activeFilter === "friends" ? friendsLoading : isLoading;
+  const getCurrentLoading = () => {
+    if (activeFilter === "friends") return friendsLoading;
+    if (activeFilter === "recent") return user ? personalizedLoading : isLoading;
+    if (activeFilter === "top") return isLoading;
+    return false;
+  };
+
+  const currentLoading = getCurrentLoading();
   const sortedQuotes = getSortedQuotes();
 
   return (
