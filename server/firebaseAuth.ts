@@ -123,7 +123,14 @@ export async function setupFirebaseAuth(app: Express) {
     try {
       const firebaseUser = req.firebaseUser;
       console.log('[AUTH] Checking user in database:', firebaseUser.uid);
-      console.log('[AUTH] Token claims:', { name: firebaseUser.name, email: firebaseUser.email, picture: firebaseUser.picture });
+      console.log('[AUTH] Full token claims:', JSON.stringify(firebaseUser, null, 2));
+      console.log('[AUTH] Token claims:', { 
+        name: firebaseUser.name, 
+        email: firebaseUser.email, 
+        picture: firebaseUser.picture,
+        firebase: firebaseUser.firebase,
+        sign_in_provider: firebaseUser.firebase?.sign_in_provider
+      });
       
       // Get or create user in database
       let user = await storage.getUser(firebaseUser.uid);

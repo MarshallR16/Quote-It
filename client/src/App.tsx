@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import type { User } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import TopNavigation from "@/components/TopNavigation";
 import BottomNavigation, { type NavItem } from "@/components/BottomNavigation";
 import CreateQuoteModal from "@/components/CreateQuoteModal";
 import TermsAcceptanceModal from "@/components/TermsAcceptanceModal";
+import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 
 import FeedPage from "@/pages/FeedPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
@@ -35,10 +37,10 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const [location, setLocation] = useLocation();
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, requiresProfileCompletion, firebaseUser } = useAuth();
   const [showTermsModal, setShowTermsModal] = useState(false);
 
-  const { data: currentUser } = useQuery({
+  const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/user"],
     enabled: isAuthenticated,
   });
@@ -141,6 +143,11 @@ function Router() {
       />
       <TermsAcceptanceModal
         open={showTermsModal}
+      />
+      <ProfileCompletionModal
+        open={requiresProfileCompletion}
+        email={firebaseUser?.email}
+        profileImageUrl={firebaseUser?.photoURL}
       />
     </div>
   );

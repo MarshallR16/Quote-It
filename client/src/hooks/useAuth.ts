@@ -33,6 +33,13 @@ export function useAuth() {
     },
   });
 
+  // Clear requiresProfileCompletion when user is successfully loaded
+  useEffect(() => {
+    if (dbUser && requiresProfileCompletion) {
+      setRequiresProfileCompletion(false);
+    }
+  }, [dbUser, requiresProfileCompletion]);
+
   console.log('[useAuth] State:', {
     firebaseUser: firebaseUser?.email || null,
     dbUser: dbUser?.email || null,
