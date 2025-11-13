@@ -4,12 +4,14 @@ const config: CapacitorConfig = {
   appId: 'co.quoteit.app',
   appName: 'Quote-It',
   webDir: 'dist/public',
-  server: {
-    url: 'https://quote-it.co',
-    androidScheme: 'https',
-    iosScheme: 'https',
-    cleartext: true,
-  },
+  // Commented out to use local files for testing safe area fixes
+  // Uncomment to load from live site: https://quote-it.co
+  // server: {
+  //   url: 'https://quote-it.co',
+  //   androidScheme: 'https',
+  //   iosScheme: 'https',
+  //   cleartext: true,
+  // },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
