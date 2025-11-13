@@ -60,8 +60,8 @@ export default function TopNavigation({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 border-b bg-background z-20">
-      <div className="h-full px-4 flex items-center justify-between max-w-7xl mx-auto gap-4">
+    <header className="fixed top-0 left-0 right-0 border-b bg-background z-20" style={{ paddingTop: 'var(--safe-area-inset-top)', height: 'calc(4rem + var(--safe-area-inset-top))' }}>
+      <div className="h-16 px-4 flex items-center justify-between max-w-7xl mx-auto gap-4">
         <h1 className="text-6xl font-bold font-display tracking-tight cursor-pointer" data-testid="text-logo" onClick={() => setLocation("/")}>
           "IT"
         </h1>
