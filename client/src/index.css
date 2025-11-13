@@ -246,8 +246,15 @@
     @apply border-border;
   }
 
+  html {
+    min-height: 100%;
+    min-height: -webkit-fill-available;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
 }
 
@@ -275,26 +282,38 @@
 
   /* iOS Safe Area Utilities */
   .pt-safe {
+    padding-top: 0px;
+    padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top);
   }
   
   .pb-safe {
+    padding-bottom: 0px;
+    padding-bottom: constant(safe-area-inset-bottom);
     padding-bottom: env(safe-area-inset-bottom);
   }
   
   .pl-safe {
+    padding-left: 0px;
+    padding-left: constant(safe-area-inset-left);
     padding-left: env(safe-area-inset-left);
   }
   
   .pr-safe {
+    padding-right: 0px;
+    padding-right: constant(safe-area-inset-right);
     padding-right: env(safe-area-inset-right);
   }
   
   .mt-safe {
+    margin-top: 0px;
+    margin-top: constant(safe-area-inset-top);
     margin-top: env(safe-area-inset-top);
   }
   
   .mb-safe {
+    margin-bottom: 0px;
+    margin-bottom: constant(safe-area-inset-bottom);
     margin-bottom: env(safe-area-inset-bottom);
   }
 

@@ -1,6 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import TopNavigation from "@/components/TopNavigation";
 import BottomNavigation, { type NavItem } from "@/components/BottomNavigation";
 import CreateQuoteModal from "@/components/CreateQuoteModal";
+import TermsAcceptanceModal from "@/components/TermsAcceptanceModal";
 
 import FeedPage from "@/pages/FeedPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
@@ -35,6 +36,22 @@ function Router() {
   const [location, setLocation] = useLocation();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const { isAuthenticated, isLoading } = useAuth();
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/user"],
+    enabled: isAuthenticated,
+  });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowTermsModal(false);
+    } else if (isAuthenticated && currentUser && !currentUser.termsAccepted) {
+      setShowTermsModal(true);
+    } else if (currentUser?.termsAccepted) {
+      setShowTermsModal(false);
+    }
+  }, [isAuthenticated, currentUser]);
 
   const handleNavigation = (item: NavItem) => {
     // Redirect to login if trying to access profile without authentication
@@ -121,6 +138,9 @@ function Router() {
       <CreateQuoteModal
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
+      />
+      <TermsAcceptanceModal
+        open={showTermsModal}
       />
     </div>
   );

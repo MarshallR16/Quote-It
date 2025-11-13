@@ -105,6 +105,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Accept terms of service
+  app.post('/api/users/accept-terms', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { accepted, timestamp } = req.body;
+
+      if (accepted !== true) {
+        return res.status(400).json({ message: "Terms acceptance confirmation is required" });
+      }
+
+      if (!timestamp || typeof timestamp !== 'number') {
+        return res.status(400).json({ message: "Valid timestamp is required" });
+      }
+
+      const requestAge = Date.now() - timestamp;
+      if (requestAge > 60000 || requestAge < 0) {
+        return res.status(400).json({ message: "Request expired or invalid timestamp" });
+      }
+      
+      await storage.updateUser(userId, { 
+        termsAccepted: true,
+        termsAcceptedAt: new Date()
+      });
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error accepting terms:", error);
+      res.status(500).json({ message: "Error accepting terms: " + error.message });
+    }
+  });
+
+  // Apply referral code
+  app.post('/api/auth/apply-referral', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { referralCode } = req.body;
+
+      if (!referralCode || typeof referralCode !== 'string') {
+        return res.status(400).json({ message: "Referral code is required" });
+      }
+
+      const referrer = await storage.getUserByReferralCode(referralCode.toUpperCase());
+      
+      if (!referrer) {
+        return res.status(404).json({ message: "Invalid referral code" });
+      }
+
+      if (referrer.id === userId) {
+        return res.status(400).json({ message: "You cannot use your own referral code" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (currentUser?.referredBy) {
+        return res.status(400).json({ message: "You have already used a referral code" });
+      }
+
+      await storage.updateUser(userId, { referredBy: referrer.id });
+      await storage.updateUser(referrer.id, { 
+        referralCount: (referrer.referralCount || 0) + 1 
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error applying referral code:", error);
+      res.status(500).json({ message: "Error applying referral code: " + error.message });
+    }
+  });
+
   // Quote routes
   app.get("/api/quotes", async (_req, res) => {
     try {
