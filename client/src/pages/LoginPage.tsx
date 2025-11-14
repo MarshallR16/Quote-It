@@ -24,23 +24,48 @@ export default function LoginPage() {
 
   // Handle redirect result when user returns from OAuth provider
   useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
         if (result?.user) {
+          setIsLoading(true);
+          // Get fresh ID token
+          const idToken = await result.user.getIdToken(true);
+          
+          // Send token to backend to create session
+          const response = await fetch('/api/auth/firebase', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${idToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to authenticate with server');
+          }
+
           toast({
             title: "Welcome!",
             description: "You've successfully signed in",
           });
+          
+          // Force reload to trigger useAuth to fetch user
+          window.location.href = '/';
         }
-      })
-      .catch((error) => {
+      } catch (error: any) {
         console.error("Redirect error:", error);
         toast({
           variant: "destructive",
           title: "Sign in failed",
           description: error.message,
         });
-      });
+        setIsLoading(false);
+      }
+    };
+
+    handleRedirect();
   }, [toast]);
 
   const handleGoogleSignIn = async () => {
