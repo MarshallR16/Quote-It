@@ -1,0 +1,95 @@
+What’s actually happening
+Right now in your code, your Apple button is almost certainly doing something like:
+signInWithPopup(new OAuthProvider('apple.com')) 
+// or
+signInWithRedirect(new OAuthProvider('apple.com'))
+Those are web methods. In a Capacitor iOS app, that means:
+Your WebView opens an external browser / web context.
+Apple + Firebase finish the sign-in over there.
+That page gets the Firebase user/session.
+Your app’s WebView never gets updated → feels like “it just takes me to a web page and doesn’t sign me in”.
+The return URL we set in Firebase + Apple is required for that web OAuth flow to complete, but it does not magically pass the session back into your Capacitor WebView.
+To get what you want:
+“Tap Continue with Apple → creates/uses a Firebase account → stay in the app, signed in”
+…you need to stop using the web sign-in flow in the app and use the native Firebase + Apple flow via the Capacitor Firebase plugin.
+✅ What you need to change (conceptually)
+There are two sign-in paths:
+❌ Current (web) – what you have now
+Button → Firebase Web (signInWithPopup / signInWithRedirect) → Safari/web → your app never sees logged-in user.
+✅ Desired (native) – what you want
+Button → Capacitor Firebase Auth plugin → native Apple sheet → Firebase signs in natively → plugin returns user to your JS → you store user + show logged-in UI.
+You’ve already:
+Installed the plugin (I assume from earlier)
+Synced iOS (npx cap sync ios)
+Fixed the Firebase + Apple return URL (still useful for web/PWA)
+Now the missing step is:
+Change the code behind the “Continue with Apple” button.
+🔧 Step 1 – Replace the web sign-in call with the native plugin
+In your client app (your React/Next frontend), find the code that runs when you tap “Continue with Apple”.
+It will look something like this (or similar):
+import { getAuth, signInWithPopup, OAuthProvider } from 'firebase/auth';
+
+const auth = getAuth();
+
+async function signInWithAppleWeb() {
+  const provider = new OAuthProvider('apple.com');
+  await signInWithPopup(auth, provider);
+}
+or using signInWithRedirect.
+👉 That function is what you need to stop using inside the native app.
+Instead, use the Capacitor Firebase Authentication plugin:
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+
+export async function signInWithAppleNative() {
+  const result = await FirebaseAuthentication.signInWithApple();
+
+  // result.user is your Firebase user
+  console.log('Signed in as:', result.user);
+
+  // TODO: store this user in your app's auth state (context, Redux, Zustand, etc.)
+  // and navigate to your logged-in screen.
+}
+Then wire your button to this function:
+<button onClick={signInWithAppleNative}>
+  Continue with Apple
+</button>
+Once you do that:
+iOS will show a native Apple sign-in sheet, not Safari.
+The plugin will sign the user into Firebase.
+If the user doesn’t exist yet, Firebase creates an account automatically the first time.
+Your app receives result.user, and you can keep them logged in.
+🔧 Step 2 – Where to change this in practice
+Very roughly:
+Open your project in whatever code editor you’re using (VS Code is ideal).
+In the client folder (where your frontend lives), search for:
+signInWithPopup
+signInWithRedirect
+'apple.com'
+Find the function that runs when you tap “Continue with Apple”.
+Replace that function’s internals with the FirebaseAuthentication.signInWithApple() call I showed above.
+Even if you don’t know exactly where the file is, searching for 'apple.com' or signInWithPopup will usually land you in the right file.
+🔧 Step 3 – Keep user signed in
+Once the native sign-in works, on app startup you can check if a Firebase user is still present:
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+
+export async function checkCurrentUser() {
+  const { user } = await FirebaseAuthentication.getCurrentUser();
+  if (user) {
+    // show logged-in UI
+  } else {
+    // show login screen
+  }
+}
+Call this once when your app mounts, and route accordingly.
+Why syncing alone “did nothing”
+npx cap sync ios only:
+Applies config changes (capacitor.config.ts)
+Syncs native plugin installations
+It doesn’t change:
+The JavaScript code you wrote for the Apple button
+Whether you’re using web vs native Auth
+So until you change the sign-in function behind “Continue with Apple”, the behavior will stay exactly the same.
+If you paste (or describe) the code you currently use for your Apple sign-in button, I can rewrite it for you specifically so it:
+Creates a Firebase user if they don’t exist
+Logs them in if they do
+Keeps them inside the app and signed in
