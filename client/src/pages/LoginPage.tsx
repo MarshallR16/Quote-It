@@ -1,31 +1,16 @@
 import { useState, useEffect } from "react";
-import { signInWithRedirect, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, googleProvider, appleProvider } from "@/lib/firebase";
-import { Capacitor } from '@capacitor/core';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { SiGoogle, SiApple } from "react-icons/si";
 import { Mail } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-
-// Helper to get native Firebase Auth plugin
-async function getNativeAuth() {
-  if (!Capacitor.isNativePlatform()) return null;
-  try {
-    const module = await import('@capacitor-firebase/authentication');
-    return module.FirebaseAuthentication;
-  } catch (error) {
-    console.warn('Firebase Authentication plugin not available:', error);
-    return null;
-  }
-}
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -46,72 +31,6 @@ export default function LoginPage() {
       setLocation('/');
     }
   }, [authLoading, isAuthenticated, requiresProfileCompletion, setLocation]);
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      const isNative = Capacitor.isNativePlatform();
-      
-      if (isNative) {
-        // Native iOS/Android: Use native plugin
-        const FirebaseAuth = await getNativeAuth();
-        if (FirebaseAuth) {
-          const result = await FirebaseAuth.signInWithGoogle();
-          console.log('Signed in with Google (native):', result.user);
-          toast({
-            title: "Welcome!",
-            description: "You've successfully signed in",
-          });
-        } else {
-          throw new Error('Native authentication not available');
-        }
-      } else {
-        // Web: Use redirect flow
-        await signInWithRedirect(auth, googleProvider);
-      }
-    } catch (error: any) {
-      console.error("Error signing in:", error);
-      toast({
-        variant: "destructive",
-        title: "Sign in failed",
-        description: error.message,
-      });
-      setIsLoading(false);
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      const isNative = Capacitor.isNativePlatform();
-      
-      if (isNative) {
-        // Native iOS/Android: Use native plugin
-        const FirebaseAuth = await getNativeAuth();
-        if (FirebaseAuth) {
-          const result = await FirebaseAuth.signInWithApple();
-          console.log('Signed in with Apple (native):', result.user);
-          toast({
-            title: "Welcome!",
-            description: "You've successfully signed in",
-          });
-        } else {
-          throw new Error('Native authentication not available');
-        }
-      } else {
-        // Web: Use redirect flow
-        await signInWithRedirect(auth, appleProvider);
-      }
-    } catch (error: any) {
-      console.error("Error signing in:", error);
-      toast({
-        variant: "destructive",
-        title: "Sign in failed",
-        description: error.message,
-      });
-      setIsLoading(false);
-    }
-  };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,41 +183,6 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* OAuth Sign In Options */}
-          <div className="space-y-3">
-            <Button
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className="w-full gap-2"
-              size="lg"
-              data-testid="button-google-signin"
-            >
-              <SiGoogle className="w-5 h-5" />
-              Continue with Google
-            </Button>
-
-            <Button
-              onClick={handleAppleSignIn}
-              disabled={isLoading}
-              className="w-full gap-2"
-              size="lg"
-              variant="outline"
-              data-testid="button-apple-signin"
-            >
-              <SiApple className="w-5 h-5" />
-              Continue with Apple
-            </Button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
-
           {/* Email/Password Authentication */}
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
