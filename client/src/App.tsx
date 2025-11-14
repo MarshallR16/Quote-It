@@ -20,6 +20,7 @@ import BottomNavigation, { type NavItem } from "@/components/BottomNavigation";
 import CreateQuoteModal from "@/components/CreateQuoteModal";
 import TermsAcceptanceModal from "@/components/TermsAcceptanceModal";
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
+import { AuthRedirectHandler } from "@/components/AuthRedirectHandler";
 
 import FeedPage from "@/pages/FeedPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
@@ -157,6 +158,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <AuthRedirectHandler />
         <Router />
         <Toaster />
       </TooltipProvider>

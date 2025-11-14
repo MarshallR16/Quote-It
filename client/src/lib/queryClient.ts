@@ -3,8 +3,20 @@ import { auth } from "./firebase";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const text = await res.text();
+    let errorData;
+    try {
+      errorData = JSON.parse(text);
+    } catch {
+      errorData = { message: text || res.statusText };
+    }
+    
+    const error: any = new Error(errorData.message || `${res.status}: ${text}`);
+    error.response = {
+      status: res.status,
+      data: errorData
+    };
+    throw error;
   }
 }
 
