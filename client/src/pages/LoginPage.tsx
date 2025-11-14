@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { signInWithRedirect, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, googleProvider, appleProvider } from "@/lib/firebase";
+import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,18 @@ import { SiGoogle, SiApple } from "react-icons/si";
 import { Mail } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+
+// Helper to get native Firebase Auth plugin
+async function getNativeAuth() {
+  if (!Capacitor.isNativePlatform()) return null;
+  try {
+    const module = await import('@capacitor-firebase/authentication');
+    return module.FirebaseAuthentication;
+  } catch (error) {
+    console.warn('Firebase Authentication plugin not available:', error);
+    return null;
+  }
+}
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -37,8 +50,25 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Use redirect flow to avoid COOP errors
-      await signInWithRedirect(auth, googleProvider);
+      const isNative = Capacitor.isNativePlatform();
+      
+      if (isNative) {
+        // Native iOS/Android: Use native plugin
+        const FirebaseAuth = await getNativeAuth();
+        if (FirebaseAuth) {
+          const result = await FirebaseAuth.signInWithGoogle();
+          console.log('Signed in with Google (native):', result.user);
+          toast({
+            title: "Welcome!",
+            description: "You've successfully signed in",
+          });
+        } else {
+          throw new Error('Native authentication not available');
+        }
+      } else {
+        // Web: Use redirect flow
+        await signInWithRedirect(auth, googleProvider);
+      }
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast({
@@ -53,8 +83,25 @@ export default function LoginPage() {
   const handleAppleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Use redirect flow to avoid COOP errors
-      await signInWithRedirect(auth, appleProvider);
+      const isNative = Capacitor.isNativePlatform();
+      
+      if (isNative) {
+        // Native iOS/Android: Use native plugin
+        const FirebaseAuth = await getNativeAuth();
+        if (FirebaseAuth) {
+          const result = await FirebaseAuth.signInWithApple();
+          console.log('Signed in with Apple (native):', result.user);
+          toast({
+            title: "Welcome!",
+            description: "You've successfully signed in",
+          });
+        } else {
+          throw new Error('Native authentication not available');
+        }
+      } else {
+        // Web: Use redirect flow
+        await signInWithRedirect(auth, appleProvider);
+      }
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast({
