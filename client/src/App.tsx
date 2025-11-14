@@ -38,7 +38,7 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const [location, setLocation] = useLocation();
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const { isAuthenticated, isLoading, requiresProfileCompletion, firebaseUser } = useAuth();
+  const { isAuthenticated, isLoading, requiresProfileCompletion, firebaseUser, profileData } = useAuth();
   const [showTermsModal, setShowTermsModal] = useState(false);
 
   const { data: currentUser } = useQuery<User>({
@@ -147,8 +147,8 @@ function Router() {
       />
       <ProfileCompletionModal
         open={requiresProfileCompletion}
-        email={firebaseUser?.email}
-        profileImageUrl={firebaseUser?.photoURL}
+        email={profileData?.email || firebaseUser?.email}
+        profileImageUrl={profileData?.profileImageUrl || firebaseUser?.photoURL}
       />
     </div>
   );

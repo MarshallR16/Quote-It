@@ -23,15 +23,16 @@ export default function LoginPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const { isAuthenticated, requiresProfileCompletion } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, requiresProfileCompletion } = useAuth();
 
   // Redirect authenticated users to home (unless they need to complete profile)
   useEffect(() => {
-    if (isAuthenticated && !requiresProfileCompletion) {
+    // Wait for auth to finish loading before redirecting
+    if (!authLoading && isAuthenticated && !requiresProfileCompletion) {
       console.log('[LoginPage] User is authenticated, redirecting to home');
       setLocation('/');
     }
-  }, [isAuthenticated, requiresProfileCompletion, setLocation]);
+  }, [authLoading, isAuthenticated, requiresProfileCompletion, setLocation]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
