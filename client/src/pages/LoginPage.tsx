@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +113,13 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
+      // Sign out any existing user before creating a new account
+      // This prevents the issue where an existing session interferes with new account creation
+      if (auth.currentUser) {
+        console.log('[SIGNUP] Signing out existing user before creating new account');
+        await signOut(auth);
+      }
+      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
       // Update profile with display name, referral code, and reload to get fresh token
