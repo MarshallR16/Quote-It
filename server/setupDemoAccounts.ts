@@ -67,15 +67,25 @@ async function setupDemoAccounts() {
 
   // Initialize Firebase Admin if not already initialized
   if (getApps().length === 0) {
+    if (!process.env.FIREBASE_ADMIN_PRIVATE_KEY) {
+      throw new Error('FIREBASE_ADMIN_PRIVATE_KEY environment variable is required');
+    }
+    
+    if (!process.env.VITE_FIREBASE_PROJECT_ID) {
+      throw new Error('VITE_FIREBASE_PROJECT_ID environment variable is required');
+    }
+
     const serviceAccount = {
       projectId: process.env.VITE_FIREBASE_PROJECT_ID,
       clientEmail: `firebase-adminsdk@${process.env.VITE_FIREBASE_PROJECT_ID}.iam.gserviceaccount.com`,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      // Replace literal \n strings with actual newlines
+      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n'),
     };
 
     initializeApp({
       credential: cert(serviceAccount as any),
     });
+    console.log('✓ Firebase Admin SDK initialized\n');
   }
 
   const auth = getAuth();
