@@ -389,31 +389,47 @@ export class DbStorage implements IStorage {
       console.log('[PERSONALIZATION] Fallback quotes fetched:', recentQuotes.length);
     }
 
-    // Fetch user's voting history (upvotes only for affinity)
-    const userVotes = await db
+    // Fetch user's voting history - FIXED: Split into two queries to avoid Drizzle LEFT JOIN bug
+    // First, get just the votes for this user
+    const userVotesRaw = await db
       .select({
         quoteId: votes.quoteId,
-        authorId: quotes.authorId,
         value: votes.value,
       })
       .from(votes)
-      .leftJoin(quotes, eq(votes.quoteId, quotes.id))
       .where(eq(votes.userId, userId));
 
-    console.log('[PERSONALIZATION] User votes fetched:', userVotes.length);
+    console.log('[PERSONALIZATION] User votes fetched:', userVotesRaw.length);
 
-    // Build author affinity map (count of upvotes per author)
-    const authorAffinity = new Map<string, number>();
+    // Build voted quote IDs set
     const votedQuoteIds = new Set<string>();
-    
-    userVotes.forEach(vote => {
-      votedQuoteIds.add(vote.quoteId);
-      if (vote.value === 1 && vote.authorId) {
-        authorAffinity.set(vote.authorId, (authorAffinity.get(vote.authorId) || 0) + 1);
-      }
+    const voteQuoteIds = userVotesRaw.map(v => {
+      votedQuoteIds.add(v.quoteId);
+      return v.quoteId;
     });
 
     console.log('[PERSONALIZATION] Voted quote IDs:', Array.from(votedQuoteIds));
+
+    // Second, get author IDs for those voted quotes (for affinity scoring)
+    const authorAffinity = new Map<string, number>();
+    if (voteQuoteIds.length > 0) {
+      const quotesForAffinity = await db
+        .select({
+          quoteId: quotes.id,
+          authorId: quotes.authorId,
+        })
+        .from(quotes)
+        .where(inArray(quotes.id, voteQuoteIds));
+
+      // Build affinity map from upvotes only
+      const upvotes = userVotesRaw.filter(v => v.value === 1);
+      upvotes.forEach(vote => {
+        const quoteInfo = quotesForAffinity.find(q => q.quoteId === vote.quoteId);
+        if (quoteInfo && quoteInfo.authorId) {
+          authorAffinity.set(quoteInfo.authorId, (authorAffinity.get(quoteInfo.authorId) || 0) + 1);
+        }
+      });
+    }
 
     // Filter out quotes user already voted on
     const unvotedQuotes = recentQuotes.filter(q => !votedQuoteIds.has(q.id));
