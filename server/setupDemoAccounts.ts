@@ -67,19 +67,19 @@ async function setupDemoAccounts() {
 
   // Initialize Firebase Admin if not already initialized
   if (getApps().length === 0) {
-    if (!process.env.FIREBASE_ADMIN_PRIVATE_KEY) {
-      throw new Error('FIREBASE_ADMIN_PRIVATE_KEY environment variable is required');
-    }
-    
-    if (!process.env.VITE_FIREBASE_PROJECT_ID) {
-      throw new Error('VITE_FIREBASE_PROJECT_ID environment variable is required');
-    }
-
+    // Use the complete service account for demo account creation
     const serviceAccount = {
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-      clientEmail: `firebase-adminsdk@${process.env.VITE_FIREBASE_PROJECT_ID}.iam.gserviceaccount.com`,
-      // Replace literal \n strings with actual newlines
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      type: "service_account",
+      project_id: "quote-it-3a250",
+      private_key_id: "8e5d8799e8df8ca082bde04c579909e4f54832d9",
+      private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDE/2gdP8XZJfkp\n9dMu6jDcyv3SYE41mjzJRHcEQ456T5+E1Zo17T7zlJmzkdUeLy6LBuP0EjOqEOXN\ngFiKsdgcmGROStco+QhTDl7wKh/mA53LCyjcGZVoFUD0pVQ8u5hOgYBXR7F/dwsa\nngjO+SJVLCkDETHQYnPDaH96FQ3/CL/UMiYcomMtyHDq2MXAYtsorg/eOaZh53eQ\np2oml4WWJMS6AJTtNzZ6tW3OW3QFkO02kuN3Q34BshKG0c+t00xM5F8pF+adBo/6\nqJQPJf/O5NHwy/WOkt9f+dnyYHAtwqHDFGtyme5hJJng3WKdyBvu6u4ijMHYR99P\nrjyfB1EnAgMBAAECggEAV9XdcTUvHRwuVYQzDjcDZF7p/3RLSuEje0YYnwEUNPrt\nkEfBQ4wtxmOaiJNcZ+H3qat/1iKLgKeaHx+72tNjHZThHHuIJc+r44SD1ieiI2e3\nYoHuTPznPgpD9REGVzH5vf9F3ySrQr8sZ0jRep9grINNIf33rQdIwHcGZ8Odgvl2\ncroDXuQI2ZcxkB7+85FP7/peqJLVJ2joKAMGCKvTVsIDxx/Jsf9obwSwlpIr+M6w\n6/FwRgEkORSXqxFQ2IN8KzrsftUiHUf9zZ6VkZJi0DT0FnPItIu0EVWV2ia9+Nif\ntiuDkdScclvrhDV9Hja/iLkeo4LL37mQpBzZd/yweQKBgQDiLAMprzK+QzmpWtjE\nlW/VU7NroBswGCtU1y/q5ijnishVxkZUrka32zFvCe2RqFr7+jBjdXkn9vKZZ8NB\n9Gt4kxONqYxsPyKH3Zeb46+TSMswkUNQbsxcJVQ4H1O1MDAfCLR/2im+BHrLLT61\nGmaz7ExWVc2nyS16JLJvJs9agwKBgQDe+mrW0W/2PMuRzade5RaUGuw7s0OwbnWx\nlERKJ68bDmOjjQK9VbL7Kcld6FVL7qSwtPTxrL7Uxit6j6IxFrtSCriY2lYkf5EB\nL+hMzoT45u1BFFT9ZTFPeEYPBYh8F2cayptEtSDbc8wkZhzf4/p+v8uD6nxVCoIy\n76jnEfX9jQKBgGktiIcBB3r9bjo4mifJSsmM9BovyZTzGGuK6qi1Qf5zRrjEzP4i\nUZa8o1984XLkNPOLJKeMALy6FZWLcH0iejwHQYeWekv4jElcnl2LY6H9ryg11XT5\nIaYUYfb7coUHFMnJ1Y7DWLgaAzSrJMc5sNspH1Li8hF9990eZbBU/wabAoGAa0Z7\nJEK65PK21bzlayg4RqT1RnumczmRcg/tEugovJGdqk/rI4AZjfC6qm1erBtyLHnC\n5oq/fMqinGKCG6/eC0iRKyjQDNs6viF4V4t8OeuP9aF8ijSnFp68xflZgqoXtrIH\nJXUnC62YZ2KhPa4HE/feR+cGTjuyDCN1VUY03PkCgYEAzeDpK6HL1izGZz/XCajq\nb9N43mFmH0hNcQjTLbOybyeu+nYWq/wTlcF8eEYL5z/7/PymzwAExUv8fVax9Ocd\n3qgAWzRiJSyAsiWlSRZlJ5KyFBqNG1C8W4IVuoPpROh0if27XjRjURBc8aBx+3rd\nzWoCunlEoZ14qruSIazoipw=\n-----END PRIVATE KEY-----\n",
+      client_email: "firebase-adminsdk-fbsvc@quote-it-3a250.iam.gserviceaccount.com",
+      client_id: "109109892301800567387",
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40quote-it-3a250.iam.gserviceaccount.com",
+      universe_domain: "googleapis.com"
     };
 
     initializeApp({
