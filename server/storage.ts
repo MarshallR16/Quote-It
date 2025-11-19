@@ -339,12 +339,9 @@ export class DbStorage implements IStorage {
   }
 
   async getPersonalizedQuotes(userId: string): Promise<QuoteWithAuthor[]> {
-    console.log('[PERSONALIZATION] Starting for user:', userId);
-    
     // Time window: last 14 days of quotes for performance
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-    console.log('[PERSONALIZATION] Date cutoff:', fourteenDaysAgo.toISOString());
 
     // Fetch recent quotes with author info
     let recentQuotes = await db
@@ -365,8 +362,6 @@ export class DbStorage implements IStorage {
       .where(sql`${quotes.createdAt} >= ${fourteenDaysAgo.toISOString()}`)
       .orderBy(desc(quotes.createdAt));
 
-    console.log('[PERSONALIZATION] Recent quotes fetched:', recentQuotes.length);
-
     // Fallback: if fewer than 20 quotes in window, fetch all quotes
     if (recentQuotes.length < 20) {
       recentQuotes = await db
@@ -386,7 +381,6 @@ export class DbStorage implements IStorage {
         .leftJoin(users, eq(quotes.authorId, users.id))
         .orderBy(desc(quotes.createdAt))
         .limit(100);
-      console.log('[PERSONALIZATION] Fallback quotes fetched:', recentQuotes.length);
     }
 
     // Fetch user's voting history - FIXED: Split into two queries to avoid Drizzle LEFT JOIN bug
@@ -399,16 +393,12 @@ export class DbStorage implements IStorage {
       .from(votes)
       .where(eq(votes.userId, userId));
 
-    console.log('[PERSONALIZATION] User votes fetched:', userVotesRaw.length);
-
     // Build voted quote IDs set
     const votedQuoteIds = new Set<string>();
     const voteQuoteIds = userVotesRaw.map(v => {
       votedQuoteIds.add(v.quoteId);
       return v.quoteId;
     });
-
-    console.log('[PERSONALIZATION] Voted quote IDs:', Array.from(votedQuoteIds));
 
     // Second, get author IDs for those voted quotes (for affinity scoring)
     const authorAffinity = new Map<string, number>();
@@ -433,7 +423,6 @@ export class DbStorage implements IStorage {
 
     // Filter out quotes user already voted on
     const unvotedQuotes = recentQuotes.filter(q => !votedQuoteIds.has(q.id));
-    console.log('[PERSONALIZATION] Unvoted quotes after filter:', unvotedQuotes.length);
 
     // Scoring weights (configurable)
     const WEIGHTS = {
@@ -510,9 +499,7 @@ export class DbStorage implements IStorage {
     scoredQuotes.sort((a, b) => b._score - a._score);
 
     // Remove score field and return
-    const result = scoredQuotes.map(({ _score, ...quote }) => quote) as QuoteWithAuthor[];
-    console.log('[PERSONALIZATION] Returning quotes:', result.length);
-    return result;
+    return scoredQuotes.map(({ _score, ...quote }) => quote) as QuoteWithAuthor[];
   }
 
   // Vote methods
