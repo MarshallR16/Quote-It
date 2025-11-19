@@ -1,0 +1,37 @@
+[Info] Successfully preconnected to https://fonts.gstatic.com/
+[Info] Successfully preconnected to https://fonts.googleapis.com/
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: null, isLoadingAuth: true, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: null, dbUser: null, isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: null, isLoadingAuth: true, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: null, dbUser: null, isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: null, isLoadingAuth: true, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: null, dbUser: null, isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Info] Successfully preconnected to https://api.stripe.com/
+[Info] Successfully preconnected to https://merchant-ui-api.stripe.com/
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: null, isLoadingAuth: true, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: null, dbUser: null, isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] Firebase auth state changed: – "User: demo1@quote-it.co" (index-CfYpRHpb.js, line 2096, x3)
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, …} (index-CfYpRHpb.js, line 2096)
+{firebaseUser: "demo1@quote-it.co", dbUser: "demo1@quote-it.co", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
