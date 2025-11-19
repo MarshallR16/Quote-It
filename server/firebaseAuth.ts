@@ -313,6 +313,43 @@ export async function setupFirebaseAuth(app: Express) {
       res.status(500).json({ message: "Error completing profile: " + error.message });
     }
   });
+
+  // Delete account endpoint
+  app.delete("/api/auth/delete-account", verifyFirebaseToken, async (req: any, res) => {
+    try {
+      const firebaseUser = req.firebaseUser;
+      const userId = firebaseUser.uid;
+      
+      console.log('[AUTH] Deleting account for user:', userId);
+      
+      // Get user data before deletion
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // 1. Delete all quotes by this user
+      await storage.deleteQuotesByAuthor(userId);
+      console.log('[AUTH] Deleted quotes for user:', userId);
+      
+      // 2. Anonymize orders (keep for tax/legal reasons but remove personal identifiers)
+      await storage.anonymizeUserOrders(userId);
+      console.log('[AUTH] Anonymized orders for user:', userId);
+      
+      // 3. Delete user from database (votes and follows cascade delete automatically)
+      await storage.deleteUser(userId);
+      console.log('[AUTH] Deleted user from database:', userId);
+      
+      // Note: Firebase auth account is deleted client-side before this endpoint is called
+      // The client has permission to delete their own account using user.delete()
+      // We don't attempt server-side deletion as it requires service account credentials
+      
+      res.json({ message: "Account deleted successfully" });
+    } catch (error: any) {
+      console.error('[AUTH] Error deleting account:', error);
+      res.status(500).json({ message: "Error deleting account: " + error.message });
+    }
+  });
 }
 
 // Export for use in protected routes

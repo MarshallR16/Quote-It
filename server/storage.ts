@@ -13,6 +13,9 @@ export interface IStorage {
   incrementReferralCount(userId: string): Promise<void>;
   incrementUsedReferralDiscounts(userId: string): Promise<void>;
   createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
+  deleteUser(userId: string): Promise<void>;
+  deleteQuotesByAuthor(authorId: string): Promise<void>;
+  anonymizeUserOrders(userId: string): Promise<void>;
 
   // Quote methods
   getQuote(id: string): Promise<Quote | undefined>;
@@ -127,6 +130,24 @@ export class DbStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(users.id, userId));
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
+  async deleteQuotesByAuthor(authorId: string): Promise<void> {
+    await db.delete(quotes).where(eq(quotes.authorId, authorId));
+  }
+
+  async anonymizeUserOrders(userId: string): Promise<void> {
+    // Keep orders for tax/legal reasons but remove personal identifiers
+    await db.update(orders)
+      .set({ 
+        shippingAddress: null,
+        // Don't change userId - keep for data integrity but user will be deleted
+      })
+      .where(eq(orders.userId, userId));
   }
 
   async createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }> {

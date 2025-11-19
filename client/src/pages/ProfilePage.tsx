@@ -5,9 +5,11 @@ import UserStats from "@/components/UserStats";
 import QuoteCard from "@/components/QuoteCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatDistanceToNow } from "date-fns";
-import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy, Upload, X } from "lucide-react";
+import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy, Upload, X, Trash2, AlertTriangle } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth, uploadProfileImage } from "@/lib/firebase";
 import { useLocation } from "wouter";
@@ -33,6 +35,8 @@ export default function ProfilePage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<QuoteWithAuthor[]>({
@@ -135,6 +139,46 @@ export default function ProfilePage() {
         description: error.message,
       });
     }
+  };
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      // First cleanup database records (while we still have auth token)
+      await apiRequest("DELETE", "/api/auth/delete-account");
+      
+      // Then delete the Firebase auth account (client-side has permission to delete own account)
+      if (auth.currentUser) {
+        await auth.currentUser.delete();
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account deleted",
+        description: "Your account and all associated data have been permanently deleted",
+      });
+      // User is already signed out by Firebase delete, just redirect
+      setLocation("/login");
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Deletion failed",
+        description: error.message || "Failed to delete account",
+      });
+    }
+  });
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "DELETE") {
+      toast({
+        variant: "destructive",
+        title: "Confirmation required",
+        description: "Please type DELETE to confirm account deletion",
+      });
+      return;
+    }
+    
+    deleteAccountMutation.mutate();
   };
 
   if (!user) {
@@ -384,7 +428,7 @@ export default function ProfilePage() {
                     <p className="text-base" data-testid="text-account-joined">{joinDate}</p>
                   </div>
 
-                  <div className="pt-4 border-t">
+                  <div className="pt-4 border-t space-y-2">
                     <Button
                       variant="outline"
                       onClick={handleSignOut}
@@ -393,6 +437,15 @@ export default function ProfilePage() {
                     >
                       <LogOut className="h-4 w-4" />
                       Sign Out
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      className="w-full gap-2 text-destructive hover:text-destructive"
+                      data-testid="button-delete-account"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Account
                     </Button>
                   </div>
                 </CardContent>
@@ -510,6 +563,79 @@ export default function ProfilePage() {
               data-testid="input-file"
             />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+        setDeleteDialogOpen(open);
+        if (!open) setDeleteConfirmation("");
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Account
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete your account and remove all of your data from our servers.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium text-destructive">This will delete:</p>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                <li>Your profile and account information</li>
+                <li>All quotes you've posted</li>
+                <li>Your votes and follows</li>
+                <li>Your referral code and credits</li>
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="delete-confirmation">
+                Type <span className="font-mono font-bold">DELETE</span> to confirm
+              </Label>
+              <Input
+                id="delete-confirmation"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="DELETE"
+                disabled={deleteAccountMutation.isPending}
+                data-testid="input-delete-confirmation"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteConfirmation("");
+              }}
+              disabled={deleteAccountMutation.isPending}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deleteAccountMutation.isPending || deleteConfirmation !== "DELETE"}
+              data-testid="button-confirm-delete"
+            >
+              {deleteAccountMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Account
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
