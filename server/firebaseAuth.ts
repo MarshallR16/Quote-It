@@ -170,7 +170,7 @@ export async function setupFirebaseAuth(app: Express) {
         const referralCode = await generateReferralCode();
         console.log('[AUTH] Generated referral code:', referralCode);
         
-        // Create new user with all required fields
+        // Create user with auto-admin check in a transaction to prevent race conditions
         const newUserData = {
           id: firebaseUser.uid,
           email: email || null,
@@ -182,9 +182,7 @@ export async function setupFirebaseAuth(app: Express) {
         };
         console.log('[AUTH] Creating user with data:', newUserData);
         
-        await storage.upsertUser(newUserData);
-        
-        user = await storage.getUser(firebaseUser.uid);
+        user = await storage.createUserWithAutoAdmin(newUserData);
         console.log('[AUTH] User created successfully:', user);
       } else {
         console.log('[AUTH] User found in DB:', user.email);
@@ -292,7 +290,7 @@ export async function setupFirebaseAuth(app: Express) {
       // Get photo from token if available
       const photoURL = firebaseUser.picture || null;
       
-      // Create user with complete profile
+      // Create user with complete profile and auto-admin check in transaction
       const newUserData = {
         id: firebaseUser.uid,
         email: firebaseUser.email || null,
@@ -304,8 +302,7 @@ export async function setupFirebaseAuth(app: Express) {
         referredBy: referrerId,
       };
       
-      await storage.upsertUser(newUserData);
-      const user = await storage.getUser(firebaseUser.uid);
+      const user = await storage.createUserWithAutoAdmin(newUserData);
       
       res.json(user);
     } catch (error: any) {

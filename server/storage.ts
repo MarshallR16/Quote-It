@@ -8,6 +8,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByReferralCode(referralCode: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  createUserWithAutoAdmin(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
   updateUserProfileImage(userId: string, profileImageUrl: string): Promise<void>;
   incrementReferralCount(userId: string): Promise<void>;
@@ -16,6 +17,7 @@ export interface IStorage {
   deleteUser(userId: string): Promise<void>;
   deleteQuotesByAuthor(authorId: string): Promise<void>;
   anonymizeUserOrders(userId: string): Promise<void>;
+  isFirstUser(): Promise<boolean>;
 
   // Quote methods
   getQuote(id: string): Promise<Quote | undefined>;
@@ -100,6 +102,53 @@ export class DbStorage implements IStorage {
     return result[0] as User;
   }
 
+  async createUserWithAutoAdmin(userData: UpsertUser): Promise<User> {
+    // Use a transaction with table-level lock to atomically check if this is the first user
+    return await db.transaction(async (tx) => {
+      // First check if user already exists
+      const existingUserResult = await tx.select().from(users).where(eq(users.id, userData.id as string)).limit(1);
+      
+      // If user exists, just update their info but preserve isAdmin flag
+      if (existingUserResult.length > 0) {
+        const existingUser = existingUserResult[0];
+        const result = await tx.update(users)
+          .set({
+            ...userData,
+            // Preserve existing isAdmin status - don't recalculate
+            isAdmin: existingUser.isAdmin,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, userData.id as string))
+          .returning();
+        return result[0] as User;
+      }
+      
+      // User doesn't exist - need to create with auto-admin check
+      // Acquire table-level lock to prevent concurrent inserts during first-user check
+      // SHARE ROW EXCLUSIVE MODE prevents other transactions from acquiring locks that would allow writes
+      await tx.execute(sql`LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE`);
+      
+      // Now check if any users exist - lock guarantees no concurrent inserts
+      const allUsers = await tx.select().from(users).limit(1);
+      const isFirstUser = allUsers.length === 0;
+      
+      console.log('[STORAGE] Is first user:', isFirstUser);
+      
+      // Create user with isAdmin flag if first user
+      const userDataWithAdmin = {
+        ...userData,
+        isAdmin: isFirstUser,
+      };
+      
+      const result = await tx
+        .insert(users)
+        .values(userDataWithAdmin)
+        .returning();
+      
+      return result[0] as User;
+    });
+  }
+
   async updateUser(id: string, data: Partial<User>): Promise<User> {
     const result = await db.update(users)
       .set({ ...data, updatedAt: new Date() })
@@ -148,6 +197,12 @@ export class DbStorage implements IStorage {
         // Don't change userId - keep for data integrity but user will be deleted
       })
       .where(eq(orders.userId, userId));
+  }
+
+  async isFirstUser(): Promise<boolean> {
+    // Check if there are any users in the database
+    const result = await db.select().from(users).limit(1);
+    return result.length === 0;
   }
 
   async createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }> {
