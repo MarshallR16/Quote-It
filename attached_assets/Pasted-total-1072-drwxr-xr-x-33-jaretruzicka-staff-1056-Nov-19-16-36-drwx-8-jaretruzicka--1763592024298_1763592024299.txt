@@ -1,0 +1,35 @@
+total 1072
+drwxr-xr-x@  33 jaretruzicka  staff    1056 Nov 19 16:36 .
+drwx------@   8 jaretruzicka  staff     256 Nov 19 16:25 ..
+drwxr-xr-x@   4 jaretruzicka  staff     128 Nov 14 20:55 .config
+-rw-r--r--@   1 jaretruzicka  staff    8196 Nov 19 16:38 .DS_Store
+drwxr-xr-x@  12 jaretruzicka  staff     384 Nov 19  2025 .git
+-rw-r--r--@   1 jaretruzicka  staff      67 Nov  3 02:33 .gitignore
+drwxr-xr-x@   3 jaretruzicka  staff      96 Nov  3 02:31 .local
+-rw-r--r--@   1 jaretruzicka  staff    1463 Nov 19  2025 .replit
+drwxr-xr-x@  54 jaretruzicka  staff    1728 Nov 19  2025 attached_assets
+-rw-r--r--@   1 jaretruzicka  staff     666 Nov 14 20:50 capacitor.config.ts
+drwxr-xr-x@   4 jaretruzicka  staff     128 Nov 14 04:16 ChatGPT Image Nov 13, 2025 at 10_04_18 PM
+-rw-r--r--@   1 jaretruzicka  staff    3845 Nov 19  2025 CLEANUP_INSTRUCTIONS.md
+drwxr-xr-x@   5 jaretruzicka  staff     160 Nov 13 05:26 client
+-rw-r--r--@   1 jaretruzicka  staff     459 Nov  3 02:33 components.json
+-rw-r--r--@   1 jaretruzicka  staff    2904 Nov 19  2025 DEMO_ACCOUNTS_READY.md
+-rw-r--r--@   1 jaretruzicka  staff    1653 Nov 19  2025 DEMO_SETUP_INSTRUCTIONS.md
+-rw-r--r--@   1 jaretruzicka  staff    7801 Nov  3 02:34 design_guidelines.md
+drwxr-xr-x@   4 jaretruzicka  staff     128 Nov  3 22:32 dist
+-rw-r--r--@   1 jaretruzicka  staff     325 Nov  3 02:33 drizzle.config.ts
+-rw-r--r--@   1 jaretruzicka  staff    4383 Nov 14 20:49 FIX_APPLE_SIGNIN_AND_ICONS.md
+drwxr-xr-x@   6 jaretruzicka  staff     192 Nov 19 16:36 ios
+-rw-r--r--@   1 jaretruzicka  staff    6682 Nov 10 22:24 IOS_APP_GUIDE.md
+-rw-r--r--@   1 jaretruzicka  staff    2302 Nov 13 01:58 IOS_SETUP_FRESH.md
+drwxr-xr-x  486 jaretruzicka  staff   15552 Nov 19 16:35 node_modules
+-rw-r--r--@   1 jaretruzicka  staff  440621 Nov 19 16:35 package-lock.json
+-rw-r--r--@   1 jaretruzicka  staff    4185 Nov 14 22:12 package.json
+-rw-r--r--@   1 jaretruzicka  staff      80 Nov  3 02:33 postcss.config.js
+-rw-r--r--@   1 jaretruzicka  staff    5699 Nov 14 06:22 replit.md
+drwxr-xr-x@  13 jaretruzicka  staff     416 Nov 19  2025 server
+drwxr-xr-x@   3 jaretruzicka  staff      96 Nov 11 20:01 shared
+-rw-r--r--@   1 jaretruzicka  staff    4092 Nov  3 02:36 tailwind.config.ts
+-rw-r--r--@   1 jaretruzicka  staff     657 Nov  3 02:33 tsconfig.json
+-rw-r--r--@   1 jaretruzicka  staff    1080 Nov  3 02:33 vite.config.ts
+jaretruzicka@MacBookAir QuoteIt-2 % 
