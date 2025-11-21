@@ -21,9 +21,9 @@ The backend utilizes Node.js with Express and TypeScript, running on an ESM modu
 ### System Design Choices
 
 The platform features a minimalist UI with a compact header for product visibility. Key features include:
-- **iOS App Support**: Configured via Capacitor, enabling native iOS deployment.
+- **iOS App Support**: Configured via Capacitor, enabling native iOS deployment. Info.plist requires NSCameraUsageDescription and NSPhotoLibraryUsageDescription for profile picture camera access.
 - **Leaderboard**: Displays the weekly winning quote and current T-shirt for sale.
-- **Profile Picture Upload**: Users can upload custom profile pictures via Firebase Storage.
+- **Profile Picture Upload**: Users can upload custom profile pictures via Firebase Storage with comprehensive error handling including 30-second upload timeout, 10-second URL fetch timeout, and specific Firebase error messages for better user feedback.
 - **Weekly Winner Free Shirt**: Automated complimentary order for authors of winning quotes with exclusive gold text design. Winners receive a black shirt with gold lettering, while the store sells the same quote with white lettering. Two Printful products are created automatically: white text version (active, for sale) and gold text version (inactive, winner exclusive).
 - **Admin Role System**: `isAdmin` field and middleware protect admin-only routes and provide a dashboard for analytics (revenue, orders, products).
 - **Store Automation**: Automated weekly winner selection and Printful product creation via node-cron.
@@ -33,6 +33,7 @@ The platform features a minimalist UI with a compact header for product visibili
 - **Public Viewing**: Allows unauthenticated users to browse content; sign-in is required for interactions.
 - **Following System**: Replaced friend requests with a Twitter-style follow/unfollow system, impacting feed content.
 - **Personalized Feed Algorithm**: The "Rate It" feed uses a smart personalization algorithm for authenticated users that scores quotes based on: author affinity (40% - learns from upvote history), recency (30% - exponential decay over 7 days), engagement sweet spot (20% - prioritizes 5-50 vote range), and diversity (10% - prevents author clustering). Anonymous users see chronological feed. Time window of 14 days with fallback to last 100 quotes.
+- **Support Page**: Dedicated /support route with contact form (mailto fallback) and comprehensive FAQ covering app usage, voting, referrals, and account deletion. Accessible via "Contact Support" button in profile settings.
 
 ## External Dependencies
 

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDistanceToNow } from "date-fns";
-import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy, Upload, X, Trash2, AlertTriangle } from "lucide-react";
+import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy, Upload, X, Trash2, AlertTriangle, HelpCircle } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth, uploadProfileImage } from "@/lib/firebase";
 import { useLocation } from "wouter";
@@ -429,6 +429,15 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="pt-4 border-t space-y-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setLocation("/support")}
+                      className="w-full gap-2"
+                      data-testid="button-contact-support"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                      Contact Support
+                    </Button>
                     <Button
                       variant="outline"
                       onClick={handleSignOut}

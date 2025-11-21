@@ -33,6 +33,7 @@ import CheckoutPage from "@/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
 import LoginPage from "@/pages/LoginPage";
 import TermsPage from "@/pages/TermsPage";
+import SupportPage from "@/pages/SupportPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -122,6 +123,7 @@ function Router() {
         <Switch>
           <Route path="/login" component={LoginPage} />
           <Route path="/terms" component={TermsPage} />
+          <Route path="/support" component={SupportPage} />
           <Route path="/" component={FeedPage} />
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/store" component={StorePage} />

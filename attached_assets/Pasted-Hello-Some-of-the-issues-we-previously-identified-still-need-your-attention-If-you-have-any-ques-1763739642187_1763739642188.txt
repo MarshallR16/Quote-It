@@ -1,0 +1,63 @@
+Hello,
+
+Some of the issues we previously identified still need your attention.
+
+If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+
+
+Review Environment
+
+Submission ID: bc23b7e2-6506-4bd4-b96d-bf2896ffb4dd
+Review date: November 21, 2025
+Version reviewed: 1.0
+
+
+Guideline 2.1 - Performance
+
+Issue Description
+
+The app crashed during review. Apps that crash negatively impact users. 
+
+Steps leading to crash:
+
+- Logged into the app 
+- Tapped on the profile icon 
+- Tapped on the camera icon
+- Tapped on "Take Photo"
+- The app crashed
+
+Review device details:
+
+- Device type: iPhone 13 mini and iPad Air (5th generation) 
+- OS version: iOS 26.1 and iPadOS 26.1
+
+Next Steps
+
+Test the app on supported devices to identify crashes and stability issues before resubmitting for review. Crash logs have been attached to help resolve this issue:
+
+1. Fully symbolicate the crash report. See Adding Identifiable Symbol Names to a Crash Report.
+2. Match the crash report to a common pattern. Based on the pattern, take specific actions to further investigate the crash. See Identifying the Cause of Common Crashes.
+3. Once the root causes of the crash have been identified, make the appropriate changes to the binary to resolve the issue.
+4. Test the app on a device to ensure that it runs as expected.
+
+Resources
+
+- For more information on crash reports, see Diagnosing Issues Using Crash Reports and Device Logs.
+- For information about testing apps and preparing them for review, see Testing a Release Build.
+- To learn about troubleshooting networking issues, see Networking Overview.
+
+
+
+Guideline 1.5 - Safety
+
+Issue Description
+
+The Support URL provided in App Store Connect, https://quote-it.co/support, is currently not functional and/or displays an error. 
+
+Next Steps
+
+Update the specified Support URL to direct users to a functional webpage with support information.
+
+Resources
+
+Learn about Support URLs and other platform version information on App Store Connect Help.
