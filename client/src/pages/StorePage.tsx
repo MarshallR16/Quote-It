@@ -36,9 +36,14 @@ export default function StorePage() {
   const [timeLeft, setTimeLeft] = useState<string>("");
   
   // Fetch most recent weekly winner product
-  const { data: weeklyWinner, isLoading: isLoadingWeekly } = useQuery<WeeklyWinnerData | null>({
+  const { data: weeklyWinner, isLoading: isLoadingWeekly, error } = useQuery<WeeklyWinnerData | null>({
     queryKey: ["/api/weekly-winner/current"],
   });
+
+  // Debug logging
+  console.log('Store Page - Loading:', isLoadingWeekly);
+  console.log('Store Page - Error:', error);
+  console.log('Store Page - Data:', weeklyWinner);
 
   // Calculate time left in the week
   useEffect(() => {
@@ -129,7 +134,11 @@ export default function StorePage() {
             <div className="flex items-center justify-center py-20">
               <p className="text-muted-foreground">Loading this week's design...</p>
             </div>
-          ) : weeklyWinner && (
+          ) : error ? (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-destructive">Error loading weekly winner</p>
+            </div>
+          ) : weeklyWinner ? (
             <div className="flex flex-col items-center gap-6" data-testid="container-winner-product">
               {/* T-shirt Image */}
               <div className="w-full max-w-md">
@@ -169,6 +178,10 @@ export default function StorePage() {
                   </Badge>
                 </div>
               </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-muted-foreground">Debug: weeklyWinner is null or undefined</p>
             </div>
           )}
         </section>
