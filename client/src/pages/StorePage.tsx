@@ -36,20 +36,11 @@ export default function StorePage() {
   const [timeLeft, setTimeLeft] = useState<string>("");
   
   // Fetch most recent weekly winner product
-  const { data: rawData, isLoading: isLoadingWeekly, error } = useQuery({
+  const { data: weeklyWinner, isLoading: isLoadingWeekly, error } = useQuery<WeeklyWinnerData | null>({
     queryKey: ["/api/weekly-winner/current"],
+    staleTime: 0,
+    refetchOnMount: true,
   });
-
-  const weeklyWinner = rawData as WeeklyWinnerData | null | undefined;
-
-  // Debug logging
-  console.log('=== STORE PAGE DEBUG ===');
-  console.log('Loading:', isLoadingWeekly);
-  console.log('Error:', error);
-  console.log('Raw Data:', rawData);
-  console.log('Weekly Winner:', weeklyWinner);
-  console.log('Has product?:', weeklyWinner?.product);
-  console.log('=======================');
 
   // Calculate time left in the week
   useEffect(() => {
