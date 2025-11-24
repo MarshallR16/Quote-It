@@ -118,10 +118,6 @@ export default function StorePage() {
                 )}
               </div>
             )}
-            
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Every week, the community's favorite quote becomes an exclusive premium Bella+Canvas T-shirt
-            </p>
           </div>
         </div>
       </div>
