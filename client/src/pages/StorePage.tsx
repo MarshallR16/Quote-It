@@ -38,11 +38,14 @@ export default function StorePage() {
   // Fetch most recent weekly winner product
   const { data: weeklyWinner, isLoading: isLoadingWeekly, error } = useQuery<WeeklyWinnerData | null>({
     queryKey: ["/api/weekly-winner/current"],
+    retry: 1,
   });
 
   // Debug logging
+  if (error) {
+    console.error('Store Page - Error:', error);
+  }
   console.log('Store Page - Loading:', isLoadingWeekly);
-  console.log('Store Page - Error:', error);
   console.log('Store Page - Data:', weeklyWinner);
 
   // Calculate time left in the week
@@ -130,22 +133,33 @@ export default function StorePage() {
       <div className="max-w-7xl mx-auto px-4">
         {/* Current Weekly Winner (For Sale) */}
         <section>
-          {isLoadingWeekly ? (
+          {isLoadingWeekly && (
             <div className="flex items-center justify-center py-20">
               <p className="text-muted-foreground">Loading this week's design...</p>
             </div>
-          ) : error ? (
-            <div className="flex items-center justify-center py-20">
+          )}
+          
+          {!isLoadingWeekly && error && (
+            <div className="flex flex-col items-center justify-center py-20 gap-2">
               <p className="text-destructive">Error loading weekly winner</p>
+              <p className="text-xs text-muted-foreground">{String(error)}</p>
             </div>
-          ) : weeklyWinner ? (
+          )}
+          
+          {!isLoadingWeekly && !error && !weeklyWinner && (
+            <div className="flex items-center justify-center py-20">
+              <p className="text-muted-foreground">No data returned from API</p>
+            </div>
+          )}
+          
+          {!isLoadingWeekly && !error && weeklyWinner && (
             <div className="flex flex-col items-center gap-6" data-testid="container-winner-product">
               {/* T-shirt Image */}
               <div className="w-full max-w-md">
                 <div className="aspect-square bg-muted rounded-lg overflow-hidden">
                   <img
-                    src={weeklyWinner.product.imageUrl || tshirtMockup}
-                    alt={`T-shirt with quote: ${weeklyWinner.quote.text}`}
+                    src={weeklyWinner.product?.imageUrl || tshirtMockup}
+                    alt={`T-shirt with quote: ${weeklyWinner.quote?.text || 'Quote'}`}
                     className="w-full h-full object-cover"
                     data-testid="img-product"
                   />
@@ -156,12 +170,12 @@ export default function StorePage() {
               <div className="flex flex-col items-center gap-4 w-full max-w-md">
                 <div className="flex items-center justify-between w-full">
                   <span className="text-3xl font-bold" data-testid="text-product-price">
-                    ${parseFloat(weeklyWinner.product.price).toFixed(2)}
+                    ${weeklyWinner.product?.price ? parseFloat(weeklyWinner.product.price).toFixed(2) : '0.00'}
                   </span>
                   <Button
                     size="lg"
                     className="rounded-full px-8"
-                    onClick={() => handleAddToCart(weeklyWinner.product.id)}
+                    onClick={() => weeklyWinner.product?.id && handleAddToCart(weeklyWinner.product.id)}
                     data-testid="button-add-to-cart"
                   >
                     Buy Now
@@ -171,17 +185,15 @@ export default function StorePage() {
                 {/* Quote Display */}
                 <div className="text-center space-y-2 pt-4">
                   <blockquote className="text-xl font-medium leading-tight">
-                    "{weeklyWinner.quote.text}"
+                    "{weeklyWinner.quote?.text || 'No quote text'}"
                   </blockquote>
-                  <Badge variant="secondary" className="text-xs">
-                    Week #{getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))} Winner
-                  </Badge>
+                  {weeklyWinner.winner?.weekStartDate && (
+                    <Badge variant="secondary" className="text-xs">
+                      Week #{getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))} Winner
+                    </Badge>
+                  )}
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-20">
-              <p className="text-muted-foreground">Debug: weeklyWinner is null or undefined</p>
             </div>
           )}
         </section>
