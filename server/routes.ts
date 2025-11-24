@@ -439,8 +439,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get most recent weekly winner with quote and product details
   app.get("/api/weekly-winner/current", async (_req, res) => {
     try {
-      const winner = await storage.getMostRecentWeeklyWinnerWithDetails();
-      res.json(winner || null);
+      const data = await storage.getMostRecentWeeklyWinnerWithDetails();
+      if (!data) {
+        return res.json(null);
+      }
+      
+      // Only return winner data if product exists (product creation might be pending)
+      if (!data.productId) {
+        return res.json(null);
+      }
+      
+      // Transform flat data into nested structure for StorePage
+      const winner = {
+        product: {
+          id: data.productId,
+          quoteId: data.quoteId,
+          name: data.productName,
+          description: data.productDescription,
+          price: data.productPrice,
+          imageUrl: data.productImageUrl,
+          isActive: data.productIsActive,
+        },
+        quote: {
+          id: data.quoteId,
+          text: data.quoteText,
+          authorId: data.authorId,
+        },
+        winner: {
+          id: data.winnerId,
+          weekStartDate: data.weekStartDate,
+          weekEndDate: data.weekEndDate,
+          finalVoteCount: data.finalVoteCount,
+        },
+        // Keep flat fields for LeaderboardPage compatibility
+        ...data,
+      };
+      
+      res.json(winner);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching current weekly winner: " + error.message });
     }

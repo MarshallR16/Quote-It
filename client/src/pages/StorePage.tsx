@@ -36,9 +36,9 @@ export default function StorePage() {
   const [, navigate] = useLocation();
   const [timeLeft, setTimeLeft] = useState<string>("");
   
-  // Fetch current weekly winner product
+  // Fetch most recent weekly winner product
   const { data: weeklyWinner, isLoading: isLoadingWeekly } = useQuery<WeeklyWinnerData | null>({
-    queryKey: ["/api/products/weekly-winner"],
+    queryKey: ["/api/weekly-winner/current"],
   });
 
   // Calculate time left in the week

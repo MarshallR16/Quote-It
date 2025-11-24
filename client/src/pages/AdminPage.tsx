@@ -29,7 +29,7 @@ export default function AdminPage() {
   const { user } = useAuth();
 
   const { data: weeklyWinner, isLoading: isLoadingWinner } = useQuery<any>({
-    queryKey: ["/api/products/weekly-winner"],
+    queryKey: ["/api/weekly-winner/current"],
   });
 
   const { data: analytics, isLoading: isLoadingAnalytics } = useQuery<Analytics>({
@@ -69,7 +69,7 @@ export default function AdminPage() {
       return await res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products/weekly-winner"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/weekly-winner/current"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
         title: data.product ? "Winner selected & product created!" : "Winner selected!",

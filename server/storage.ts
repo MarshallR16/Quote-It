@@ -654,10 +654,13 @@ export class DbStorage implements IStorage {
         authorProfileImageUrl: users.profileImageUrl,
         productId: products.id,
         productName: products.name,
+        productDescription: products.description,
         productPrice: products.price,
         productImageUrl: products.imageUrl,
+        productIsActive: products.isActive,
         weekStartDate: weeklyWinners.weekStartDate,
         weekEndDate: weeklyWinners.weekEndDate,
+        finalVoteCount: weeklyWinners.finalVoteCount,
         createdAt: weeklyWinners.createdAt,
       })
       .from(weeklyWinners)
