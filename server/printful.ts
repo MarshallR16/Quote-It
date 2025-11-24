@@ -108,14 +108,17 @@ export class PrintfulService {
     const quoteColor = textColor === 'gold' ? '#FFD700' : '#FFFFFF';
     const authorColor = textColor === 'gold' ? '#DAA520' : '#CCCCCC';
     
-    // Generate tspan elements for each line
-    const quoteTspans = wrappedLines.map((line, index) => 
-      `<tspan x="2250" dy="${index === 0 ? '0' : '220'}">"${this.escapeXml(line)}"</tspan>`
-    ).join('\n    ');
+    // Generate tspan elements for each line with quotes only at start/end
+    const quoteTspans = wrappedLines.map((line, index) => {
+      const isFirst = index === 0;
+      const isLast = index === wrappedLines.length - 1;
+      const openQuote = isFirst ? '\u201C' : ''; // Opening curly quote
+      const closeQuote = isLast ? '\u201D' : ''; // Closing curly quote
+      return `<tspan x="2250" dy="${isFirst ? '0' : '220'}">${openQuote}${this.escapeXml(line)}${closeQuote}</tspan>`;
+    }).join('\n    ');
 
     // Adjust author position based on number of quote lines
     const authorY = 2000 + (wrappedLines.length * 220) + 400;
-    const qrY = authorY + 400;
 
     // Create SVG with quote text, author, and QR code
     // Dimensions: 4500x5400px (Printful recommended for 18"x24" print area)
@@ -125,18 +128,18 @@ export class PrintfulService {
   <!-- Transparent background (will be black shirt) -->
   <rect width="4500" height="5400" fill="none"/>
   
-  <!-- Quote text (centered, large, wrapped) -->
-  <text x="2250" y="2000" font-family="Arial, Helvetica, sans-serif" font-size="180" font-weight="bold" text-anchor="middle" fill="${quoteColor}">
+  <!-- Quote text (centered, large, wrapped, serif font) -->
+  <text x="2250" y="2000" font-family="Georgia, 'Times New Roman', serif" font-size="180" font-weight="normal" text-anchor="middle" fill="${quoteColor}">
     ${quoteTspans}
   </text>
   
-  <!-- Author name -->
-  <text x="2250" y="${authorY}" font-family="Arial, Helvetica, sans-serif" font-size="120" text-anchor="middle" fill="${authorColor}">
-    - ${this.escapeXml(author)}
+  <!-- Author name with em dash -->
+  <text x="1750" y="${authorY}" font-family="Georgia, 'Times New Roman', serif" font-size="120" text-anchor="start" fill="${authorColor}">
+    \u2014${this.escapeXml(author)}
   </text>
   
-  <!-- QR Code (embedded as image) -->
-  <image x="1950" y="${qrY}" width="600" height="600" xlink:href="${qrCodeDataUrl}"/>
+  <!-- QR Code (to the right of author name) -->
+  <image x="2700" y="${authorY - 80}" width="400" height="400" xlink:href="${qrCodeDataUrl}"/>
 </svg>`;
 
     return svg;
