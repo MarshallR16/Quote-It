@@ -1,4 +1,3 @@
-import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -134,31 +133,46 @@ export default function StorePage() {
             <div className="flex items-center justify-center py-20">
               <p className="text-muted-foreground">Loading this week's design...</p>
             </div>
-          ) : weeklyWinner ? (
-            <div className="flex justify-center">
-              <div className="w-full max-w-sm">
-                {/* Winner Highlight Border */}
-                <div className="p-1 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 rounded-lg" data-testid="container-winner-product">
-                  <div className="bg-background rounded-lg">
-                    <ProductCard
-                      id={weeklyWinner.product.id}
-                      imageUrl={weeklyWinner.product.imageUrl || tshirtMockup}
-                      quote={weeklyWinner.quote.text}
-                      author={weeklyWinner.quote.authorId}
-                      price={parseFloat(weeklyWinner.product.price)}
-                      weekNumber={getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))}
-                      onAddToCart={handleAddToCart}
-                    />
-                  </div>
+          ) : weeklyWinner && (
+            <div className="flex flex-col items-center gap-6" data-testid="container-winner-product">
+              {/* T-shirt Image */}
+              <div className="w-full max-w-md">
+                <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+                  <img
+                    src={weeklyWinner.product.imageUrl || tshirtMockup}
+                    alt={`T-shirt with quote: ${weeklyWinner.quote.text}`}
+                    className="w-full h-full object-cover"
+                    data-testid="img-product"
+                  />
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-muted/30 rounded-md">
-              <p className="text-muted-foreground text-lg mb-2">No weekly winner yet</p>
-              <p className="text-sm text-muted-foreground">
-                Check back soon for this week's winning design!
-              </p>
+
+              {/* Purchase Button */}
+              <div className="flex flex-col items-center gap-4 w-full max-w-md">
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-3xl font-bold" data-testid="text-product-price">
+                    ${parseFloat(weeklyWinner.product.price).toFixed(2)}
+                  </span>
+                  <Button
+                    size="lg"
+                    className="rounded-full px-8"
+                    onClick={() => handleAddToCart(weeklyWinner.product.id)}
+                    data-testid="button-add-to-cart"
+                  >
+                    Buy Now
+                  </Button>
+                </div>
+                
+                {/* Quote Display */}
+                <div className="text-center space-y-2 pt-4">
+                  <blockquote className="text-xl font-medium leading-tight">
+                    "{weeklyWinner.quote.text}"
+                  </blockquote>
+                  <Badge variant="secondary" className="text-xs">
+                    Week #{getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))} Winner
+                  </Badge>
+                </div>
+              </div>
             </div>
           )}
         </section>
