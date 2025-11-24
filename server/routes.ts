@@ -1102,6 +1102,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test endpoint to preview T-shirt design SVG
+  app.get('/api/test/design-preview', async (req, res) => {
+    try {
+      const quoteText = req.query.quote as string || "The only thing we have to fear is fear itself.";
+      const author = req.query.author as string || "Franklin D. Roosevelt";
+      const textColor = (req.query.color as 'white' | 'gold') || 'white';
+      
+      // Use private method via reflection to generate SVG
+      const svg = await (printfulService as any).generateDesignSVG(quoteText, author, textColor);
+      
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.send(svg);
+    } catch (error: any) {
+      console.error("Error generating design preview:", error);
+      res.status(500).json({ message: "Error generating design preview: " + error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
