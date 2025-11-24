@@ -41,6 +41,7 @@ export default function StorePage() {
     queryFn: async () => {
       const response = await fetch("/api/weekly-winner/current", {
         credentials: "include",
+        cache: "no-store",
       });
       if (!response.ok) {
         throw new Error(`Failed to fetch: ${response.statusText}`);
@@ -50,10 +51,12 @@ export default function StorePage() {
       return data;
     },
     staleTime: 0,
+    gcTime: 0,
     refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
-  const weeklyWinner = rawData as WeeklyWinnerData | null;
+  const weeklyWinner = (rawData && typeof rawData === 'object' && 'product' in rawData) ? rawData as WeeklyWinnerData : null;
 
   console.log('[StorePage] Query state:', { 
     isLoading: isLoadingWeekly, 
