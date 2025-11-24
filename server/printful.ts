@@ -1,5 +1,8 @@
 import axios from 'axios';
 import QRCode from 'qrcode';
+import FormData from 'form-data';
+import admin from 'firebase-admin';
+import './firebaseAuth'; // Ensure Firebase is initialized
 
 const PRINTFUL_API_URL = 'https://api.printful.com';
 const API_TOKEN = process.env.PRINTFUL_API_TOKEN;
@@ -193,27 +196,27 @@ export class PrintfulService {
   }
 
   /**
-   * Upload file to Printful
+   * Upload SVG to Firebase Storage and return public URL
    */
-  private async uploadFile(fileContent: string, fileName: string): Promise<{ id: number; url: string }> {
+  private async uploadToFirebaseStorage(fileContent: string, fileName: string): Promise<string> {
     try {
-      // Convert SVG to base64
-      const base64Content = Buffer.from(fileContent).toString('base64');
+      const bucket = admin.storage().bucket();
+      const file = bucket.file(`printful-designs/${fileName}`);
       
-      const data = {
-        type: 'default',
-        url: `data:image/svg+xml;base64,${base64Content}`,
-        filename: fileName,
-      };
+      await file.save(Buffer.from(fileContent), {
+        contentType: 'image/svg+xml',
+        public: true,
+        metadata: {
+          cacheControl: 'public, max-age=31536000',
+        },
+      });
 
-      const response = await printfulClient.post('/files', data);
-      return {
-        id: response.data.result.id,
-        url: response.data.result.url,
-      };
+      // Get public URL
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
+      return publicUrl;
     } catch (error: any) {
-      console.error('Printful file upload error:', error.response?.data || error.message);
-      throw new Error(`Failed to upload file: ${error.message}`);
+      console.error('Firebase Storage upload error:', error.message);
+      throw new Error(`Failed to upload to Firebase Storage: ${error.message}`);
     }
   }
 
@@ -227,10 +230,10 @@ export class PrintfulService {
       // Generate design SVG with specified text color
       const designSVG = await this.generateDesignSVG(quoteText, author, textColor);
       
-      // Upload design to Printful
-      console.log('Uploading design to Printful...');
-      const uploadedFile = await this.uploadFile(designSVG, `${externalId}-${textColor}-design.svg`);
-      console.log('Design uploaded successfully:', uploadedFile.id);
+      // Upload design to Firebase Storage
+      console.log('Uploading design to Firebase Storage...');
+      const designUrl = await this.uploadToFirebaseStorage(designSVG, `${externalId}-${textColor}-design.svg`);
+      console.log('Design uploaded successfully:', designUrl);
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
       // Variant IDs from Printful catalog:
@@ -252,31 +255,31 @@ export class PrintfulService {
             variant_id: 4011, 
             retail_price: '29.99', 
             external_id: `${externalId}-S`,
-            files: [{ id: uploadedFile.id }]
+            files: [{ url: designUrl }]
           },
           { 
             variant_id: 4012, 
             retail_price: '29.99', 
             external_id: `${externalId}-M`,
-            files: [{ id: uploadedFile.id }]
+            files: [{ url: designUrl }]
           },
           { 
             variant_id: 4013, 
             retail_price: '29.99', 
             external_id: `${externalId}-L`,
-            files: [{ id: uploadedFile.id }]
+            files: [{ url: designUrl }]
           },
           { 
             variant_id: 4014, 
             retail_price: '29.99', 
             external_id: `${externalId}-XL`,
-            files: [{ id: uploadedFile.id }]
+            files: [{ url: designUrl }]
           },
           { 
             variant_id: 4017, 
             retail_price: '29.99', 
             external_id: `${externalId}-2XL`,
-            files: [{ id: uploadedFile.id }]
+            files: [{ url: designUrl }]
           },
         ],
       };

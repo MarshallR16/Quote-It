@@ -9,6 +9,7 @@ import Stripe from "stripe";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { users } from "@shared/schema";
+import { selectWeeklyWinner } from "./scheduler";
 
 // Stripe will be initialized when keys are provided
 let stripe: Stripe | null = null;
@@ -484,131 +485,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Select weekly winner and create Printful product automatically
   app.post("/api/admin/select-weekly-winner", requireAdmin, async (req: any, res: any) => {
     try {
-      // Get all quotes
-      const quotes = await storage.getAllQuotes();
-      
-      if (quotes.length === 0) {
-        return res.status(400).json({ message: "No quotes available to select winner" });
+      const result = await selectWeeklyWinner();
+      if (!result) {
+        return res.status(500).json({ message: "Failed to select weekly winner" });
       }
-
-      // Find quote with highest vote count
-      const topQuote = quotes.reduce((max, quote) => 
-        quote.voteCount > max.voteCount ? quote : max
-      , quotes[0]);
-
-      // Calculate week start/end dates (Monday to Sunday)
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust when day is Sunday
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() + diff);
-      weekStart.setHours(0, 0, 0, 0);
-      
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-
-      // Create weekly winner
-      const winner = await storage.createWeeklyWinner({
-        quoteId: topQuote.id,
-        weekStartDate: weekStart,
-        weekEndDate: weekEnd,
-        finalVoteCount: topQuote.voteCount,
-      });
-
-      // Automatically create Printful products if configured
-      let product = null;
-      let winnerProduct = null;
-      let printfulProduct = null;
-      let printfulWinnerProduct = null;
-      
-      if (isPrintfulConfigured) {
-        try {
-          // Get author info
-          const author = await storage.getUser(topQuote.authorId);
-          const authorName = author?.email?.split('@')[0] || 'unknown';
-
-          // Create WHITE text version (for store)
-          console.log('Creating white text product for store:', topQuote.text);
-          printfulProduct = await printfulService.createProduct(
-            topQuote.text,
-            authorName,
-            `quote-${topQuote.id}-white`,
-            'white'
-          );
-
-          // Create product in database
-          const productData = {
-            quoteId: topQuote.id,
-            weeklyWinnerId: winner.id,
-            name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`,
-            description: `Quote by ${authorName}`,
-            price: '29.99',
-            imageUrl: null,
-            printfulSyncProductId: printfulProduct.id,
-            printfulSyncVariants: printfulProduct,
-            isActive: true,
-          };
-
-          product = await storage.createProduct(productData);
-
-          // Create GOLD text version (exclusive for winner)
-          console.log('Creating gold text product for winner:', topQuote.text);
-          printfulWinnerProduct = await printfulService.createProduct(
-            topQuote.text,
-            authorName,
-            `quote-${topQuote.id}-gold`,
-            'gold'
-          );
-
-          // Create winner's exclusive product in database
-          const winnerProductData = {
-            quoteId: topQuote.id,
-            weeklyWinnerId: winner.id,
-            name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
-            description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
-            price: '29.99',
-            imageUrl: null,
-            printfulSyncProductId: printfulWinnerProduct.id,
-            printfulSyncVariants: printfulWinnerProduct,
-            isActive: false, // Not for sale - winner exclusive
-          };
-
-          winnerProduct = await storage.createProduct(winnerProductData);
-
-          // Update weekly winner with both product IDs
-          await storage.updateWeeklyWinner(winner.id, {
-            productId: product.id,
-            winnerProductId: winnerProduct.id,
-          });
-
-          // Create complimentary order for the winner using GOLD text version
-          try {
-            const complimentaryOrder = await storage.createOrder({
-              userId: topQuote.authorId,
-              productId: winnerProduct.id, // Use gold text version
-              amount: '0.00',
-              status: 'awaiting_address',
-              isComplimentary: true,
-              includeAuthor: true,
-            });
-            console.log('Created complimentary order with gold text for winner:', complimentaryOrder.id);
-          } catch (error: any) {
-            console.error('Error creating complimentary order:', error);
-            // Continue even if order creation fails
-          }
-        } catch (error: any) {
-          console.error('Error creating Printful product:', error);
-          // Continue even if Printful creation fails
-        }
-      }
-
       res.json({ 
-        winner, 
-        quote: topQuote,
-        product,
-        printfulProduct,
-        message: product ? 'Weekly winner selected, Printful product created, and free shirt awarded to winner' : 'Weekly winner selected'
+        success: true,
+        winner: result.winner,
+        message: 'Weekly winner selected and Printful products created'
       });
     } catch (error: any) {
       res.status(500).json({ message: "Error selecting weekly winner: " + error.message });

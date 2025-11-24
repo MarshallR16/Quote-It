@@ -3,20 +3,35 @@ import type { Express, RequestHandler } from "express";
 import { storage } from "./storage";
 import crypto from "crypto";
 
-// Initialize Firebase Admin with minimal config for token verification
-// Using credential: none mode which only allows token verification without requiring service account
+// Initialize Firebase Admin with service account for full access (including Storage)
 if (!admin.apps.length) {
-  try {
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+  
+  if (privateKey && projectId) {
+    // Use service account credentials for full Firebase access
+    // Handle different possible formats of the private key
+    let formattedKey = privateKey;
+    // If the key doesn't contain actual newlines, replace \\n with \n
+    if (!formattedKey.includes('\n') && formattedKey.includes('\\n')) {
+      formattedKey = formattedKey.replace(/\\n/g, '\n');
+    }
+    
     admin.initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-      credential: admin.credential.applicationDefault(),
+      credential: admin.credential.cert({
+        projectId: projectId,
+        privateKey: formattedKey,
+        clientEmail: `firebase-adminsdk@${projectId}.iam.gserviceaccount.com`,
+      }),
+      storageBucket: `${projectId}.appspot.com`,
     });
-  } catch (error) {
-    // If application default credentials fail (e.g., in development), initialize without credentials
-    // This still allows ID token verification
-    console.log('[Firebase Admin] Using minimal initialization for development');
+    console.log('[Firebase Admin] Initialized with service account credentials');
+  } else {
+    // Fallback to minimal initialization for token verification only
+    console.log('[Firebase Admin] Using minimal initialization (no service account)');
     admin.initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+      projectId: projectId,
+      storageBucket: projectId ? `${projectId}.appspot.com` : undefined,
     });
   }
 }
