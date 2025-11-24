@@ -35,19 +35,32 @@ export default function StorePage() {
   const [, navigate] = useLocation();
   const [timeLeft, setTimeLeft] = useState<string>("");
   
-  // Fetch most recent weekly winner product
-  const { data: weeklyWinner, isLoading: isLoadingWeekly, error } = useQuery<WeeklyWinnerData | null>({
+  // Fetch most recent weekly winner product with explicit fetch
+  const { data: rawData, isLoading: isLoadingWeekly, error } = useQuery({
     queryKey: ["/api/weekly-winner/current"],
+    queryFn: async () => {
+      const response = await fetch("/api/weekly-winner/current", {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.statusText}`);
+      }
+      const data = await response.json();
+      console.log('[StorePage] Fetched data:', data);
+      return data;
+    },
     staleTime: 0,
     refetchOnMount: true,
   });
+
+  const weeklyWinner = rawData as WeeklyWinnerData | null;
 
   console.log('[StorePage] Query state:', { 
     isLoading: isLoadingWeekly, 
     hasError: !!error, 
     hasData: !!weeklyWinner,
-    data: weeklyWinner,
-    error: error 
+    rawData,
+    error 
   });
 
   // Calculate time left in the week
