@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Trophy, TrendingUp, Clock } from "lucide-react";
-import heroImage from "@assets/generated_images/Hero_lifestyle_t-shirt_photo_a1c8cecb.png";
+import tshirtMockup from "@assets/generated_images/black_t-shirt_product_mockup.png";
 import { useEffect, useState } from "react";
 
 interface Quote {
@@ -93,7 +93,7 @@ export default function StorePage() {
             </div>
             
             <h1 className="text-3xl md:text-4xl font-bold font-display">
-              This Week's Most Voted Design
+              Last Week's Winning Quote
             </h1>
             
             {weeklyWinner && (
@@ -142,7 +142,7 @@ export default function StorePage() {
                   <div className="bg-background rounded-lg">
                     <ProductCard
                       id={weeklyWinner.product.id}
-                      imageUrl={weeklyWinner.product.imageUrl || heroImage}
+                      imageUrl={weeklyWinner.product.imageUrl || tshirtMockup}
                       quote={weeklyWinner.quote.text}
                       author={weeklyWinner.quote.authorId}
                       price={parseFloat(weeklyWinner.product.price)}

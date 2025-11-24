@@ -39,7 +39,7 @@ export default function LeaderboardPage() {
           </div>
         ) : currentWinner ? (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-3xl font-bold font-display mb-2">Now Available</h2>
                 <p className="text-muted-foreground">
