@@ -42,6 +42,14 @@ export default function StorePage() {
     refetchOnMount: true,
   });
 
+  console.log('[StorePage] Query state:', { 
+    isLoading: isLoadingWeekly, 
+    hasError: !!error, 
+    hasData: !!weeklyWinner,
+    data: weeklyWinner,
+    error: error 
+  });
+
   // Calculate time left in the week
   useEffect(() => {
     if (!weeklyWinner?.winner.weekEndDate) return;
