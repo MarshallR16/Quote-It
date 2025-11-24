@@ -93,6 +93,18 @@ export class PrintfulService {
   }
 
   /**
+   * Estimate text width in pixels (rough approximation for Georgia font)
+   * Using average character width at given font size
+   * Conservative estimate to prevent overlap with wide characters (W, M, etc.)
+   */
+  private estimateTextWidth(text: string, fontSize: number): number {
+    // Georgia serif font: use conservative 0.65 ratio to account for wide glyphs
+    // Better to overestimate and drop QR below than risk overlap
+    const avgCharWidth = fontSize * 0.65;
+    return text.length * avgCharWidth;
+  }
+
+  /**
    * Generate simple SVG design with quote, author, and QR code
    */
   private async generateDesignSVG(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white'): Promise<string> {
@@ -120,6 +132,29 @@ export class PrintfulService {
     // Adjust author position based on number of quote lines
     const authorY = 2000 + (wrappedLines.length * 220) + 400;
 
+    // Calculate author text width and QR position to prevent collision
+    const authorFontSize = 120;
+    const authorWithDash = `\u2014${author}`;
+    const authorTextWidth = this.estimateTextWidth(authorWithDash, authorFontSize);
+    const authorStartX = 1750;
+    const minGapBetweenAuthorAndQR = 200; // Minimum spacing between author and QR
+    const qrSize = 400;
+    
+    // Calculate QR position: author end + gap, but ensure it fits on shirt (max x = 4500)
+    const authorEndX = authorStartX + authorTextWidth;
+    let qrX = Math.max(2700, authorEndX + minGapBetweenAuthorAndQR);
+    
+    // If QR would go off the edge of the shirt, center it below the author instead
+    const maxQrX = 4500 - qrSize - 100; // Leave 100px margin from right edge
+    const qrBelowAuthor = qrX > maxQrX;
+    
+    if (qrBelowAuthor) {
+      // Position QR centered below the author
+      qrX = 2250 - (qrSize / 2); // Centered horizontally
+    }
+    
+    const qrY = qrBelowAuthor ? authorY + 200 : authorY - 80;
+
     // Create SVG with quote text, author, and QR code
     // Dimensions: 4500x5400px (Printful recommended for 18"x24" print area)
     // Background is transparent - will print on black shirt
@@ -134,12 +169,12 @@ export class PrintfulService {
   </text>
   
   <!-- Author name with em dash -->
-  <text x="1750" y="${authorY}" font-family="Georgia, 'Times New Roman', serif" font-size="120" text-anchor="start" fill="${authorColor}">
-    \u2014${this.escapeXml(author)}
+  <text x="${authorStartX}" y="${authorY}" font-family="Georgia, 'Times New Roman', serif" font-size="${authorFontSize}" text-anchor="start" fill="${authorColor}">
+    ${this.escapeXml(authorWithDash)}
   </text>
   
-  <!-- QR Code (to the right of author name) -->
-  <image x="2700" y="${authorY - 80}" width="400" height="400" xlink:href="${qrCodeDataUrl}"/>
+  <!-- QR Code (to the right of author name, or below if author is too long) -->
+  <image x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" xlink:href="${qrCodeDataUrl}"/>
 </svg>`;
 
     return svg;
