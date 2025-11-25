@@ -441,12 +441,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/weekly-winner/current", async (_req, res) => {
     try {
       const data = await storage.getMostRecentWeeklyWinnerWithDetails();
+      console.log('[API /weekly-winner/current] Raw data from storage:', JSON.stringify(data).substring(0, 200));
+      
       if (!data) {
+        console.log('[API /weekly-winner/current] No data found, returning null');
         return res.json(null);
       }
       
+      console.log('[API /weekly-winner/current] productId:', data.productId);
+      
       // Only return winner data if product exists (product creation might be pending)
       if (!data.productId) {
+        console.log('[API /weekly-winner/current] No productId, returning null');
         return res.json(null);
       }
       
