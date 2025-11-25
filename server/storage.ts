@@ -39,6 +39,7 @@ export interface IStorage {
   getAllProducts(): Promise<Product[]>;
   getActiveProducts(): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: string, data: Partial<Product>): Promise<Product>;
   updateProductStatus(id: string, isActive: boolean): Promise<Product>;
 
   // Order methods
@@ -570,6 +571,14 @@ export class DbStorage implements IStorage {
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const result = await db.insert(products).values(insertProduct).returning();
+    return result[0];
+  }
+
+  async updateProduct(id: string, data: Partial<Product>): Promise<Product> {
+    const result = await db.update(products)
+      .set(data)
+      .where(eq(products.id, id))
+      .returning();
     return result[0];
   }
 

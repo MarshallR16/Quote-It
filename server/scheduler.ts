@@ -200,22 +200,27 @@ async function autoHealWeeklyWinnerProducts() {
     
     // Check if winner has an active product
     if (winner.productId) {
-      console.log('[SCHEDULER] Most recent weekly winner already has a product');
+      // Also fix broken image URLs - if imageUrl contains a local file path, set to null
+      if (winner.productImageUrl && winner.productImageUrl.includes('/attached_assets/')) {
+        console.log('[SCHEDULER] Fixing broken image URL for product:', winner.productId);
+        await storage.updateProduct(winner.productId, { imageUrl: null });
+        console.log('[SCHEDULER] Fixed image URL - set to null for fallback');
+      } else {
+        console.log('[SCHEDULER] Most recent weekly winner already has a product');
+      }
       return;
     }
     
     console.log(`[SCHEDULER] Weekly winner ${winner.winnerId} has no product - creating demo product...`);
     
-    // Create demo product for this winner
-    const mockupImagePath = '/attached_assets/generated_images/black_t-shirt_product_mockup.png';
-    
+    // Create demo product for this winner (imageUrl null so frontend uses built-in fallback)
     const productData = {
       quoteId: winner.quoteId,
       weeklyWinnerId: winner.winnerId,
       name: `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}"`,
       description: `Weekly Winner - Quote by ${winner.authorUsername || 'unknown'}`,
       price: '29.99',
-      imageUrl: mockupImagePath,
+      imageUrl: null,
       printfulProductId: null,
       printfulSyncProductId: null,
       isActive: true,
