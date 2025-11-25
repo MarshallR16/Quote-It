@@ -209,42 +209,60 @@ export default function StorePage() {
           
           {!isLoadingWeekly && !error && weeklyWinner && (
             <div className="flex flex-col items-center gap-6" data-testid="container-winner-product">
-              {/* T-shirt Image with Quote Overlay */}
-              <div className="w-full max-w-md">
-                <div className="aspect-square bg-muted rounded-lg overflow-hidden relative">
+              {/* T-shirt Image with Quote Overlay - Matching Reference Design */}
+              <div className="w-full max-w-lg">
+                <div className="aspect-square bg-[#e5e1dc] rounded-lg overflow-hidden relative">
+                  {/* T-shirt Mockup Image */}
                   <img
                     src={tshirtMockup}
                     alt={`T-shirt with quote: ${weeklyWinner.quote?.text || 'Quote'}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     data-testid="img-product"
                   />
-                  {/* Quote Overlay */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center px-12 pt-4">
-                    {/* Quote Text */}
+                  
+                  {/* Quote Overlay - Positioned on Chest Area */}
+                  <div 
+                    className="absolute left-[15%] right-[15%]"
+                    style={{ top: '28%' }}
+                  >
+                    {/* Quote Text - Elegant Serif, Centered */}
                     <p 
-                      className="text-white text-center font-serif text-lg md:text-xl leading-snug"
-                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+                      className="text-white text-center"
+                      style={{ 
+                        fontFamily: 'Georgia, "Times New Roman", serif',
+                        fontSize: 'clamp(0.9rem, 3.5vw, 1.35rem)',
+                        fontWeight: 400,
+                        lineHeight: 1.3,
+                        letterSpacing: '0.01em',
+                      }}
                       data-testid="text-shirt-quote"
                     >
                       {`\u201C${weeklyWinner.quote?.text || 'Quote'}\u201D`}
                     </p>
-                    {/* Author Name with Em Dash */}
+                    
+                    {/* Author Line with QR Code - Left aligned */}
                     <div className="flex items-center gap-2 mt-3">
                       <p 
-                        className="text-white font-serif text-sm md:text-base italic"
-                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+                        className="text-white"
+                        style={{ 
+                          fontFamily: 'Georgia, "Times New Roman", serif',
+                          fontSize: 'clamp(0.7rem, 2.2vw, 0.95rem)',
+                          fontWeight: 400,
+                          fontStyle: 'italic',
+                        }}
                         data-testid="text-shirt-author"
                       >
                         —{weeklyWinner.authorFirstName && weeklyWinner.authorLastName 
                           ? `${weeklyWinner.authorFirstName} ${weeklyWinner.authorLastName}`
                           : weeklyWinner.authorUsername || 'Anonymous'}
                       </p>
-                      {/* QR Code */}
+                      {/* QR Code - Small, next to author */}
                       {qrCodeUrl && (
                         <img 
                           src={qrCodeUrl} 
                           alt="QR code to quote-it.co"
-                          className="w-8 h-8 rounded-sm"
+                          className="w-7 h-7 md:w-8 md:h-8"
+                          style={{ filter: 'invert(0.9)' }}
                           data-testid="img-qrcode"
                         />
                       )}
