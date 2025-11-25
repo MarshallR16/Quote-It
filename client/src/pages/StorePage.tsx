@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Trophy, TrendingUp, Clock } from "lucide-react";
-import tshirtMockup from "@assets/generated_images/black_t-shirt_product_mockup.png";
+import tshirtMockup from "@assets/generated_images/blank_black_t-shirt_mockup.png";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
@@ -272,32 +272,18 @@ export default function StorePage() {
               </div>
 
               {/* Purchase Button */}
-              <div className="flex flex-col items-center gap-4 w-full max-w-md">
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-3xl font-bold" data-testid="text-product-price">
-                    ${weeklyWinner.product?.price ? parseFloat(weeklyWinner.product.price).toFixed(2) : '0.00'}
-                  </span>
-                  <Button
-                    size="lg"
-                    className="rounded-full px-8"
-                    onClick={() => weeklyWinner.product?.id && handleAddToCart(weeklyWinner.product.id)}
-                    data-testid="button-add-to-cart"
-                  >
-                    Buy Now
-                  </Button>
-                </div>
-                
-                {/* Quote Display */}
-                <div className="text-center space-y-2 pt-4">
-                  <blockquote className="text-xl font-medium leading-tight">
-                    "{weeklyWinner.quote?.text || 'No quote text'}"
-                  </blockquote>
-                  {weeklyWinner.winner?.weekStartDate && (
-                    <Badge variant="secondary" className="text-xs">
-                      Week #{getWeekNumber(new Date(weeklyWinner.winner.weekStartDate))} Winner
-                    </Badge>
-                  )}
-                </div>
+              <div className="flex items-center justify-between w-full max-w-lg">
+                <span className="text-3xl font-bold" data-testid="text-product-price">
+                  ${weeklyWinner.product?.price ? parseFloat(weeklyWinner.product.price).toFixed(2) : '0.00'}
+                </span>
+                <Button
+                  size="lg"
+                  className="rounded-full px-8"
+                  onClick={() => weeklyWinner.product?.id && handleAddToCart(weeklyWinner.product.id)}
+                  data-testid="button-add-to-cart"
+                >
+                  Buy Now
+                </Button>
               </div>
             </div>
           )}
