@@ -35,24 +35,40 @@ export default function StorePage() {
   const [, navigate] = useLocation();
   const [timeLeft, setTimeLeft] = useState<string>("");
   
-  // Fetch most recent weekly winner product with explicit fetch
+  // Fetch most recent weekly winner product with cache-busting
   const { data: rawData, isLoading: isLoadingWeekly, error } = useQuery({
     queryKey: ["/api/weekly-winner/current"],
     queryFn: async () => {
-      const response = await fetch("/api/weekly-winner/current", {
+      // Add timestamp to force fresh request and bypass any caching
+      const timestamp = Date.now();
+      const url = `/api/weekly-winner/current?_t=${timestamp}`;
+      console.log('[StorePage] Fetching from:', url);
+      
+      const response = await fetch(url, {
         credentials: "include",
         cache: "no-store",
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
       });
+      
+      console.log('[StorePage] Response status:', response.status);
+      
       if (!response.ok) {
         throw new Error(`Failed to fetch: ${response.statusText}`);
       }
-      const data = await response.json();
-      console.log('[StorePage] Fetched data:', data);
+      
+      const text = await response.text();
+      console.log('[StorePage] Raw response text:', text.substring(0, 200));
+      
+      const data = text ? JSON.parse(text) : null;
+      console.log('[StorePage] Parsed data:', data);
       return data;
     },
     staleTime: 0,
     gcTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
 
