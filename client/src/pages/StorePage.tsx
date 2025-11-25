@@ -240,13 +240,13 @@ export default function StorePage() {
                       {`\u201C${weeklyWinner.quote?.text || 'Quote'}\u201D`}
                     </p>
                     
-                    {/* Author Line with QR Code - Left aligned */}
-                    <div className="flex items-center gap-2 mt-3">
+                    {/* Author Line with QR Code - Centered below quote */}
+                    <div className="flex items-center justify-center gap-1.5 mt-2">
                       <p 
                         className="text-white"
                         style={{ 
                           fontFamily: 'Georgia, "Times New Roman", serif',
-                          fontSize: 'clamp(0.7rem, 2.2vw, 0.95rem)',
+                          fontSize: 'clamp(0.65rem, 2vw, 0.85rem)',
                           fontWeight: 400,
                           fontStyle: 'italic',
                         }}
@@ -256,12 +256,12 @@ export default function StorePage() {
                           ? `${weeklyWinner.authorFirstName} ${weeklyWinner.authorLastName}`
                           : weeklyWinner.authorUsername || 'Anonymous'}
                       </p>
-                      {/* QR Code - Small, next to author */}
+                      {/* QR Code - Matches author font height */}
                       {qrCodeUrl && (
                         <img 
                           src={qrCodeUrl} 
                           alt="QR code to quote-it.co"
-                          className="w-7 h-7 md:w-8 md:h-8"
+                          className="h-3 w-3 md:h-4 md:w-4"
                           style={{ filter: 'invert(0.9)' }}
                           data-testid="img-qrcode"
                         />
