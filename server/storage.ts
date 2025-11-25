@@ -666,7 +666,10 @@ export class DbStorage implements IStorage {
       .from(weeklyWinners)
       .innerJoin(quotes, eq(weeklyWinners.quoteId, quotes.id))
       .innerJoin(users, eq(quotes.authorId, users.id))
-      .leftJoin(products, eq(products.weeklyWinnerId, weeklyWinners.id))
+      .leftJoin(products, and(
+        eq(products.weeklyWinnerId, weeklyWinners.id),
+        eq(products.isActive, true)
+      ))
       .orderBy(desc(weeklyWinners.createdAt))
       .limit(1);
     
