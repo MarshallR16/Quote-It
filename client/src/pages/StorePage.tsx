@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { Trophy, TrendingUp, Clock } from "lucide-react";
 import tshirtMockup from "@assets/generated_images/black_t-shirt_product_mockup.png";
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 
 interface Quote {
   id: string;
@@ -29,11 +30,31 @@ interface WeeklyWinnerData {
     weekEndDate: string;
     finalVoteCount: number;
   };
+  authorFirstName?: string;
+  authorLastName?: string;
+  authorUsername?: string;
 }
 
 export default function StorePage() {
   const [, navigate] = useLocation();
   const [timeLeft, setTimeLeft] = useState<string>("");
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  
+  // Generate QR code for quote-it.co
+  useEffect(() => {
+    QRCode.toDataURL('https://quote-it.co', {
+      width: 64,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    }).then(url => {
+      setQrCodeUrl(url);
+    }).catch(err => {
+      console.error('Failed to generate QR code:', err);
+    });
+  }, []);
   
   // Fetch most recent weekly winner product with cache-busting
   const { data: rawData, isLoading: isLoadingWeekly, error } = useQuery({
@@ -188,15 +209,47 @@ export default function StorePage() {
           
           {!isLoadingWeekly && !error && weeklyWinner && (
             <div className="flex flex-col items-center gap-6" data-testid="container-winner-product">
-              {/* T-shirt Image */}
+              {/* T-shirt Image with Quote Overlay */}
               <div className="w-full max-w-md">
-                <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+                <div className="aspect-square bg-muted rounded-lg overflow-hidden relative">
                   <img
-                    src={weeklyWinner.product?.imageUrl || tshirtMockup}
+                    src={tshirtMockup}
                     alt={`T-shirt with quote: ${weeklyWinner.quote?.text || 'Quote'}`}
                     className="w-full h-full object-cover"
                     data-testid="img-product"
                   />
+                  {/* Quote Overlay */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center px-12 pt-4">
+                    {/* Quote Text */}
+                    <p 
+                      className="text-white text-center font-serif text-lg md:text-xl leading-snug"
+                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+                      data-testid="text-shirt-quote"
+                    >
+                      "{weeklyWinner.quote?.text || 'Quote'}"
+                    </p>
+                    {/* Author Name with Em Dash */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <p 
+                        className="text-white font-serif text-sm md:text-base italic"
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+                        data-testid="text-shirt-author"
+                      >
+                        —{weeklyWinner.authorFirstName && weeklyWinner.authorLastName 
+                          ? `${weeklyWinner.authorFirstName} ${weeklyWinner.authorLastName}`
+                          : weeklyWinner.authorUsername || 'Anonymous'}
+                      </p>
+                      {/* QR Code */}
+                      {qrCodeUrl && (
+                        <img 
+                          src={qrCodeUrl} 
+                          alt="QR code to quote-it.co"
+                          className="w-8 h-8 rounded-sm"
+                          data-testid="img-qrcode"
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
