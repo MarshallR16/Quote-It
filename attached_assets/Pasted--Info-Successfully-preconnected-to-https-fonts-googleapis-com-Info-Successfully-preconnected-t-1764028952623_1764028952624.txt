@@ -1,0 +1,36 @@
+[Info] Successfully preconnected to https://fonts.googleapis.com/
+[Info] Successfully preconnected to https://fonts.gstatic.com/
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: null, isLoadingAuth: true, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: null, dbUser: null, isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: null, isLoadingAuth: true, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: null, dbUser: null, isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [StorePage] Query state: – {isLoading: true, hasError: false, hasData: false, …} (index-CMN9bLH8.js, line 2156)
+{isLoading: true, hasError: false, hasData: false, rawData: undefined, error: null}Object
+[Log] [StorePage] Fetched data: – null (index-CMN9bLH8.js, line 2156)
+[Log] [StorePage] Query state: – {isLoading: false, hasError: false, hasData: false, …} (index-CMN9bLH8.js, line 2156)
+{isLoading: false, hasError: false, hasData: false, rawData: null, error: null}Object
+[Info] Successfully preconnected to https://merchant-ui-api.stripe.com/
+[Info] Successfully preconnected to https://api.stripe.com/
+[Log] [useAuth] Firebase auth state changed: – "User: marshall_ruzicka@icloud.com" (index-CMN9bLH8.js, line 2106, x2)
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [StorePage] Query state: – {isLoading: false, hasError: false, hasData: false, …} (index-CMN9bLH8.js, line 2156)
+{isLoading: false, hasError: false, hasData: false, rawData: null, error: null}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [StorePage] Query state: – {isLoading: false, hasError: false, hasData: false, …} (index-CMN9bLH8.js, line 2156)
+{isLoading: false, hasError: false, hasData: false, rawData: null, error: null}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [StorePage] Query state: – {isLoading: false, hasError: false, hasData: false, …} (index-CMN9bLH8.js, line 2156)
+{isLoading: false, hasError: false, hasData: false, rawData: null, error: null}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-CMN9bLH8.js, line 2106)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
