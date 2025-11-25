@@ -226,7 +226,7 @@ export default function StorePage() {
                       style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
                       data-testid="text-shirt-quote"
                     >
-                      "{weeklyWinner.quote?.text || 'Quote'}"
+                      {`\u201C${weeklyWinner.quote?.text || 'Quote'}\u201D`}
                     </p>
                     {/* Author Name with Em Dash */}
                     <div className="flex items-center gap-2 mt-3">
