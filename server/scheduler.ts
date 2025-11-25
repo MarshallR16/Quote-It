@@ -190,6 +190,16 @@ async function autoHealWeeklyWinnerProducts() {
   try {
     console.log('[SCHEDULER] Checking for weekly winners without products...');
     
+    // First, fix any products with broken image URLs (local file paths don't work in production)
+    const allProducts = await storage.getAllProducts();
+    for (const product of allProducts) {
+      if (product.imageUrl && product.imageUrl.includes('/attached_assets/')) {
+        console.log('[SCHEDULER] Fixing broken image URL for product:', product.id);
+        await storage.updateProduct(product.id, { imageUrl: null });
+        console.log('[SCHEDULER] Fixed image URL - set to null for fallback');
+      }
+    }
+    
     // Get most recent weekly winner with details
     const winner = await storage.getMostRecentWeeklyWinnerWithDetails();
     
@@ -200,14 +210,7 @@ async function autoHealWeeklyWinnerProducts() {
     
     // Check if winner has an active product
     if (winner.productId) {
-      // Also fix broken image URLs - if imageUrl contains a local file path, set to null
-      if (winner.productImageUrl && winner.productImageUrl.includes('/attached_assets/')) {
-        console.log('[SCHEDULER] Fixing broken image URL for product:', winner.productId);
-        await storage.updateProduct(winner.productId, { imageUrl: null });
-        console.log('[SCHEDULER] Fixed image URL - set to null for fallback');
-      } else {
-        console.log('[SCHEDULER] Most recent weekly winner already has a product');
-      }
+      console.log('[SCHEDULER] Most recent weekly winner already has a product');
       return;
     }
     
