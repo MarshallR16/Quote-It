@@ -440,12 +440,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get most recent weekly winner with quote and product details
   app.get("/api/weekly-winner/current", async (_req, res) => {
     try {
+      console.log('[API /weekly-winner/current] API version: v2-active-products-fix');
       const data = await storage.getMostRecentWeeklyWinnerWithDetails();
       console.log('[API /weekly-winner/current] Raw data from storage:', JSON.stringify(data).substring(0, 200));
       
       if (!data) {
         console.log('[API /weekly-winner/current] No data found, returning null');
-        return res.json(null);
+        return res.json({ _apiVersion: 'v2', _error: 'no_data' });
       }
       
       console.log('[API /weekly-winner/current] productId:', data.productId);
@@ -453,11 +454,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only return winner data if product exists (product creation might be pending)
       if (!data.productId) {
         console.log('[API /weekly-winner/current] No productId, returning null');
-        return res.json(null);
+        return res.json({ _apiVersion: 'v2', _error: 'no_product_id', winnerId: data.winnerId });
       }
       
       // Transform flat data into nested structure for StorePage
       const winner = {
+        _apiVersion: 'v2',
         product: {
           id: data.productId,
           quoteId: data.quoteId,
