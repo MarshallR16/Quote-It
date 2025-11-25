@@ -186,6 +186,53 @@ export async function selectWeeklyWinner() {
     }
 }
 
+async function autoHealWeeklyWinnerProducts() {
+  try {
+    console.log('[SCHEDULER] Checking for weekly winners without products...');
+    
+    // Get most recent weekly winner with details
+    const winner = await storage.getMostRecentWeeklyWinnerWithDetails();
+    
+    if (!winner) {
+      console.log('[SCHEDULER] No weekly winners found');
+      return;
+    }
+    
+    // Check if winner has an active product
+    if (winner.productId) {
+      console.log('[SCHEDULER] Most recent weekly winner already has a product');
+      return;
+    }
+    
+    console.log(`[SCHEDULER] Weekly winner ${winner.winnerId} has no product - creating demo product...`);
+    
+    // Create demo product for this winner
+    const mockupImagePath = '/attached_assets/generated_images/black_t-shirt_product_mockup.png';
+    
+    const productData = {
+      quoteId: winner.quoteId,
+      weeklyWinnerId: winner.winnerId,
+      name: `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}"`,
+      description: `Weekly Winner - Quote by ${winner.authorUsername || 'unknown'}`,
+      price: '29.99',
+      imageUrl: mockupImagePath,
+      printfulProductId: null,
+      printfulSyncProductId: null,
+      isActive: true,
+    };
+    
+    const product = await storage.createProduct(productData);
+    console.log('[SCHEDULER] Created demo product for weekly winner:', product.id);
+    
+    // Update the weekly winner with the product ID
+    await storage.updateWeeklyWinner(winner.winnerId, { productId: product.id });
+    console.log('[SCHEDULER] Updated weekly winner with product ID');
+    
+  } catch (error: any) {
+    console.error('[SCHEDULER] Error in auto-heal:', error.message);
+  }
+}
+
 export function startWeeklyWinnerScheduler() {
   // Run every Sunday at 11:59 PM (just before week ends)
   // Cron format: minute hour day-of-month month day-of-week
@@ -195,4 +242,9 @@ export function startWeeklyWinnerScheduler() {
   });
 
   console.log('[SCHEDULER] Weekly winner cron job initialized (runs every Sunday at 11:59 PM)');
+  
+  // Auto-heal: Check if most recent weekly winner has products, create if missing
+  setTimeout(() => {
+    autoHealWeeklyWinnerProducts();
+  }, 5000); // Wait 5 seconds after startup to ensure DB is ready
 }
