@@ -6,7 +6,7 @@ import QuoteCard from "@/components/QuoteCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
-import { Loader2, UserPlus, UserCheck, Clock } from "lucide-react";
+import { Loader2, UserPlus, UserCheck } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { QuoteWithAuthor } from "@shared/schema";
@@ -20,9 +20,10 @@ type User = {
   createdAt: string;
 };
 
-type FriendshipStatus = {
-  status: 'none' | 'pending_sent' | 'pending_received' | 'accepted';
-  friendshipId?: string;
+type FollowStatus = {
+  status: 'none' | 'following' | 'follower' | 'friends';
+  isFollowing: boolean;
+  isFollowedBy: boolean;
 };
 
 export default function UserProfilePage() {
@@ -49,50 +50,53 @@ export default function UserProfilePage() {
     enabled: !!userId,
   });
 
-  // Fetch friendship status
-  const { data: friendshipStatus } = useQuery<FriendshipStatus>({
-    queryKey: [`/api/friends/status/${userId}`],
+  // Fetch follow status
+  const { data: followStatus } = useQuery<FollowStatus>({
+    queryKey: ['/api/follow/status', userId],
     enabled: !!userId && !!currentUser,
   });
 
-  // Send friend request mutation
-  const sendRequestMutation = useMutation({
+  // Follow user mutation
+  const followMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/api/friends/request`, { friendId: userId });
+      return apiRequest("POST", `/api/follow/${userId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/friends/status/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/follow/status', userId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/following'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/friends'] });
       toast({
-        title: "Friend request sent",
-        description: "Your friend request has been sent successfully",
+        title: "Following",
+        description: "You are now following this user",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to send request",
-        description: "Could not send friend request. Please try again.",
+        title: "Failed to follow",
+        description: "Could not follow user. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  // Accept friend request mutation
-  const acceptRequestMutation = useMutation({
+  // Unfollow user mutation
+  const unfollowMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/api/friends/accept/${friendshipStatus?.friendshipId}`);
+      return apiRequest("DELETE", `/api/follow/${userId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/friends/status/${userId}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/follow/status', userId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/following'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/friends'] });
       toast({
-        title: "Friend request accepted",
-        description: "You are now friends!",
+        title: "Unfollowed",
+        description: "You have unfollowed this user",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to accept request",
-        description: "Could not accept friend request. Please try again.",
+        title: "Failed to unfollow",
+        description: "Could not unfollow user. Please try again.",
         variant: "destructive",
       });
     },
@@ -133,64 +137,84 @@ export default function UserProfilePage() {
     ? formatDistanceToNow(new Date(profileUser.createdAt), { addSuffix: true })
     : "recently";
 
-  const renderFriendButton = () => {
+  const renderFollowButton = () => {
     if (!currentUser) return null;
 
-    if (!friendshipStatus || friendshipStatus.status === 'none') {
+    const isFollowing = followStatus?.isFollowing ?? false;
+    const isFollowedBy = followStatus?.isFollowedBy ?? false;
+    const isFriends = isFollowing && isFollowedBy;
+
+    if (isFriends) {
       return (
-        <Button
-          onClick={() => sendRequestMutation.mutate()}
-          disabled={sendRequestMutation.isPending}
-          className="gap-2"
-          data-testid="button-add-friend"
+        <Button 
+          variant="secondary" 
+          onClick={() => unfollowMutation.mutate()}
+          disabled={unfollowMutation.isPending}
+          className="gap-2" 
+          data-testid="button-friends"
         >
-          {sendRequestMutation.isPending ? (
+          {unfollowMutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <UserPlus className="h-4 w-4" />
+            <UserCheck className="h-4 w-4" />
           )}
-          Add Friend
-        </Button>
-      );
-    }
-
-    if (friendshipStatus.status === 'pending_sent') {
-      return (
-        <Button variant="secondary" disabled className="gap-2" data-testid="button-request-pending">
-          <Clock className="h-4 w-4" />
-          Request Pending
-        </Button>
-      );
-    }
-
-    if (friendshipStatus.status === 'pending_received') {
-      return (
-        <Button
-          onClick={() => acceptRequestMutation.mutate()}
-          disabled={acceptRequestMutation.isPending}
-          className="gap-2"
-          data-testid="button-accept-request"
-        >
-          {acceptRequestMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <UserPlus className="h-4 w-4" />
-          )}
-          Accept Friend Request
-        </Button>
-      );
-    }
-
-    if (friendshipStatus.status === 'accepted') {
-      return (
-        <Button variant="secondary" disabled className="gap-2" data-testid="button-friends">
-          <UserCheck className="h-4 w-4" />
           Friends
         </Button>
       );
     }
 
-    return null;
+    if (isFollowing) {
+      return (
+        <Button 
+          variant="secondary" 
+          onClick={() => unfollowMutation.mutate()}
+          disabled={unfollowMutation.isPending}
+          className="gap-2" 
+          data-testid="button-following"
+        >
+          {unfollowMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <UserCheck className="h-4 w-4" />
+          )}
+          Following
+        </Button>
+      );
+    }
+
+    if (isFollowedBy) {
+      return (
+        <Button
+          onClick={() => followMutation.mutate()}
+          disabled={followMutation.isPending}
+          className="gap-2"
+          data-testid="button-follow-back"
+        >
+          {followMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <UserPlus className="h-4 w-4" />
+          )}
+          Follow Back
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        onClick={() => followMutation.mutate()}
+        disabled={followMutation.isPending}
+        className="gap-2"
+        data-testid="button-follow"
+      >
+        {followMutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <UserPlus className="h-4 w-4" />
+        )}
+        Follow
+      </Button>
+    );
   };
 
   return (
@@ -208,7 +232,7 @@ export default function UserProfilePage() {
                 wins={wins}
                 profileImageUrl={profileUser.profileImageUrl}
               />
-              {renderFriendButton()}
+              {renderFollowButton()}
             </div>
           </div>
 

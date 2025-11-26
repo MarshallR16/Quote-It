@@ -3,10 +3,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserCheck, UserPlus, Clock, X, User as UserIcon } from "lucide-react";
+import { Loader2, UserCheck, UserPlus, UserMinus, User as UserIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type User = {
   id: string;
@@ -16,22 +17,20 @@ type User = {
   profileImageUrl: string | null;
 };
 
-type Friend = {
+type FollowingRelation = {
   id: string;
-  userId: string;
-  friendId: string;
-  status: string;
+  followerId: string;
+  followingId: string;
   createdAt: string;
-  friend: User;
+  following: User;
 };
 
-type FriendRequest = {
+type FollowerRelation = {
   id: string;
-  userId: string;
-  friendId: string;
-  status: string;
+  followerId: string;
+  followingId: string;
   createdAt: string;
-  requester: User;
+  follower: User;
 };
 
 export default function FriendsPage() {
@@ -39,55 +38,60 @@ export default function FriendsPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  // Fetch friends
-  const { data: friends = [], isLoading: friendsLoading } = useQuery<Friend[]>({
+  const { data: friends = [], isLoading: friendsLoading } = useQuery<User[]>({
     queryKey: ["/api/friends"],
     enabled: !!user,
   });
 
-  // Fetch pending requests
-  const { data: requests = [], isLoading: requestsLoading } = useQuery<FriendRequest[]>({
-    queryKey: ["/api/friends/requests"],
+  const { data: following = [], isLoading: followingLoading } = useQuery<FollowingRelation[]>({
+    queryKey: ["/api/following"],
     enabled: !!user,
   });
 
-  // Accept request mutation
-  const acceptMutation = useMutation({
-    mutationFn: async (friendshipId: string) => {
-      return apiRequest("POST", `/api/friends/accept/${friendshipId}`);
+  const { data: followers = [], isLoading: followersLoading } = useQuery<FollowerRelation[]>({
+    queryKey: ["/api/followers"],
+    enabled: !!user,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      return apiRequest("POST", `/api/follow/${targetUserId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followers"] });
       toast({
-        title: "Friend request accepted",
-        description: "You are now friends!",
+        title: "Following",
+        description: "You are now following this user",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to accept request",
-        description: "Could not accept friend request. Please try again.",
+        title: "Failed to follow",
+        description: "Could not follow user. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  // Reject request mutation
-  const rejectMutation = useMutation({
-    mutationFn: async (friendshipId: string) => {
-      return apiRequest("POST", `/api/friends/reject/${friendshipId}`);
+  const unfollowMutation = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      return apiRequest("DELETE", `/api/follow/${targetUserId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followers"] });
       toast({
-        title: "Friend request rejected",
+        title: "Unfollowed",
+        description: "You have unfollowed this user",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to reject request",
-        description: "Could not reject friend request. Please try again.",
+        title: "Failed to unfollow",
+        description: "Could not unfollow user. Please try again.",
         variant: "destructive",
       });
     },
@@ -108,125 +112,232 @@ export default function FriendsPage() {
       : user.firstName || user.email || "Anonymous";
   };
 
+  const followingIds = new Set(following.map(f => f.following.id));
+
+  const followersNotFollowedBack = followers.filter(f => !followingIds.has(f.follower.id));
+
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        {/* Friend Requests Section */}
-        <div>
-          <h2 className="text-3xl font-bold font-display mb-6">Friend Requests</h2>
-          {requestsLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : requests.length === 0 ? (
-            <Card data-testid="empty-requests">
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No pending friend requests
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {requests.map((request) => (
-                <Card key={request.id} data-testid={`request-${request.id}`}>
-                  <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
-                    <Avatar className="w-12 h-12" data-testid={`avatar-requester-${request.id}`}>
-                      <AvatarImage src={request.requester.profileImageUrl || undefined} alt={getUserName(request.requester)} />
-                      <AvatarFallback>
-                        <UserIcon className="w-6 h-6" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <CardTitle 
-                        className="text-base cursor-pointer hover:underline"
-                        onClick={() => navigate(`/users/${request.requester.id}`)}
-                        data-testid={`text-requester-${request.id}`}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold font-display mb-6">Friends & Following</h1>
+        
+        <Tabs defaultValue="friends" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="friends" data-testid="tab-friends">
+              Friends ({friends.length})
+            </TabsTrigger>
+            <TabsTrigger value="following" data-testid="tab-following">
+              Following ({following.length})
+            </TabsTrigger>
+            <TabsTrigger value="followers" data-testid="tab-followers">
+              Followers ({followers.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="friends">
+            {friendsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : friends.length === 0 ? (
+              <Card data-testid="empty-friends">
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <p className="mb-2">No friends yet</p>
+                  <p className="text-sm">Friends are users who follow each other. Start following people!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {friends.map((friend) => (
+                  <Card 
+                    key={friend.id} 
+                    className="hover-elevate cursor-pointer"
+                    onClick={() => navigate(`/users/${friend.id}`)}
+                    data-testid={`friend-${friend.id}`}
+                  >
+                    <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={friend.profileImageUrl || undefined} alt={getUserName(friend)} />
+                        <AvatarFallback>
+                          <UserIcon className="w-6 h-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <CardTitle className="text-base">
+                          {getUserName(friend)}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <UserCheck className="w-3 h-3" /> Mutual
+                        </p>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="following">
+            {followingLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : following.length === 0 ? (
+              <Card data-testid="empty-following">
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <p className="mb-2">Not following anyone yet</p>
+                  <p className="text-sm">Follow users to see their quotes in your feed!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {following.map((relation) => (
+                  <Card 
+                    key={relation.id}
+                    data-testid={`following-${relation.following.id}`}
+                  >
+                    <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+                      <Avatar 
+                        className="w-12 h-12 cursor-pointer" 
+                        onClick={() => navigate(`/users/${relation.following.id}`)}
                       >
-                        {getUserName(request.requester)}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Sent you a friend request
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => acceptMutation.mutate(request.id)}
-                        disabled={acceptMutation.isPending}
-                        data-testid={`button-accept-${request.id}`}
+                        <AvatarImage src={relation.following.profileImageUrl || undefined} alt={getUserName(relation.following)} />
+                        <AvatarFallback>
+                          <UserIcon className="w-6 h-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => navigate(`/users/${relation.following.id}`)}
                       >
-                        {acceptMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <UserCheck className="h-4 w-4" />
-                        )}
-                        <span className="ml-2">Accept</span>
-                      </Button>
+                        <CardTitle className="text-base">
+                          {getUserName(relation.following)}
+                        </CardTitle>
+                      </div>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => rejectMutation.mutate(request.id)}
-                        disabled={rejectMutation.isPending}
-                        data-testid={`button-reject-${request.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          unfollowMutation.mutate(relation.following.id);
+                        }}
+                        disabled={unfollowMutation.isPending}
+                        data-testid={`button-unfollow-${relation.following.id}`}
                       >
-                        {rejectMutation.isPending ? (
+                        {unfollowMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <X className="h-4 w-4" />
+                          <UserMinus className="h-4 w-4" />
                         )}
-                        <span className="ml-2">Reject</span>
+                        <span className="ml-2">Unfollow</span>
                       </Button>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-        {/* Friends List Section */}
-        <div>
-          <h2 className="text-3xl font-bold font-display mb-6">Your Friends</h2>
-          {friendsLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : friends.length === 0 ? (
-            <Card data-testid="empty-friends">
-              <CardContent className="py-8 text-center text-muted-foreground">
-                <p className="mb-2">No friends yet</p>
-                <p className="text-sm">Start adding friends to see their quotes in your feed!</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {friends.map((friendship) => (
-                <Card 
-                  key={friendship.id} 
-                  className="hover-elevate cursor-pointer"
-                  onClick={() => navigate(`/users/${friendship.friend.id}`)}
-                  data-testid={`friend-${friendship.id}`}
-                >
-                  <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-                    <Avatar className="w-12 h-12" data-testid={`avatar-friend-${friendship.id}`}>
-                      <AvatarImage src={friendship.friend.profileImageUrl || undefined} alt={getUserName(friendship.friend)} />
-                      <AvatarFallback>
-                        <UserIcon className="w-6 h-6" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <CardTitle className="text-base" data-testid={`text-friend-${friendship.id}`}>
-                        {getUserName(friendship.friend)}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {friendship.friend.email}
-                      </p>
+          <TabsContent value="followers">
+            {followersLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : followers.length === 0 ? (
+              <Card data-testid="empty-followers">
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <p className="mb-2">No followers yet</p>
+                  <p className="text-sm">Share your quotes to get more followers!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {followersNotFollowedBack.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Follow Back</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {followersNotFollowedBack.map((relation) => (
+                        <Card 
+                          key={relation.id}
+                          data-testid={`follower-${relation.follower.id}`}
+                        >
+                          <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+                            <Avatar 
+                              className="w-12 h-12 cursor-pointer"
+                              onClick={() => navigate(`/users/${relation.follower.id}`)}
+                            >
+                              <AvatarImage src={relation.follower.profileImageUrl || undefined} alt={getUserName(relation.follower)} />
+                              <AvatarFallback>
+                                <UserIcon className="w-6 h-6" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div 
+                              className="flex-1 cursor-pointer"
+                              onClick={() => navigate(`/users/${relation.follower.id}`)}
+                            >
+                              <CardTitle className="text-base">
+                                {getUserName(relation.follower)}
+                              </CardTitle>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                followMutation.mutate(relation.follower.id);
+                              }}
+                              disabled={followMutation.isPending}
+                              data-testid={`button-follow-back-${relation.follower.id}`}
+                            >
+                              {followMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <UserPlus className="h-4 w-4" />
+                              )}
+                              <span className="ml-2">Follow Back</span>
+                            </Button>
+                          </CardHeader>
+                        </Card>
+                      ))}
                     </div>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+                  </div>
+                )}
+                
+                {followers.filter(f => followingIds.has(f.follower.id)).length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Already Following</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {followers.filter(f => followingIds.has(f.follower.id)).map((relation) => (
+                        <Card 
+                          key={relation.id}
+                          className="hover-elevate cursor-pointer"
+                          onClick={() => navigate(`/users/${relation.follower.id}`)}
+                          data-testid={`follower-mutual-${relation.follower.id}`}
+                        >
+                          <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+                            <Avatar className="w-12 h-12">
+                              <AvatarImage src={relation.follower.profileImageUrl || undefined} alt={getUserName(relation.follower)} />
+                              <AvatarFallback>
+                                <UserIcon className="w-6 h-6" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <CardTitle className="text-base">
+                                {getUserName(relation.follower)}
+                              </CardTitle>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <UserCheck className="w-3 h-3" /> Mutual
+                              </p>
+                            </div>
+                          </CardHeader>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
