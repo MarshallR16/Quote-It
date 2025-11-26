@@ -141,7 +141,7 @@ export default function StorePage() {
   };
 
   return (
-    <div className="min-h-screen pb-20 md:pb-8 pt-16">
+    <div className="min-h-screen pb-32 md:pb-8 pt-16">
       {/* Enhanced Header Banner */}
       <div className="bg-card border-b mb-8">
         <div className="max-w-7xl mx-auto px-4 py-8">

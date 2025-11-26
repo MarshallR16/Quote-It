@@ -1012,6 +1012,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get pending complimentary order for winner (awaiting shipping address)
+  app.get('/api/winner/pending-order', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      
+      // Get all orders for the user
+      const allOrders = await storage.getOrdersByUser(userId);
+      
+      // Find a complimentary order that's awaiting an address
+      const pendingWinnerOrder = allOrders.find(
+        (order: any) => order.isComplimentary && order.status === 'awaiting_address'
+      );
+      
+      if (!pendingWinnerOrder) {
+        return res.json(null);
+      }
+      
+      // Get the product and quote info for this order
+      const product = await storage.getProduct(pendingWinnerOrder.productId);
+      if (!product) {
+        return res.json(null);
+      }
+      
+      const quote = await storage.getQuote(product.quoteId);
+      if (!quote) {
+        return res.json(null);
+      }
+      
+      // Get the weekly winner info
+      const weeklyWinner = product.weeklyWinnerId 
+        ? await storage.getWeeklyWinner(product.weeklyWinnerId)
+        : null;
+      
+      res.json({
+        order: {
+          id: pendingWinnerOrder.id,
+          productId: pendingWinnerOrder.productId,
+          status: pendingWinnerOrder.status,
+          isComplimentary: pendingWinnerOrder.isComplimentary,
+        },
+        quote: {
+          id: quote.id,
+          text: quote.text,
+        },
+        product: {
+          id: product.id,
+          name: product.name,
+        },
+        winner: weeklyWinner ? {
+          id: weeklyWinner.id,
+          weekStartDate: weeklyWinner.weekStartDate,
+          weekEndDate: weeklyWinner.weekEndDate,
+          finalVoteCount: weeklyWinner.finalVoteCount,
+        } : null,
+      });
+    } catch (error: any) {
+      console.error("Error checking winner order:", error);
+      res.status(500).json({ message: "Error checking winner order: " + error.message });
+    }
+  });
+
+  // Submit shipping info for a complimentary winner order
+  app.post('/api/orders/:id/shipping', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { id: orderId } = req.params;
+      const shippingInfo = req.body;
+      
+      // Validate required fields
+      const requiredFields = ['name', 'email', 'address1', 'city', 'state_code', 'country_code', 'zip', 'size'];
+      for (const field of requiredFields) {
+        if (!shippingInfo[field]) {
+          return res.status(400).json({ message: `${field} is required` });
+        }
+      }
+      
+      // Get the order and verify it belongs to this user
+      const allOrders = await storage.getOrdersByUser(userId);
+      const order = allOrders.find((o: any) => o.id === orderId);
+      
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      if (!order.isComplimentary) {
+        return res.status(403).json({ message: "This endpoint is only for complimentary orders" });
+      }
+      
+      if (order.status !== 'awaiting_address') {
+        return res.status(400).json({ message: "Order is not awaiting address" });
+      }
+      
+      // Update the order with shipping info and change status to processing
+      const updatedOrder = await storage.updateOrder(orderId, {
+        shippingAddress: shippingInfo,
+        status: 'processing',
+      });
+      
+      // If Printful is configured, attempt to create the fulfillment order
+      if (isPrintfulConfigured && printfulService) {
+        try {
+          const product = await storage.getProduct(order.productId);
+          if (product?.printfulSyncProductId) {
+            console.log('[WINNER ORDER] Creating Printful fulfillment for complimentary order:', orderId);
+            // Note: Printful fulfillment would go here if fully integrated
+          }
+        } catch (printfulError: any) {
+          console.error('[WINNER ORDER] Printful error (order still saved):', printfulError.message);
+        }
+      }
+      
+      res.json(updatedOrder);
+    } catch (error: any) {
+      console.error("Error submitting shipping info:", error);
+      res.status(500).json({ message: "Error submitting shipping info: " + error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

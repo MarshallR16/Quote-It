@@ -20,6 +20,7 @@ import BottomNavigation, { type NavItem } from "@/components/BottomNavigation";
 import CreateQuoteModal from "@/components/CreateQuoteModal";
 import TermsAcceptanceModal from "@/components/TermsAcceptanceModal";
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
+import WinnerCelebrationModal from "@/components/WinnerCelebrationModal";
 import { AuthRedirectHandler } from "@/components/AuthRedirectHandler";
 
 import FeedPage from "@/pages/FeedPage";
@@ -36,16 +37,57 @@ import TermsPage from "@/pages/TermsPage";
 import SupportPage from "@/pages/SupportPage";
 import NotFound from "@/pages/not-found";
 
+interface WinnerOrderData {
+  order: {
+    id: string;
+    productId: string;
+    status: string;
+    isComplimentary: boolean;
+  };
+  quote: {
+    id: string;
+    text: string;
+  };
+  product: {
+    id: string;
+    name: string;
+  };
+  winner: {
+    id: string;
+    weekStartDate: string;
+    weekEndDate: string;
+    finalVoteCount: number;
+  } | null;
+}
+
 function Router() {
   const [location, setLocation] = useLocation();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const { isAuthenticated, isLoading, requiresProfileCompletion, firebaseUser, profileData } = useAuth();
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
 
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     enabled: isAuthenticated,
   });
+
+  // Check if user is a winner with pending order
+  const { data: winnerOrderData } = useQuery<WinnerOrderData | null>({
+    queryKey: ["/api/winner/pending-order"],
+    enabled: isAuthenticated && !requiresProfileCompletion,
+  });
+
+  // Show winner modal if there's a pending order and user hasn't been notified
+  useEffect(() => {
+    if (winnerOrderData?.order?.id) {
+      const notifiedKey = `winner_notified_${winnerOrderData.order.id}`;
+      const alreadyNotified = localStorage.getItem(notifiedKey);
+      if (!alreadyNotified) {
+        setShowWinnerModal(true);
+      }
+    }
+  }, [winnerOrderData]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -151,6 +193,16 @@ function Router() {
         open={requiresProfileCompletion}
         email={profileData?.email || firebaseUser?.email}
         profileImageUrl={profileData?.profileImageUrl || firebaseUser?.photoURL}
+      />
+      <WinnerCelebrationModal
+        open={showWinnerModal && !!winnerOrderData}
+        orderData={winnerOrderData || null}
+        onComplete={() => {
+          setShowWinnerModal(false);
+          if (winnerOrderData?.order?.id) {
+            localStorage.setItem(`winner_notified_${winnerOrderData.order.id}`, "true");
+          }
+        }}
       />
     </div>
   );
