@@ -49,6 +49,22 @@ export default function ProfilePage() {
     enabled: !!user?.id,
   });
 
+  // Fetch social stats
+  const { data: friends = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends"],
+    enabled: !!user?.id,
+  });
+
+  const { data: following = [] } = useQuery<any[]>({
+    queryKey: ["/api/following"],
+    enabled: !!user?.id,
+  });
+
+  const { data: followers = [] } = useQuery<any[]>({
+    queryKey: ["/api/followers"],
+    enabled: !!user?.id,
+  });
+
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!user?.id) throw new Error("User not authenticated");
@@ -215,6 +231,10 @@ export default function ProfilePage() {
                 wins={wins}
                 profileImageUrl={user.profileImageUrl}
                 onEditProfilePicture={() => setUploadDialogOpen(true)}
+                followersCount={followers.length}
+                followingCount={following.length}
+                friendsCount={friends.length}
+                showSocialStats={true}
               />
             </div>
           </div>

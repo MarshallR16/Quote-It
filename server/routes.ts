@@ -437,6 +437,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get shirt archive - all past winning shirts
+  app.get("/api/shirt-archive", async (_req, res) => {
+    try {
+      const winners = await storage.getAllWeeklyWinnersWithDetails();
+      res.json(winners);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching shirt archive: " + error.message });
+    }
+  });
+
   // Get most recent weekly winner with quote and product details
   app.get("/api/weekly-winner/current", async (_req, res) => {
     try {
@@ -951,6 +961,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(friendsQuotes);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching friends quotes: " + error.message });
+    }
+  });
+
+  // Get quotes from people I follow (not just mutual friends)
+  app.get('/api/quotes/following', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const followingQuotes = await storage.getFollowingQuotes(userId);
+      res.json(followingQuotes);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching following quotes: " + error.message });
     }
   });
 

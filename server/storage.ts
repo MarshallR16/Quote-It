@@ -54,6 +54,7 @@ export interface IStorage {
   getCurrentWeeklyWinner(): Promise<WeeklyWinner | undefined>;
   getMostRecentWeeklyWinnerWithDetails(): Promise<any | undefined>;
   getAllWeeklyWinners(): Promise<WeeklyWinner[]>;
+  getAllWeeklyWinnersWithDetails(): Promise<any[]>;
   createWeeklyWinner(winner: InsertWeeklyWinner): Promise<WeeklyWinner>;
   updateWeeklyWinner(id: string, data: Partial<InsertWeeklyWinner>): Promise<WeeklyWinner>;
 
@@ -69,6 +70,7 @@ export interface IStorage {
   getFollowers(userId: string): Promise<(Follow & { follower: User })[]>;
   getFriends(userId: string): Promise<User[]>;
   getFriendsQuotes(userId: string): Promise<QuoteWithAuthor[]>;
+  getFollowingQuotes(userId: string): Promise<QuoteWithAuthor[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -685,6 +687,41 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getAllWeeklyWinnersWithDetails(): Promise<any[]> {
+    const result = await db
+      .select({
+        winnerId: weeklyWinners.id,
+        quoteId: quotes.id,
+        quoteText: quotes.text,
+        voteCount: quotes.voteCount,
+        authorId: users.id,
+        authorUsername: users.username,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorProfileImageUrl: users.profileImageUrl,
+        productId: products.id,
+        productName: products.name,
+        productDescription: products.description,
+        productPrice: products.price,
+        productImageUrl: products.imageUrl,
+        productIsActive: products.isActive,
+        weekStartDate: weeklyWinners.weekStartDate,
+        weekEndDate: weeklyWinners.weekEndDate,
+        finalVoteCount: weeklyWinners.finalVoteCount,
+        createdAt: weeklyWinners.createdAt,
+      })
+      .from(weeklyWinners)
+      .innerJoin(quotes, eq(weeklyWinners.quoteId, quotes.id))
+      .innerJoin(users, eq(quotes.authorId, users.id))
+      .leftJoin(products, and(
+        eq(products.weeklyWinnerId, weeklyWinners.id),
+        eq(products.isActive, true)
+      ))
+      .orderBy(desc(weeklyWinners.createdAt));
+    
+    return result;
+  }
+
   async createWeeklyWinner(insertWinner: InsertWeeklyWinner): Promise<WeeklyWinner> {
     const result = await db.insert(weeklyWinners).values(insertWinner).returning();
     return result[0];
@@ -862,10 +899,42 @@ export class DbStorage implements IStorage {
         authorFirstName: users.firstName,
         authorLastName: users.lastName,
         authorEmail: users.email,
+        authorProfileImageUrl: users.profileImageUrl,
       })
       .from(quotes)
       .leftJoin(users, eq(quotes.authorId, users.id))
       .where(inArray(quotes.authorId, friendIds))
+      .orderBy(desc(quotes.createdAt));
+    
+    return result as QuoteWithAuthor[];
+  }
+
+  async getFollowingQuotes(userId: string): Promise<QuoteWithAuthor[]> {
+    // Get IDs of everyone I'm following
+    const followingList = await this.getFollowing(userId);
+    const followingIds = followingList.map(f => f.following.id);
+    
+    if (followingIds.length === 0) {
+      return [];
+    }
+
+    // Get quotes from people I follow
+    const result = await db
+      .select({
+        id: quotes.id,
+        text: quotes.text,
+        authorId: quotes.authorId,
+        createdAt: quotes.createdAt,
+        voteCount: quotes.voteCount,
+        authorUsername: users.username,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorEmail: users.email,
+        authorProfileImageUrl: users.profileImageUrl,
+      })
+      .from(quotes)
+      .leftJoin(users, eq(quotes.authorId, users.id))
+      .where(inArray(quotes.authorId, followingIds))
       .orderBy(desc(quotes.createdAt));
     
     return result as QuoteWithAuthor[];

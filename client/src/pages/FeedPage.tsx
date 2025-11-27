@@ -20,8 +20,8 @@ export default function FeedPage() {
     queryKey: ["/api/quotes"],
   });
 
-  const { data: friendsQuotes, isLoading: friendsLoading } = useQuery<QuoteWithAuthor[]>({
-    queryKey: ["/api/quotes/friends"],
+  const { data: followingQuotes, isLoading: followingLoading } = useQuery<QuoteWithAuthor[]>({
+    queryKey: ["/api/quotes/following"],
     enabled: activeFilter === "friends",
   });
 
@@ -55,7 +55,7 @@ export default function FeedPage() {
     let sourceQuotes: QuoteWithAuthor[] | undefined;
     
     if (activeFilter === "friends") {
-      sourceQuotes = friendsQuotes;
+      sourceQuotes = followingQuotes;
     } else if (activeFilter === "recent") {
       // Use personalized feed for authenticated users, chronological for anonymous
       sourceQuotes = user ? personalizedQuotes : quotes;
@@ -78,7 +78,7 @@ export default function FeedPage() {
   };
 
   const getCurrentLoading = () => {
-    if (activeFilter === "friends") return friendsLoading;
+    if (activeFilter === "friends") return followingLoading;
     if (activeFilter === "recent") return user ? personalizedLoading : isLoading;
     if (activeFilter === "top") return isLoading;
     return false;
