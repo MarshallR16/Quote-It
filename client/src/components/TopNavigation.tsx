@@ -9,6 +9,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import WeeklyWinnerCountdown from "@/components/WeeklyWinnerCountdown";
 
 interface TopNavigationProps {
@@ -44,6 +45,8 @@ export default function TopNavigation({
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      // Clear all cached queries to prevent stale user data on next login
+      queryClient.clear();
       toast({
         title: "Signed out",
         description: "You've been successfully signed out",

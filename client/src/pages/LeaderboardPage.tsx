@@ -141,8 +141,7 @@ export default function LeaderboardPage() {
               {shirtArchive.map((item, index) => (
                 <Card 
                   key={item.winnerId} 
-                  className="overflow-hidden hover-elevate cursor-pointer"
-                  onClick={() => item.productId && item.productIsActive && setLocation(`/checkout/${item.productId}`)}
+                  className="overflow-hidden"
                   data-testid={`archive-shirt-${index}`}
                 >
                   <CardContent className="p-6">
@@ -179,25 +178,6 @@ export default function LeaderboardPage() {
                           — {getAuthorDisplayName(item)}
                         </span>
                       </div>
-
-                      {/* Product Info */}
-                      {item.productId && item.productIsActive ? (
-                        <div className="pt-2 border-t flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">
-                            Still available
-                          </span>
-                          <Button size="sm" variant="outline" className="gap-1">
-                            <ShoppingBag className="w-3 h-3" />
-                            ${item.productPrice || '29.99'}
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="pt-2 border-t">
-                          <span className="text-sm text-muted-foreground">
-                            No longer available
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -142,6 +142,8 @@ export default function ProfilePage() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      // Clear all cached queries to prevent stale user data on next login
+      queryClient.clear();
       toast({
         title: "Signed out",
         description: "You've been signed out successfully",
@@ -168,6 +170,8 @@ export default function ProfilePage() {
       }
     },
     onSuccess: () => {
+      // Clear all cached queries to prevent stale user data
+      queryClient.clear();
       toast({
         title: "Account deleted",
         description: "Your account and all associated data have been permanently deleted",
