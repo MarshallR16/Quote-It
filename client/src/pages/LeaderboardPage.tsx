@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Trophy, User, ShoppingBag, Calendar, Award } from "lucide-react";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
+import QRCode from "qrcode";
+import tshirtMockup from "@assets/generated_images/blank_black_t-shirt_mockup.png";
 
 interface ShirtArchiveItem {
   winnerId: string;
@@ -29,6 +32,23 @@ interface ShirtArchiveItem {
 
 export default function LeaderboardPage() {
   const [, setLocation] = useLocation();
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+
+  // Generate QR code for quote-it.co
+  useEffect(() => {
+    QRCode.toDataURL('https://quote-it.co', {
+      width: 64,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    }).then(url => {
+      setQrCodeUrl(url);
+    }).catch(err => {
+      console.error('Failed to generate QR code:', err);
+    });
+  }, []);
 
   // Fetch most recent weekly winner
   const { data: currentWinner, isLoading: isLoadingWinner } = useQuery<any>({
@@ -122,19 +142,19 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {/* Shirt Archive Section */}
+        {/* Archive Section */}
         <div className="pt-8 border-t">
           <div className="flex items-center gap-3 mb-6">
             <Award className="w-8 h-8" />
             <div>
-              <h3 className="text-2xl font-bold font-display">Shirt Archive</h3>
-              <p className="text-muted-foreground">All past winning quotes and their shirts</p>
+              <h3 className="text-2xl font-bold font-display">Archive</h3>
+              <p className="text-muted-foreground">All past winning quotes</p>
             </div>
           </div>
 
           {isLoadingArchive ? (
             <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">Loading shirt archive...</p>
+              <p className="text-muted-foreground">Loading archive...</p>
             </div>
           ) : shirtArchive && shirtArchive.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2">
@@ -144,8 +164,8 @@ export default function LeaderboardPage() {
                   className="overflow-hidden"
                   data-testid={`archive-shirt-${index}`}
                 >
-                  <CardContent className="p-6">
-                    <div className="flex flex-col space-y-4">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col space-y-3">
                       {/* Week Badge */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -158,12 +178,57 @@ export default function LeaderboardPage() {
                         </div>
                       </div>
 
-                      {/* Quote */}
-                      <blockquote className="text-lg font-display leading-relaxed">
-                        "{item.quoteText}"
-                      </blockquote>
+                      {/* T-shirt Mockup with Quote */}
+                      <div className="aspect-square bg-[#e5e1dc] rounded-lg overflow-hidden relative">
+                        <img
+                          src={tshirtMockup}
+                          alt={`T-shirt with quote: ${item.quoteText}`}
+                          className="w-full h-full object-contain"
+                        />
+                        
+                        {/* Quote Overlay */}
+                        <div 
+                          className="absolute left-[15%] right-[15%]"
+                          style={{ top: '28%' }}
+                        >
+                          <p 
+                            className="text-white text-center"
+                            style={{ 
+                              fontFamily: 'Georgia, "Times New Roman", serif',
+                              fontSize: 'clamp(0.6rem, 2.5vw, 0.9rem)',
+                              fontWeight: 400,
+                              lineHeight: 1.3,
+                              letterSpacing: '0.01em',
+                            }}
+                          >
+                            {`\u201C${item.quoteText}\u201D`}
+                          </p>
+                          
+                          {/* Author Line with QR Code */}
+                          <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                            <p 
+                              className="text-white"
+                              style={{ 
+                                fontFamily: 'Georgia, "Times New Roman", serif',
+                                fontSize: 'clamp(0.5rem, 1.5vw, 0.7rem)',
+                                fontWeight: 400,
+                                fontStyle: 'italic',
+                              }}
+                            >
+                              —{getAuthorDisplayName(item)}
+                            </p>
+                            {qrCodeUrl && (
+                              <img 
+                                src={qrCodeUrl} 
+                                alt="QR code to quote-it.co"
+                                className="h-2.5 w-2.5 md:h-3 md:w-3"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-                      {/* Author */}
+                      {/* Author info below mockup */}
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
                           <AvatarImage 
@@ -175,7 +240,7 @@ export default function LeaderboardPage() {
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-sm font-medium">
-                          — {getAuthorDisplayName(item)}
+                          {getAuthorDisplayName(item)}
                         </span>
                       </div>
                     </div>
@@ -186,9 +251,9 @@ export default function LeaderboardPage() {
           ) : (
             <div className="text-center py-12 bg-muted/30 rounded-md">
               <Trophy className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground text-lg mb-2">No winning shirts yet</p>
+              <p className="text-muted-foreground text-lg mb-2">No winners yet</p>
               <p className="text-sm text-muted-foreground">
-                Past winning quotes and their shirts will appear here!
+                Past winning quotes will appear here!
               </p>
             </div>
           )}
