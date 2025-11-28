@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Home, Flame, ShoppingBag, User } from "lucide-react";
 import { useState } from "react";
 
-export type NavItem = "feed" | "leaderboard" | "store" | "profile";
+export type NavItem = "feed" | "archive" | "store" | "profile";
 
 interface BottomNavigationProps {
   activeItem?: NavItem;
@@ -23,7 +23,7 @@ export default function BottomNavigation({
 
   const navItems: { type: NavItem; label: string; icon: any }[] = [
     { type: "feed", label: "Feed", icon: Home },
-    { type: "leaderboard", label: "Leaderboard", icon: Flame },
+    { type: "archive", label: "Archive", icon: Flame },
     { type: "store", label: "Store", icon: ShoppingBag },
     { type: "profile", label: "Profile", icon: User },
   ];
