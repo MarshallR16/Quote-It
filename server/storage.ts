@@ -16,6 +16,7 @@ export interface IStorage {
   createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
   deleteUser(userId: string): Promise<void>;
   deleteQuotesByAuthor(authorId: string): Promise<void>;
+  deleteUserQuotesAndRelatedData(authorId: string): Promise<void>;
   anonymizeUserOrders(userId: string): Promise<void>;
   isFirstUser(): Promise<boolean>;
 
@@ -190,6 +191,35 @@ export class DbStorage implements IStorage {
 
   async deleteQuotesByAuthor(authorId: string): Promise<void> {
     await db.delete(quotes).where(eq(quotes.authorId, authorId));
+  }
+
+  async deleteUserQuotesAndRelatedData(authorId: string): Promise<void> {
+    // Get all quote IDs by this author
+    const userQuotes = await db.select({ id: quotes.id }).from(quotes).where(eq(quotes.authorId, authorId));
+    const quoteIds = userQuotes.map(q => q.id);
+    
+    if (quoteIds.length > 0) {
+      // Get all weekly winners that reference these quotes
+      const winners = await db.select({ id: weeklyWinners.id, productId: weeklyWinners.productId, winnerProductId: weeklyWinners.winnerProductId })
+        .from(weeklyWinners)
+        .where(inArray(weeklyWinners.quoteId, quoteIds));
+      
+      // Delete products associated with these weekly winners
+      for (const winner of winners) {
+        if (winner.productId) {
+          await db.delete(products).where(eq(products.id, winner.productId));
+        }
+        if (winner.winnerProductId) {
+          await db.delete(products).where(eq(products.id, winner.winnerProductId));
+        }
+      }
+      
+      // Delete weekly winners
+      await db.delete(weeklyWinners).where(inArray(weeklyWinners.quoteId, quoteIds));
+      
+      // Delete the quotes
+      await db.delete(quotes).where(eq(quotes.authorId, authorId));
+    }
   }
 
   async anonymizeUserOrders(userId: string): Promise<void> {

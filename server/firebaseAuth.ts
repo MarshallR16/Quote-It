@@ -340,9 +340,9 @@ export async function setupFirebaseAuth(app: Express) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // 1. Delete all quotes by this user
-      await storage.deleteQuotesByAuthor(userId);
-      console.log('[AUTH] Deleted quotes for user:', userId);
+      // 1. Delete all quotes and related data (weekly winners, products) by this user
+      await storage.deleteUserQuotesAndRelatedData(userId);
+      console.log('[AUTH] Deleted quotes and related data for user:', userId);
       
       // 2. Anonymize orders (keep for tax/legal reasons but remove personal identifiers)
       await storage.anonymizeUserOrders(userId);
