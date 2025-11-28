@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import tshirtMockup from "@assets/generated_images/blank_black_t-shirt_mockup.png";
+import { queryClient } from "@/lib/queryClient";
 
 interface ShirtArchiveItem {
   winnerId: string;
@@ -31,6 +32,11 @@ interface ShirtArchiveItem {
 export default function LeaderboardPage() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
 
+  // Clear any stale cache on mount - force fresh data
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ["/api/shirt-archive"] });
+  }, []);
+
   // Generate QR code for quote-it.co
   useEffect(() => {
     QRCode.toDataURL('https://quote-it.co', {
@@ -47,9 +53,21 @@ export default function LeaderboardPage() {
     });
   }, []);
 
-  // Fetch shirt archive - force fresh data to avoid stale cache
+  // Fetch shirt archive - force fresh data with timestamp cache-buster
   const { data: shirtArchive = [], isLoading: isLoadingArchive } = useQuery<ShirtArchiveItem[]>({
     queryKey: ["/api/shirt-archive"],
+    queryFn: async () => {
+      const response = await fetch(`/api/shirt-archive?_t=${Date.now()}`, {
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch archive');
+      return response.json();
+    },
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: 'always',
