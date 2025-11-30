@@ -144,7 +144,7 @@ export default function LeaderboardPage() {
                               style={{ 
                                 left: '32%', 
                                 right: '32%', 
-                                top: '24%',
+                                top: '30%',
                               }}
                             >
                               <p 

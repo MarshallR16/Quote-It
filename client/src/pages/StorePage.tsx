@@ -232,7 +232,7 @@ export default function StorePage() {
                         style={{ 
                           left: '32%', 
                           right: '32%', 
-                          top: '24%',
+                          top: '30%',
                         }}
                       >
                         {/* Quote Text - Elegant Serif, Centered */}
