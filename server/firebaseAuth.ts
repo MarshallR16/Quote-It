@@ -350,14 +350,8 @@ export async function setupFirebaseAuth(app: Express) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Check if user has weekly winning quotes - prevent deletion if so
-      const hasWinners = await storage.userHasWeeklyWinners(userId);
-      if (hasWinners) {
-        console.log('[AUTH] Cannot delete account - user has weekly winning quotes:', userId);
-        return res.status(403).json({ 
-          message: "Cannot delete account: You have winning quotes in the Archive. Please contact support if you need assistance." 
-        });
-      }
+      // Note: Per Apple App Store guidelines, users must be able to delete their account
+      // Even users with weekly winning quotes can delete their account
       
       // 1. Delete all quotes and related data by this user
       await storage.deleteUserQuotesAndRelatedData(userId);

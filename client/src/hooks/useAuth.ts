@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import type { User } from "@shared/schema";
@@ -26,22 +26,41 @@ export function useAuth() {
     return () => unsubscribe();
   }, []);
 
+  // Helper to check if error indicates profile completion needed
+  const checkProfileRequired = useCallback((err: any): boolean => {
+    // Check various possible error structures
+    if (err?.response?.data?.requiresProfile) return true;
+    // Also check if the error message contains the marker
+    if (err?.message?.includes('requiresProfile')) return true;
+    return false;
+  }, []);
+
   // Fetch user from database using Firebase UID
-  const { data: dbUser, isLoading: isLoadingDb, error } = useQuery<User>({
+  const { data: dbUser, isLoading: isLoadingDb, error, isError } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     enabled: !!firebaseUser,
     retry: (failureCount, error: any) => {
       // Don't retry if profile completion is required
-      if (error?.response?.data?.requiresProfile) {
+      if (checkProfileRequired(error)) {
         return false;
       }
       return failureCount < 3;
     },
   });
 
-  // Handle profile completion requirement
+  // Handle profile completion requirement - check both on error change and when isError becomes true
   useEffect(() => {
+    if (!isError || !error) {
+      return;
+    }
+    
     const errorWithResponse = error as any;
+    console.log('[useAuth] Query error detected:', { 
+      message: errorWithResponse?.message,
+      status: errorWithResponse?.response?.status,
+      data: errorWithResponse?.response?.data 
+    });
+    
     if (errorWithResponse?.response?.data?.requiresProfile) {
       console.log('[useAuth] Profile completion required, error data:', errorWithResponse.response.data);
       setRequiresProfileCompletion(true);
@@ -50,7 +69,7 @@ export function useAuth() {
         profileImageUrl: errorWithResponse.response.data.profileImageUrl
       });
     }
-  }, [error]);
+  }, [error, isError]);
 
   // Clear requiresProfileCompletion when user is successfully loaded
   useEffect(() => {
