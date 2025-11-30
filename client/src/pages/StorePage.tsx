@@ -6,7 +6,7 @@ import { Trophy, TrendingUp, Clock } from "lucide-react";
 import tshirtMockup from "@assets/generated_images/blank_black_t-shirt_mockup.png";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { getShirtQuoteStyles, getQRCodeClasses } from "@/lib/shirtTextSizing";
+import { getShirtQuoteStyles } from "@/lib/shirtTextSizing";
 
 interface Quote {
   id: string;
@@ -221,14 +221,19 @@ export default function StorePage() {
                     data-testid="img-product"
                   />
                   
-                  {/* Quote Overlay - Dynamic sizing based on quote length */}
+                  {/* Quote Overlay - Positioned within the actual printable chest area */}
+                  {/* The chest area is approximately 32% to 68% horizontally on this mockup */}
                   {(() => {
                     const quoteText = weeklyWinner.quote?.text || 'Quote';
                     const textStyles = getShirtQuoteStyles(quoteText, true);
                     return (
                       <div 
-                        className="absolute left-[15%] right-[15%]"
-                        style={{ top: '28%' }}
+                        className="absolute"
+                        style={{ 
+                          left: '32%', 
+                          right: '32%', 
+                          top: '24%',
+                        }}
                       >
                         {/* Quote Text - Elegant Serif, Centered */}
                         <p 
@@ -246,7 +251,7 @@ export default function StorePage() {
                         </p>
                         
                         {/* Author Line with QR Code - Centered below quote */}
-                        <div className="flex items-center justify-center gap-1.5 mt-2">
+                        <div className="flex items-center justify-center gap-1 mt-1">
                           <p 
                             className="text-white"
                             style={{ 
@@ -261,12 +266,12 @@ export default function StorePage() {
                               ? `${weeklyWinner.authorFirstName} ${weeklyWinner.authorLastName}`
                               : weeklyWinner.authorUsername || 'Anonymous'}
                           </p>
-                          {/* QR Code - Matches author font height */}
+                          {/* QR Code - Small, next to author */}
                           {qrCodeUrl && (
                             <img 
                               src={qrCodeUrl} 
                               alt="QR code to quote-it.co"
-                              className={getQRCodeClasses(true)}
+                              className="h-3 w-3"
                               style={{ filter: 'invert(0.9)' }}
                               data-testid="img-qrcode"
                             />

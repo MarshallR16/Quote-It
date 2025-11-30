@@ -2,6 +2,9 @@
  * Dynamic text sizing for T-shirt quote overlays
  * Calculates appropriate font size, line height, and letter spacing
  * based on quote character count to ensure quotes always fit on the shirt
+ * 
+ * The printable chest area on the mockup is approximately 36% of the image width
+ * (from ~32% to ~68% horizontally), so font sizes are calibrated for this narrow zone
  */
 
 interface ShirtTextStyles {
@@ -13,6 +16,7 @@ interface ShirtTextStyles {
 
 /**
  * Calculate appropriate text styles for a quote based on its length
+ * Font sizes are calibrated for a ~36% width printable area on the t-shirt chest
  * @param quoteText - The quote text to size
  * @param isStorePage - Whether this is for the larger Store page display
  * @returns CSS styles for the quote text
@@ -20,66 +24,69 @@ interface ShirtTextStyles {
 export function getShirtQuoteStyles(quoteText: string, isStorePage: boolean = false): ShirtTextStyles {
   const charCount = quoteText.length;
   
-  // Base multiplier for store page (larger) vs archive page (smaller cards)
-  const sizeMultiplier = isStorePage ? 1.5 : 1;
+  // Base multiplier for store page (larger container) vs archive page (smaller cards)
+  // Reduced from 1.5 to 1.2 since we're now using a narrower print area
+  const sizeMultiplier = isStorePage ? 1.2 : 1;
   
+  // Font sizes reduced by ~50% to fit within the narrower printable chest area
   // Define breakpoints for different quote lengths
-  // Very short quotes (under 50 chars) - largest font
-  if (charCount < 50) {
-    return {
-      fontSize: `${0.95 * sizeMultiplier}rem`,
-      lineHeight: 1.35,
-      letterSpacing: '0.02em',
-      authorFontSize: `${0.7 * sizeMultiplier}rem`,
-    };
-  }
   
-  // Short quotes (50-100 chars)
-  if (charCount < 100) {
+  // Very short quotes (under 40 chars) - largest font
+  if (charCount < 40) {
     return {
-      fontSize: `${0.85 * sizeMultiplier}rem`,
+      fontSize: `${0.55 * sizeMultiplier}rem`,
       lineHeight: 1.3,
       letterSpacing: '0.01em',
-      authorFontSize: `${0.65 * sizeMultiplier}rem`,
+      authorFontSize: `${0.38 * sizeMultiplier}rem`,
     };
   }
   
-  // Medium quotes (100-150 chars)
-  if (charCount < 150) {
+  // Short quotes (40-80 chars)
+  if (charCount < 80) {
     return {
-      fontSize: `${0.72 * sizeMultiplier}rem`,
-      lineHeight: 1.25,
+      fontSize: `${0.48 * sizeMultiplier}rem`,
+      lineHeight: 1.28,
       letterSpacing: '0.01em',
-      authorFontSize: `${0.55 * sizeMultiplier}rem`,
+      authorFontSize: `${0.34 * sizeMultiplier}rem`,
     };
   }
   
-  // Long quotes (150-200 chars)
-  if (charCount < 200) {
+  // Medium quotes (80-120 chars)
+  if (charCount < 120) {
     return {
-      fontSize: `${0.62 * sizeMultiplier}rem`,
+      fontSize: `${0.4 * sizeMultiplier}rem`,
+      lineHeight: 1.25,
+      letterSpacing: '0em',
+      authorFontSize: `${0.3 * sizeMultiplier}rem`,
+    };
+  }
+  
+  // Long quotes (120-160 chars)
+  if (charCount < 160) {
+    return {
+      fontSize: `${0.34 * sizeMultiplier}rem`,
       lineHeight: 1.22,
       letterSpacing: '0em',
-      authorFontSize: `${0.5 * sizeMultiplier}rem`,
+      authorFontSize: `${0.26 * sizeMultiplier}rem`,
     };
   }
   
-  // Very long quotes (200-280 chars)
-  if (charCount < 280) {
+  // Very long quotes (160-220 chars)
+  if (charCount < 220) {
     return {
-      fontSize: `${0.52 * sizeMultiplier}rem`,
+      fontSize: `${0.28 * sizeMultiplier}rem`,
       lineHeight: 1.2,
       letterSpacing: '-0.01em',
-      authorFontSize: `${0.45 * sizeMultiplier}rem`,
+      authorFontSize: `${0.22 * sizeMultiplier}rem`,
     };
   }
   
-  // Extra long quotes (280+ chars) - smallest readable font
+  // Extra long quotes (220+ chars) - smallest readable font
   return {
-    fontSize: `${0.44 * sizeMultiplier}rem`,
+    fontSize: `${0.24 * sizeMultiplier}rem`,
     lineHeight: 1.18,
-    letterSpacing: '-0.02em',
-    authorFontSize: `${0.4 * sizeMultiplier}rem`,
+    letterSpacing: '-0.01em',
+    authorFontSize: `${0.2 * sizeMultiplier}rem`,
   };
 }
 

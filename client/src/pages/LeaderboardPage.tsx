@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import tshirtMockup from "@assets/generated_images/blank_black_t-shirt_mockup.png";
 import { queryClient } from "@/lib/queryClient";
-import { getShirtQuoteStyles, getQRCodeClasses } from "@/lib/shirtTextSizing";
+import { getShirtQuoteStyles } from "@/lib/shirtTextSizing";
 
 interface ShirtArchiveItem {
   winnerId: string;
@@ -135,13 +135,17 @@ export default function LeaderboardPage() {
                           className="w-full h-full object-contain"
                         />
                         
-                        {/* Quote Overlay - Dynamic sizing based on quote length */}
+                        {/* Quote Overlay - Positioned within the actual printable chest area */}
                         {(() => {
                           const textStyles = getShirtQuoteStyles(item.quoteText, false);
                           return (
                             <div 
-                              className="absolute left-[15%] right-[15%]"
-                              style={{ top: '28%' }}
+                              className="absolute"
+                              style={{ 
+                                left: '32%', 
+                                right: '32%', 
+                                top: '24%',
+                              }}
                             >
                               <p 
                                 className="text-white text-center"
@@ -157,7 +161,7 @@ export default function LeaderboardPage() {
                               </p>
                               
                               {/* Author Line with QR Code */}
-                              <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                              <div className="flex items-center justify-center gap-1 mt-1">
                                 <p 
                                   className="text-white"
                                   style={{ 
@@ -173,7 +177,7 @@ export default function LeaderboardPage() {
                                   <img 
                                     src={qrCodeUrl} 
                                     alt="QR code to quote-it.co"
-                                    className={getQRCodeClasses(false)}
+                                    className="h-2 w-2"
                                   />
                                 )}
                               </div>
