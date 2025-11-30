@@ -19,6 +19,7 @@ export interface IStorage {
   deleteUserQuotesAndRelatedData(authorId: string): Promise<void>;
   anonymizeUserOrders(userId: string): Promise<void>;
   isFirstUser(): Promise<boolean>;
+  userHasWeeklyWinners(userId: string): Promise<boolean>;
 
   // Quote methods
   getQuote(id: string): Promise<Quote | undefined>;
@@ -236,6 +237,20 @@ export class DbStorage implements IStorage {
     // Check if there are any users in the database
     const result = await db.select().from(users).limit(1);
     return result.length === 0;
+  }
+
+  async userHasWeeklyWinners(userId: string): Promise<boolean> {
+    // Check if user has any quotes that have been weekly winners
+    const userQuotes = await db.select({ id: quotes.id }).from(quotes).where(eq(quotes.authorId, userId));
+    if (userQuotes.length === 0) return false;
+    
+    const quoteIds = userQuotes.map(q => q.id);
+    const winners = await db.select({ id: weeklyWinners.id })
+      .from(weeklyWinners)
+      .where(inArray(weeklyWinners.quoteId, quoteIds))
+      .limit(1);
+    
+    return winners.length > 0;
   }
 
   async createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }> {

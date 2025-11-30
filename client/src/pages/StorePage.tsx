@@ -6,6 +6,7 @@ import { Trophy, TrendingUp, Clock } from "lucide-react";
 import tshirtMockup from "@assets/generated_images/blank_black_t-shirt_mockup.png";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import { getShirtQuoteStyles, getQRCodeClasses } from "@/lib/shirtTextSizing";
 
 interface Quote {
   id: string;
@@ -220,54 +221,60 @@ export default function StorePage() {
                     data-testid="img-product"
                   />
                   
-                  {/* Quote Overlay - Positioned on Chest Area */}
-                  <div 
-                    className="absolute left-[15%] right-[15%]"
-                    style={{ top: '28%' }}
-                  >
-                    {/* Quote Text - Elegant Serif, Centered */}
-                    <p 
-                      className="text-white text-center"
-                      style={{ 
-                        fontFamily: 'Georgia, "Times New Roman", serif',
-                        fontSize: 'clamp(0.9rem, 3.5vw, 1.35rem)',
-                        fontWeight: 400,
-                        lineHeight: 1.3,
-                        letterSpacing: '0.01em',
-                      }}
-                      data-testid="text-shirt-quote"
-                    >
-                      {`\u201C${weeklyWinner.quote?.text || 'Quote'}\u201D`}
-                    </p>
-                    
-                    {/* Author Line with QR Code - Centered below quote */}
-                    <div className="flex items-center justify-center gap-1.5 mt-2">
-                      <p 
-                        className="text-white"
-                        style={{ 
-                          fontFamily: 'Georgia, "Times New Roman", serif',
-                          fontSize: 'clamp(0.65rem, 2vw, 0.85rem)',
-                          fontWeight: 400,
-                          fontStyle: 'italic',
-                        }}
-                        data-testid="text-shirt-author"
+                  {/* Quote Overlay - Dynamic sizing based on quote length */}
+                  {(() => {
+                    const quoteText = weeklyWinner.quote?.text || 'Quote';
+                    const textStyles = getShirtQuoteStyles(quoteText, true);
+                    return (
+                      <div 
+                        className="absolute left-[15%] right-[15%]"
+                        style={{ top: '28%' }}
                       >
-                        —{weeklyWinner.authorFirstName && weeklyWinner.authorLastName 
-                          ? `${weeklyWinner.authorFirstName} ${weeklyWinner.authorLastName}`
-                          : weeklyWinner.authorUsername || 'Anonymous'}
-                      </p>
-                      {/* QR Code - Matches author font height */}
-                      {qrCodeUrl && (
-                        <img 
-                          src={qrCodeUrl} 
-                          alt="QR code to quote-it.co"
-                          className="h-3 w-3 md:h-4 md:w-4"
-                          style={{ filter: 'invert(0.9)' }}
-                          data-testid="img-qrcode"
-                        />
-                      )}
-                    </div>
-                  </div>
+                        {/* Quote Text - Elegant Serif, Centered */}
+                        <p 
+                          className="text-white text-center"
+                          style={{ 
+                            fontFamily: 'Georgia, "Times New Roman", serif',
+                            fontSize: textStyles.fontSize,
+                            fontWeight: 400,
+                            lineHeight: textStyles.lineHeight,
+                            letterSpacing: textStyles.letterSpacing,
+                          }}
+                          data-testid="text-shirt-quote"
+                        >
+                          {`\u201C${quoteText}\u201D`}
+                        </p>
+                        
+                        {/* Author Line with QR Code - Centered below quote */}
+                        <div className="flex items-center justify-center gap-1.5 mt-2">
+                          <p 
+                            className="text-white"
+                            style={{ 
+                              fontFamily: 'Georgia, "Times New Roman", serif',
+                              fontSize: textStyles.authorFontSize,
+                              fontWeight: 400,
+                              fontStyle: 'italic',
+                            }}
+                            data-testid="text-shirt-author"
+                          >
+                            —{weeklyWinner.authorFirstName && weeklyWinner.authorLastName 
+                              ? `${weeklyWinner.authorFirstName} ${weeklyWinner.authorLastName}`
+                              : weeklyWinner.authorUsername || 'Anonymous'}
+                          </p>
+                          {/* QR Code - Matches author font height */}
+                          {qrCodeUrl && (
+                            <img 
+                              src={qrCodeUrl} 
+                              alt="QR code to quote-it.co"
+                              className={getQRCodeClasses(true)}
+                              style={{ filter: 'invert(0.9)' }}
+                              data-testid="img-qrcode"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

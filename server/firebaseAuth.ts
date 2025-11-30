@@ -267,6 +267,7 @@ export async function setupFirebaseAuth(app: Express) {
   });
 
   // Complete user profile (for OAuth users who need to provide name)
+  // Also handles recovery for returning users whose database records were deleted
   app.post("/api/auth/complete-profile", verifyFirebaseToken, async (req: any, res) => {
     try {
       const firebaseUser = req.firebaseUser;
@@ -276,11 +277,20 @@ export async function setupFirebaseAuth(app: Express) {
         return res.status(400).json({ message: "First name and last name are required" });
       }
       
-      // Check if user already exists
+      // Check if user already exists - if so, this is a recovery case, update their info
       const existingUser = await storage.getUser(firebaseUser.uid);
       if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
+        // User exists, just update their profile info
+        console.log('[AUTH] User already exists, updating profile for:', existingUser.id);
+        const updatedUser = await storage.updateUser(existingUser.id, {
+          firstName,
+          lastName,
+        });
+        return res.json(updatedUser);
       }
+      
+      // New user - proceed with account creation
+      console.log('[AUTH] Creating new user profile for:', firebaseUser.uid);
       
       // Handle referral code if provided
       let referrerId = null;
@@ -340,7 +350,16 @@ export async function setupFirebaseAuth(app: Express) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // 1. Delete all quotes and related data (weekly winners, products) by this user
+      // Check if user has weekly winning quotes - prevent deletion if so
+      const hasWinners = await storage.userHasWeeklyWinners(userId);
+      if (hasWinners) {
+        console.log('[AUTH] Cannot delete account - user has weekly winning quotes:', userId);
+        return res.status(403).json({ 
+          message: "Cannot delete account: You have winning quotes in the Archive. Please contact support if you need assistance." 
+        });
+      }
+      
+      // 1. Delete all quotes and related data by this user
       await storage.deleteUserQuotesAndRelatedData(userId);
       console.log('[AUTH] Deleted quotes and related data for user:', userId);
       
@@ -360,6 +379,84 @@ export async function setupFirebaseAuth(app: Express) {
     } catch (error: any) {
       console.error('[AUTH] Error deleting account:', error);
       res.status(500).json({ message: "Error deleting account: " + error.message });
+    }
+  });
+
+  // Admin endpoint to restore a user by email (for users whose DB records were deleted)
+  // Requires Firebase Admin SDK with full service account credentials
+  app.post("/api/admin/restore-user", verifyFirebaseToken, isAdmin, async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      console.log('[ADMIN] Attempting to restore user by email:', email);
+      
+      // Check if Firebase Admin has full credentials (required for getUserByEmail)
+      if (!process.env.FIREBASE_ADMIN_PRIVATE_KEY) {
+        console.log('[ADMIN] Firebase Admin private key not configured');
+        return res.status(503).json({ 
+          message: "This feature requires Firebase Admin service account credentials. Please ensure FIREBASE_ADMIN_PRIVATE_KEY is configured." 
+        });
+      }
+      
+      // Look up the user in Firebase by email
+      let firebaseUserRecord;
+      try {
+        firebaseUserRecord = await auth.getUserByEmail(email);
+      } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+          return res.status(404).json({ message: "No Firebase account found with this email" });
+        }
+        if (error.code === 'app/invalid-credential') {
+          console.error('[ADMIN] Firebase credential error:', error.message);
+          return res.status(503).json({ 
+            message: "Firebase Admin credentials are not properly configured. Please check FIREBASE_ADMIN_PRIVATE_KEY format." 
+          });
+        }
+        throw error;
+      }
+      
+      console.log('[ADMIN] Found Firebase user:', firebaseUserRecord.uid, firebaseUserRecord.displayName);
+      
+      // Check if user already exists in database
+      const existingUser = await storage.getUser(firebaseUserRecord.uid);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists in database", user: existingUser });
+      }
+      
+      // Extract profile data
+      const displayName = firebaseUserRecord.displayName || '';
+      const nameParts = displayName.split(' ');
+      const firstName = nameParts[0] || 'User';
+      const lastName = nameParts.slice(1).join(' ') || 'Restored';
+      
+      // Generate unique username
+      const username = await generateUniqueUsername(firstName, lastName);
+      
+      // Generate unique referral code
+      const referralCode = await generateReferralCode();
+      
+      // Create user record
+      const newUserData = {
+        id: firebaseUserRecord.uid,
+        email: firebaseUserRecord.email || email,
+        username,
+        firstName,
+        lastName,
+        profileImageUrl: firebaseUserRecord.photoURL || null,
+        referralCode,
+      };
+      
+      const user = await storage.createUserWithAutoAdmin(newUserData);
+      console.log('[ADMIN] Restored user:', user);
+      
+      res.json({ message: "User restored successfully", user });
+    } catch (error: any) {
+      console.error('[ADMIN] Error restoring user:', error);
+      res.status(500).json({ message: "Error restoring user: " + error.message });
     }
   });
 }

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import tshirtMockup from "@assets/generated_images/blank_black_t-shirt_mockup.png";
 import { queryClient } from "@/lib/queryClient";
+import { getShirtQuoteStyles, getQRCodeClasses } from "@/lib/shirtTextSizing";
 
 interface ShirtArchiveItem {
   winnerId: string;
@@ -134,46 +135,51 @@ export default function LeaderboardPage() {
                           className="w-full h-full object-contain"
                         />
                         
-                        {/* Quote Overlay */}
-                        <div 
-                          className="absolute left-[15%] right-[15%]"
-                          style={{ top: '28%' }}
-                        >
-                          <p 
-                            className="text-white text-center"
-                            style={{ 
-                              fontFamily: 'Georgia, "Times New Roman", serif',
-                              fontSize: 'clamp(0.6rem, 2.5vw, 0.9rem)',
-                              fontWeight: 400,
-                              lineHeight: 1.3,
-                              letterSpacing: '0.01em',
-                            }}
-                          >
-                            {`\u201C${item.quoteText}\u201D`}
-                          </p>
-                          
-                          {/* Author Line with QR Code */}
-                          <div className="flex items-center justify-center gap-1.5 mt-1.5">
-                            <p 
-                              className="text-white"
-                              style={{ 
-                                fontFamily: 'Georgia, "Times New Roman", serif',
-                                fontSize: 'clamp(0.5rem, 1.5vw, 0.7rem)',
-                                fontWeight: 400,
-                                fontStyle: 'italic',
-                              }}
+                        {/* Quote Overlay - Dynamic sizing based on quote length */}
+                        {(() => {
+                          const textStyles = getShirtQuoteStyles(item.quoteText, false);
+                          return (
+                            <div 
+                              className="absolute left-[15%] right-[15%]"
+                              style={{ top: '28%' }}
                             >
-                              —{getAuthorDisplayName(item)}
-                            </p>
-                            {qrCodeUrl && (
-                              <img 
-                                src={qrCodeUrl} 
-                                alt="QR code to quote-it.co"
-                                className="h-2.5 w-2.5 md:h-3 md:w-3"
-                              />
-                            )}
-                          </div>
-                        </div>
+                              <p 
+                                className="text-white text-center"
+                                style={{ 
+                                  fontFamily: 'Georgia, "Times New Roman", serif',
+                                  fontSize: textStyles.fontSize,
+                                  fontWeight: 400,
+                                  lineHeight: textStyles.lineHeight,
+                                  letterSpacing: textStyles.letterSpacing,
+                                }}
+                              >
+                                {`\u201C${item.quoteText}\u201D`}
+                              </p>
+                              
+                              {/* Author Line with QR Code */}
+                              <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                                <p 
+                                  className="text-white"
+                                  style={{ 
+                                    fontFamily: 'Georgia, "Times New Roman", serif',
+                                    fontSize: textStyles.authorFontSize,
+                                    fontWeight: 400,
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  —{getAuthorDisplayName(item)}
+                                </p>
+                                {qrCodeUrl && (
+                                  <img 
+                                    src={qrCodeUrl} 
+                                    alt="QR code to quote-it.co"
+                                    className={getQRCodeClasses(false)}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Author info below mockup */}
