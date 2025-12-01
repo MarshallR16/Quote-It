@@ -347,6 +347,43 @@ export class DbStorage implements IStorage {
     return result as QuoteWithAuthor[];
   }
 
+  async getCurrentWeekQuotes(): Promise<QuoteWithAuthor[]> {
+    // Calculate current week boundaries (Monday 00:00:00 to Sunday 23:59:59)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Calculate Monday of current week
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // If Sunday, go back 6 days
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() + diff);
+    weekStart.setHours(0, 0, 0, 0);
+    
+    // Calculate Sunday end of current week
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const result = await db
+      .select({
+        id: quotes.id,
+        text: quotes.text,
+        authorId: quotes.authorId,
+        createdAt: quotes.createdAt,
+        voteCount: quotes.voteCount,
+        authorUsername: users.username,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorEmail: users.email,
+        authorProfileImageUrl: users.profileImageUrl,
+      })
+      .from(quotes)
+      .leftJoin(users, eq(quotes.authorId, users.id))
+      .where(sql`${quotes.createdAt} >= ${weekStart.toISOString()} AND ${quotes.createdAt} <= ${weekEnd.toISOString()}`)
+      .orderBy(desc(quotes.voteCount));
+    
+    return result as QuoteWithAuthor[];
+  }
+
   async getQuotesByUser(userId: string): Promise<QuoteWithAuthor[]> {
     const result = await db
       .select({

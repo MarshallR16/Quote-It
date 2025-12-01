@@ -174,11 +174,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quote routes
+  // Quote routes - returns only quotes from current week for ranking
   app.get("/api/quotes", async (_req, res) => {
     try {
-      const allQuotes = await storage.getAllQuotes();
-      res.json(allQuotes);
+      // Only return quotes from the current week (Monday-Sunday)
+      // Quotes are only eligible to compete in the week they were submitted
+      const currentWeekQuotes = await storage.getCurrentWeekQuotes();
+      res.json(currentWeekQuotes);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching quotes: " + error.message });
     }
