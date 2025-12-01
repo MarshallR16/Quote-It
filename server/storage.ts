@@ -26,6 +26,8 @@ export interface IStorage {
   getAllQuotes(): Promise<QuoteWithAuthor[]>;
   getQuotesByUser(userId: string): Promise<QuoteWithAuthor[]>;
   getPersonalizedQuotes(userId: string): Promise<QuoteWithAuthor[]>;
+  getEligibleQuotes(): Promise<QuoteWithAuthor[]>;
+  getCurrentWeekQuotes(): Promise<QuoteWithAuthor[]>;
   createQuote(quote: InsertQuote): Promise<Quote>;
   updateQuote(id: string, data: Partial<Quote>): Promise<Quote>;
   deleteQuote(id: string): Promise<void>;
@@ -380,6 +382,52 @@ export class DbStorage implements IStorage {
       .leftJoin(users, eq(quotes.authorId, users.id))
       .where(sql`${quotes.createdAt} >= ${weekStart.toISOString()} AND ${quotes.createdAt} <= ${weekEnd.toISOString()}`)
       .orderBy(desc(quotes.voteCount));
+    
+    return result as QuoteWithAuthor[];
+  }
+
+  async getEligibleQuotes(): Promise<QuoteWithAuthor[]> {
+    // Get quotes from the last 7 days that haven't won yet
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    // Get all quote IDs that have already won
+    const winningQuoteIds = await db
+      .select({ quoteId: weeklyWinners.quoteId })
+      .from(weeklyWinners);
+    
+    const winnerIds = winningQuoteIds.map(w => w.quoteId);
+
+    // Build the query
+    let query = db
+      .select({
+        id: quotes.id,
+        text: quotes.text,
+        authorId: quotes.authorId,
+        createdAt: quotes.createdAt,
+        voteCount: quotes.voteCount,
+        authorUsername: users.username,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorEmail: users.email,
+        authorProfileImageUrl: users.profileImageUrl,
+      })
+      .from(quotes)
+      .leftJoin(users, eq(quotes.authorId, users.id));
+
+    // Filter: posted in last 7 days AND not already a winner
+    let result;
+    if (winnerIds.length > 0) {
+      result = await query
+        .where(sql`${quotes.createdAt} >= ${sevenDaysAgo.toISOString()} AND ${quotes.id} NOT IN (${sql.join(winnerIds.map(id => sql`${id}`), sql`, `)})`)
+        .orderBy(desc(quotes.voteCount));
+    } else {
+      result = await query
+        .where(sql`${quotes.createdAt} >= ${sevenDaysAgo.toISOString()}`)
+        .orderBy(desc(quotes.voteCount));
+    }
     
     return result as QuoteWithAuthor[];
   }

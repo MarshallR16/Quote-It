@@ -9,12 +9,12 @@ export async function selectWeeklyWinner() {
   try {
     console.log('[SCHEDULER] Running weekly winner selection...');
       
-      // Get only quotes from the current week (quotes are only eligible to win in the week they were submitted)
-      const quotes = await storage.getCurrentWeekQuotes();
+      // Get eligible quotes: last 7 days that haven't won yet
+      const quotes = await storage.getEligibleQuotes();
       
       if (quotes.length === 0) {
-        console.log('[SCHEDULER] No quotes from this week available to select winner');
-        throw new Error('No quotes from this week available to select winner');
+        console.log('[SCHEDULER] No eligible quotes available to select winner');
+        throw new Error('No eligible quotes available to select winner');
       }
 
       // Find quote with highest vote count
