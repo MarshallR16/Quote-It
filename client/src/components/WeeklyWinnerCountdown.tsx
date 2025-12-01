@@ -13,22 +13,27 @@ export default function WeeklyWinnerCountdown() {
     const calculateTimeLeft = () => {
       const now = new Date();
       
-      // Find next Sunday at midnight UTC
-      const nextSunday = new Date(now);
-      nextSunday.setUTCHours(0, 0, 0, 0);
+      // Find next Sunday at 11:59:59 PM UTC (when winner is selected)
+      const nextSundayEnd = new Date(now);
+      nextSundayEnd.setUTCHours(23, 59, 59, 999);
       
-      // Get days until next Sunday (0 = Sunday, 1 = Monday, etc.)
-      const daysUntilSunday = (7 - now.getUTCDay()) % 7;
+      // Get current day of week (0 = Sunday, 1 = Monday, etc.)
+      const currentDay = now.getUTCDay();
       
-      // If it's Sunday and past midnight, add 7 days
-      // Otherwise add the days until next Sunday
-      if (daysUntilSunday === 0 && now.getUTCHours() >= 0) {
-        nextSunday.setUTCDate(nextSunday.getUTCDate() + 7);
+      if (currentDay === 0) {
+        // It's Sunday - check if we're past 23:59:59
+        if (now.getUTCHours() === 23 && now.getUTCMinutes() >= 59) {
+          // Past the deadline, count to next Sunday
+          nextSundayEnd.setUTCDate(nextSundayEnd.getUTCDate() + 7);
+        }
+        // Otherwise, it's still Sunday before the deadline - no date change needed
       } else {
-        nextSunday.setUTCDate(nextSunday.getUTCDate() + daysUntilSunday);
+        // Not Sunday - calculate days until Sunday
+        const daysUntilSunday = 7 - currentDay;
+        nextSundayEnd.setUTCDate(nextSundayEnd.getUTCDate() + daysUntilSunday);
       }
 
-      const diff = nextSunday.getTime() - now.getTime();
+      const diff = nextSundayEnd.getTime() - now.getTime();
 
       if (diff <= 0) {
         return { days: 0, hours: 0, minutes: 0, seconds: 0 };
