@@ -53,11 +53,12 @@ function CheckoutForm({
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPaymentReady, setIsPaymentReady] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stripe || !elements) {
+    if (!stripe || !elements || !isPaymentReady) {
       return;
     }
 
@@ -92,17 +93,19 @@ function CheckoutForm({
     }
   };
 
+  const isButtonDisabled = !stripe || !isPaymentReady || isProcessing;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
+      <PaymentElement onReady={() => setIsPaymentReady(true)} />
       <Button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={isButtonDisabled}
         className="w-full rounded-full"
         size="lg"
         data-testid="button-complete-payment"
       >
-        {isProcessing ? "Processing..." : `Pay $${parseFloat(product.price).toFixed(2)}`}
+        {!isPaymentReady ? "Loading payment form..." : isProcessing ? "Processing..." : `Pay $${parseFloat(product.price).toFixed(2)}`}
       </Button>
     </form>
   );
