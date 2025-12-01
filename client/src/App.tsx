@@ -173,8 +173,8 @@ function Router() {
           <Route path="/friends" component={FriendsPage} />
           <Route path="/users/:userId" component={UserProfilePage} />
           <Route path="/admin" component={AdminPage} />
-          <Route path="/checkout/:productId" component={CheckoutPage} />
           <Route path="/checkout/success" component={CheckoutSuccessPage} />
+          <Route path="/checkout/:productId" component={CheckoutPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
