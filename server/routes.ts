@@ -716,7 +716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { paymentIntentId, shippingInfo } = req.body;
-      const userId = req.user?.claims?.sub; // Get from authenticated session
+      const userId = req.firebaseUser.uid; // Get from authenticated session
       
       if (!paymentIntentId) {
         return res.status(400).json({ message: "paymentIntentId is required" });
