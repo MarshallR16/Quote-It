@@ -55,10 +55,31 @@ function CheckoutForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPaymentReady, setIsPaymentReady] = useState(false);
 
+  // Reset isPaymentReady when elements changes (component remounts)
+  // This fixes the race condition where isPaymentReady stays true from previous mount
+  useEffect(() => {
+    setIsPaymentReady(false);
+  }, [elements]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stripe || !elements || !isPaymentReady) {
+    // Double-check that elements are actually mounted before proceeding
+    if (!stripe || !elements) {
+      toast({
+        title: "Payment not ready",
+        description: "Please wait for the payment form to load",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isPaymentReady) {
+      toast({
+        title: "Payment not ready",
+        description: "Please wait for the payment form to finish loading",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -93,7 +114,7 @@ function CheckoutForm({
     }
   };
 
-  const isButtonDisabled = !stripe || !isPaymentReady || isProcessing;
+  const isButtonDisabled = !stripe || !elements || !isPaymentReady || isProcessing;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -131,9 +152,11 @@ export default function CheckoutPage() {
     includeAuthor: true,
   });
 
-  // Fetch product details
-  const { data: products, isLoading } = useQuery<Product[]>({
+  // Fetch product details - use staleTime: 0 to always get fresh data
+  const { data: products, isLoading, error: productsError } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const product = products?.find(p => p.id === productId);
@@ -193,6 +216,22 @@ export default function CheckoutPage() {
     );
   }
 
+  if (productsError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Error Loading Products</h1>
+          <p className="text-muted-foreground mb-6">
+            There was an error loading products. Please try again.
+          </p>
+          <Button onClick={() => navigate("/store")} className="rounded-full">
+            Back to Store
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -200,6 +239,9 @@ export default function CheckoutPage() {
           <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
           <p className="text-muted-foreground mb-6">
             The product you're looking for doesn't exist or is no longer available.
+          </p>
+          <p className="text-xs text-muted-foreground mb-4">
+            Product ID: {productId || "Not specified"}
           </p>
           <Button onClick={() => navigate("/store")} className="rounded-full">
             Back to Store
@@ -401,7 +443,11 @@ export default function CheckoutPage() {
           <Card className="p-6">
             <h2 className="font-semibold mb-6">Payment Details</h2>
             {clientSecret ? (
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <Elements 
+                key={clientSecret} 
+                stripe={stripePromise} 
+                options={{ clientSecret }}
+              >
                 <CheckoutForm product={product} clientSecret={clientSecret} shippingInfo={shippingInfo} />
               </Elements>
             ) : (
