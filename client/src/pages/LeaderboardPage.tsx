@@ -67,9 +67,7 @@ export default function LeaderboardPage() {
         },
       });
       if (!response.ok) throw new Error('Failed to fetch archive');
-      const data = await response.json();
-      console.log('[LeaderboardPage] Archive data received:', data.length, 'items:', JSON.stringify(data.map((d: ShirtArchiveItem) => d.winnerId)));
-      return data;
+      return response.json();
     },
     staleTime: 0,
     gcTime: 0,

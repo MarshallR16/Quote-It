@@ -801,7 +801,17 @@ export class DbStorage implements IStorage {
       ))
       .orderBy(desc(weeklyWinners.createdAt));
     
-    return result;
+    // Deduplicate by winnerId - prevents duplicate entries when multiple products are active for same winner
+    const seen = new Set<string>();
+    const deduplicated = result.filter(item => {
+      if (seen.has(item.winnerId)) {
+        return false;
+      }
+      seen.add(item.winnerId);
+      return true;
+    });
+    
+    return deduplicated;
   }
 
   async createWeeklyWinner(insertWinner: InsertWeeklyWinner): Promise<WeeklyWinner> {
