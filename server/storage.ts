@@ -472,31 +472,20 @@ export class DbStorage implements IStorage {
   }
 
   async getPersonalizedQuotes(userId: string): Promise<QuoteWithAuthor[]> {
-    // Time window: last 14 days of quotes for performance
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    // Time window: last 7 days of quotes for eligibility
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    // Fetch recent quotes with author info
-    let recentQuotes = await db
-      .select({
-        id: quotes.id,
-        text: quotes.text,
-        authorId: quotes.authorId,
-        createdAt: quotes.createdAt,
-        voteCount: quotes.voteCount,
-        authorUsername: users.username,
-        authorFirstName: users.firstName,
-        authorLastName: users.lastName,
-        authorEmail: users.email,
-        authorProfileImageUrl: users.profileImageUrl,
-      })
-      .from(quotes)
-      .leftJoin(users, eq(quotes.authorId, users.id))
-      .where(sql`${quotes.createdAt} >= ${fourteenDaysAgo.toISOString()}`)
-      .orderBy(desc(quotes.createdAt));
+    // Get all quote IDs that have already won (to exclude them)
+    const winningQuoteIds = await db
+      .select({ quoteId: weeklyWinners.quoteId })
+      .from(weeklyWinners);
+    const winnerIds = winningQuoteIds.map(w => w.quoteId);
 
-    // Fallback: if fewer than 20 quotes in window, fetch all quotes
-    if (recentQuotes.length < 20) {
+    // Fetch recent eligible quotes with author info (last 7 days, not already won)
+    let recentQuotes;
+    if (winnerIds.length > 0) {
       recentQuotes = await db
         .select({
           id: quotes.id,
@@ -512,9 +501,30 @@ export class DbStorage implements IStorage {
         })
         .from(quotes)
         .leftJoin(users, eq(quotes.authorId, users.id))
-        .orderBy(desc(quotes.createdAt))
-        .limit(100);
+        .where(sql`${quotes.createdAt} >= ${sevenDaysAgo.toISOString()} AND ${quotes.id} NOT IN (${sql.join(winnerIds.map(id => sql`${id}`), sql`, `)})`)
+        .orderBy(desc(quotes.createdAt));
+    } else {
+      recentQuotes = await db
+        .select({
+          id: quotes.id,
+          text: quotes.text,
+          authorId: quotes.authorId,
+          createdAt: quotes.createdAt,
+          voteCount: quotes.voteCount,
+          authorUsername: users.username,
+          authorFirstName: users.firstName,
+          authorLastName: users.lastName,
+          authorEmail: users.email,
+          authorProfileImageUrl: users.profileImageUrl,
+        })
+        .from(quotes)
+        .leftJoin(users, eq(quotes.authorId, users.id))
+        .where(sql`${quotes.createdAt} >= ${sevenDaysAgo.toISOString()}`)
+        .orderBy(desc(quotes.createdAt));
     }
+
+    // Fallback: if fewer than 20 eligible quotes, still only show eligible ones (no fallback to all)
+    // This ensures consistency - quotes always stay for exactly 7 days
 
     // Fetch user's voting history - FIXED: Split into two queries to avoid Drizzle LEFT JOIN bug
     // First, get just the votes for this user
@@ -1027,24 +1037,56 @@ export class DbStorage implements IStorage {
       return [];
     }
 
-    // Get quotes from friends
-    const result = await db
-      .select({
-        id: quotes.id,
-        text: quotes.text,
-        authorId: quotes.authorId,
-        createdAt: quotes.createdAt,
-        voteCount: quotes.voteCount,
-        authorUsername: users.username,
-        authorFirstName: users.firstName,
-        authorLastName: users.lastName,
-        authorEmail: users.email,
-        authorProfileImageUrl: users.profileImageUrl,
-      })
-      .from(quotes)
-      .leftJoin(users, eq(quotes.authorId, users.id))
-      .where(inArray(quotes.authorId, friendIds))
-      .orderBy(desc(quotes.createdAt));
+    // Calculate 7 days ago for eligibility
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    // Get all quote IDs that have already won
+    const winningQuoteIds = await db
+      .select({ quoteId: weeklyWinners.quoteId })
+      .from(weeklyWinners);
+    const winnerIds = winningQuoteIds.map(w => w.quoteId);
+
+    // Get quotes from friends (last 7 days, not already won)
+    let result;
+    if (winnerIds.length > 0) {
+      result = await db
+        .select({
+          id: quotes.id,
+          text: quotes.text,
+          authorId: quotes.authorId,
+          createdAt: quotes.createdAt,
+          voteCount: quotes.voteCount,
+          authorUsername: users.username,
+          authorFirstName: users.firstName,
+          authorLastName: users.lastName,
+          authorEmail: users.email,
+          authorProfileImageUrl: users.profileImageUrl,
+        })
+        .from(quotes)
+        .leftJoin(users, eq(quotes.authorId, users.id))
+        .where(sql`${quotes.authorId} IN (${sql.join(friendIds.map(id => sql`${id}`), sql`, `)}) AND ${quotes.createdAt} >= ${sevenDaysAgo.toISOString()} AND ${quotes.id} NOT IN (${sql.join(winnerIds.map(id => sql`${id}`), sql`, `)})`)
+        .orderBy(desc(quotes.createdAt));
+    } else {
+      result = await db
+        .select({
+          id: quotes.id,
+          text: quotes.text,
+          authorId: quotes.authorId,
+          createdAt: quotes.createdAt,
+          voteCount: quotes.voteCount,
+          authorUsername: users.username,
+          authorFirstName: users.firstName,
+          authorLastName: users.lastName,
+          authorEmail: users.email,
+          authorProfileImageUrl: users.profileImageUrl,
+        })
+        .from(quotes)
+        .leftJoin(users, eq(quotes.authorId, users.id))
+        .where(sql`${quotes.authorId} IN (${sql.join(friendIds.map(id => sql`${id}`), sql`, `)}) AND ${quotes.createdAt} >= ${sevenDaysAgo.toISOString()}`)
+        .orderBy(desc(quotes.createdAt));
+    }
     
     return result as QuoteWithAuthor[];
   }
@@ -1058,24 +1100,56 @@ export class DbStorage implements IStorage {
       return [];
     }
 
-    // Get quotes from people I follow
-    const result = await db
-      .select({
-        id: quotes.id,
-        text: quotes.text,
-        authorId: quotes.authorId,
-        createdAt: quotes.createdAt,
-        voteCount: quotes.voteCount,
-        authorUsername: users.username,
-        authorFirstName: users.firstName,
-        authorLastName: users.lastName,
-        authorEmail: users.email,
-        authorProfileImageUrl: users.profileImageUrl,
-      })
-      .from(quotes)
-      .leftJoin(users, eq(quotes.authorId, users.id))
-      .where(inArray(quotes.authorId, followingIds))
-      .orderBy(desc(quotes.createdAt));
+    // Calculate 7 days ago for eligibility
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    // Get all quote IDs that have already won
+    const winningQuoteIds = await db
+      .select({ quoteId: weeklyWinners.quoteId })
+      .from(weeklyWinners);
+    const winnerIds = winningQuoteIds.map(w => w.quoteId);
+
+    // Get quotes from people I follow (last 7 days, not already won)
+    let result;
+    if (winnerIds.length > 0) {
+      result = await db
+        .select({
+          id: quotes.id,
+          text: quotes.text,
+          authorId: quotes.authorId,
+          createdAt: quotes.createdAt,
+          voteCount: quotes.voteCount,
+          authorUsername: users.username,
+          authorFirstName: users.firstName,
+          authorLastName: users.lastName,
+          authorEmail: users.email,
+          authorProfileImageUrl: users.profileImageUrl,
+        })
+        .from(quotes)
+        .leftJoin(users, eq(quotes.authorId, users.id))
+        .where(sql`${quotes.authorId} IN (${sql.join(followingIds.map(id => sql`${id}`), sql`, `)}) AND ${quotes.createdAt} >= ${sevenDaysAgo.toISOString()} AND ${quotes.id} NOT IN (${sql.join(winnerIds.map(id => sql`${id}`), sql`, `)})`)
+        .orderBy(desc(quotes.createdAt));
+    } else {
+      result = await db
+        .select({
+          id: quotes.id,
+          text: quotes.text,
+          authorId: quotes.authorId,
+          createdAt: quotes.createdAt,
+          voteCount: quotes.voteCount,
+          authorUsername: users.username,
+          authorFirstName: users.firstName,
+          authorLastName: users.lastName,
+          authorEmail: users.email,
+          authorProfileImageUrl: users.profileImageUrl,
+        })
+        .from(quotes)
+        .leftJoin(users, eq(quotes.authorId, users.id))
+        .where(sql`${quotes.authorId} IN (${sql.join(followingIds.map(id => sql`${id}`), sql`, `)}) AND ${quotes.createdAt} >= ${sevenDaysAgo.toISOString()}`)
+        .orderBy(desc(quotes.createdAt));
+    }
     
     return result as QuoteWithAuthor[];
   }

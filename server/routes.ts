@@ -174,13 +174,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quote routes - returns only quotes from current week for ranking
+  // Quote routes - returns eligible quotes (last 7 days, not already won)
   app.get("/api/quotes", async (_req, res) => {
     try {
-      // Only return quotes from the current week (Monday-Sunday)
-      // Quotes are only eligible to compete in the week they were submitted
-      const currentWeekQuotes = await storage.getCurrentWeekQuotes();
-      res.json(currentWeekQuotes);
+      // Return quotes from last 7 days that haven't won yet
+      // Quotes remain on ranking for 7 days and are removed if they win early
+      const eligibleQuotes = await storage.getEligibleQuotes();
+      res.json(eligibleQuotes);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching quotes: " + error.message });
     }
