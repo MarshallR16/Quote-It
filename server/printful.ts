@@ -263,15 +263,38 @@ export class PrintfulService {
   }
 
   /**
-   * Escape XML special characters
+   * Sanitize text for safe SVG embedding
+   * SECURITY: Prevents XSS and SVG injection attacks
    */
-  private escapeXml(text: string): string {
-    return text
+  private sanitizeForSVG(text: string): string {
+    // First, limit length to prevent DoS
+    const maxLength = 500;
+    let sanitized = text.substring(0, maxLength);
+    
+    // Remove control characters and null bytes
+    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    
+    // Escape XML special characters
+    sanitized = sanitized
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&apos;');
+    
+    // Remove any potential script/event handlers that might slip through
+    sanitized = sanitized.replace(/javascript:/gi, '');
+    sanitized = sanitized.replace(/on\w+=/gi, '');
+    
+    return sanitized;
+  }
+
+  /**
+   * Escape XML special characters
+   * Uses sanitizeForSVG for comprehensive protection
+   */
+  private escapeXml(text: string): string {
+    return this.sanitizeForSVG(text);
   }
 
   /**

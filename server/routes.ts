@@ -56,21 +56,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test Printful connection on startup
   testPrintfulOnStartup();
   
-  // Public endpoint to serve SVG designs for Printful
-  // Printful will fetch the design from this URL
+  // Secure endpoint to serve SVG designs for Printful
+  // SECURITY: Only serves designs for weekly winners to prevent:
+  // - Unauthorized access to unpublished quotes
+  // - Quote ID enumeration attacks
+  // - Malicious SVG injection through non-winner quotes
   app.get('/api/designs/:quoteId/:textColor', async (req, res) => {
     try {
       const { quoteId, textColor } = req.params;
       
       // Validate text color
       if (textColor !== 'white' && textColor !== 'gold') {
-        return res.status(400).json({ message: 'Invalid text color. Must be "white" or "gold"' });
+        return res.status(400).json({ message: 'Invalid text color' });
+      }
+      
+      // SECURITY CHECK: Only allow designs for quotes that have been selected as weekly winners
+      // This prevents exposure of private/unpublished quotes
+      const weeklyWinners = await storage.getAllWeeklyWinners();
+      const isWeeklyWinner = weeklyWinners.some(w => w.quoteId === quoteId);
+      
+      if (!isWeeklyWinner) {
+        // Return generic 404 to prevent enumeration
+        return res.status(404).json({ message: 'Not found' });
       }
       
       // Get the quote
       const quote = await storage.getQuote(quoteId);
       if (!quote) {
-        return res.status(404).json({ message: 'Quote not found' });
+        return res.status(404).json({ message: 'Not found' });
       }
       
       // Get the author
@@ -79,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Anonymous'
         : 'Anonymous';
       
-      // Generate the SVG design
+      // Generate the SVG design with sanitized input
       const svg = await printfulService.generateDesignSVGPublic(quote.text, authorName, textColor as 'white' | 'gold');
       
       // Return as SVG
@@ -88,7 +101,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(svg);
     } catch (error: any) {
       console.error('Error generating design:', error);
-      res.status(500).json({ message: 'Error generating design: ' + error.message });
+      // Return generic error to prevent information disclosure
+      res.status(500).json({ message: 'Internal error' });
     }
   });
 
