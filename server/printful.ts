@@ -52,6 +52,78 @@ export interface PrintfulOrder {
 
 export class PrintfulService {
   /**
+   * Test Printful API connection and return store info
+   */
+  async testConnection(): Promise<{ success: boolean; message: string; storeInfo?: any; error?: string }> {
+    try {
+      if (!API_TOKEN) {
+        return { 
+          success: false, 
+          message: 'PRINTFUL_API_TOKEN is not configured',
+          error: 'Missing API token'
+        };
+      }
+
+      console.log('[PRINTFUL] Testing API connection...');
+      
+      // Test connection by getting store info
+      const storeResponse = await printfulClient.get('/stores');
+      const stores = storeResponse.data.result;
+      
+      if (!stores || stores.length === 0) {
+        return {
+          success: false,
+          message: 'No stores found. Please connect a store in your Printful dashboard.',
+          error: 'No stores connected'
+        };
+      }
+
+      // Get the first store's details
+      const store = stores[0];
+      console.log('[PRINTFUL] Connected to store:', store.name);
+
+      // Also test that we can list products
+      const productsResponse = await printfulClient.get('/store/products');
+      const productCount = productsResponse.data.result?.length || 0;
+
+      return {
+        success: true,
+        message: `Successfully connected to Printful store "${store.name}"`,
+        storeInfo: {
+          id: store.id,
+          name: store.name,
+          type: store.type,
+          productCount
+        }
+      };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error?.message || error.message;
+      const statusCode = error.response?.status;
+      
+      console.error('[PRINTFUL] Connection test failed:', {
+        status: statusCode,
+        error: errorMessage,
+        fullError: error.response?.data
+      });
+
+      let userMessage = 'Failed to connect to Printful';
+      if (statusCode === 401) {
+        userMessage = 'Invalid API token. Please check your PRINTFUL_API_TOKEN in secrets.';
+      } else if (statusCode === 403) {
+        userMessage = 'Access forbidden. Your API token may not have the required permissions.';
+      } else if (statusCode === 404) {
+        userMessage = 'No store found. Please ensure you have a store connected in Printful.';
+      }
+
+      return {
+        success: false,
+        message: userMessage,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
    * Generate QR code data URL
    */
   private async generateQRCode(url: string): Promise<string> {
@@ -110,6 +182,13 @@ export class PrintfulService {
   /**
    * Generate simple SVG design with quote, author, and QR code
    */
+  /**
+   * Public method to generate SVG design (for serving via API endpoint)
+   */
+  async generateDesignSVGPublic(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white'): Promise<string> {
+    return this.generateDesignSVG(quoteText, author, textColor);
+  }
+
   private async generateDesignSVG(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white'): Promise<string> {
     // Use custom domain for QR code on all shirts
     const appUrl = 'https://quote-it.co';
@@ -196,7 +275,43 @@ export class PrintfulService {
   }
 
   /**
-   * Upload SVG to Firebase Storage and return public URL
+   * Upload file directly to Printful's file storage
+   * Returns the file URL from Printful's CDN
+   */
+  private async uploadToPrintful(fileContent: string, fileName: string): Promise<string> {
+    try {
+      console.log('[PRINTFUL] Uploading design file:', fileName);
+      
+      // Create form data with the file and required type field
+      const formData = new FormData();
+      formData.append('type', 'default');
+      const buffer = Buffer.from(fileContent);
+      formData.append('file', buffer, {
+        filename: fileName,
+        contentType: 'image/svg+xml',
+      });
+
+      // Upload to Printful's files endpoint
+      const response = await axios.post(`${PRINTFUL_API_URL}/files`, formData, {
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          ...formData.getHeaders(),
+        },
+      });
+
+      const fileResult = response.data.result;
+      console.log('[PRINTFUL] File uploaded successfully, ID:', fileResult.id);
+      
+      // Return the file URL from Printful
+      return fileResult.url;
+    } catch (error: any) {
+      console.error('[PRINTFUL] File upload error:', error.response?.data || error.message);
+      throw new Error(`Failed to upload to Printful: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Upload SVG to Firebase Storage and return public URL (fallback)
    */
   private async uploadToFirebaseStorage(fileContent: string, fileName: string): Promise<string> {
     try {
@@ -223,17 +338,19 @@ export class PrintfulService {
   /**
    * Create a sync product with variants and design file in Printful
    */
-  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white'): Promise<PrintfulProduct> {
+  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string): Promise<PrintfulProduct> {
     try {
-      console.log(`Generating design for quote with ${textColor} text:`, quoteText);
+      console.log(`[PRINTFUL] Creating product for quote with ${textColor} text:`, quoteText.substring(0, 50) + '...');
       
-      // Generate design SVG with specified text color
-      const designSVG = await this.generateDesignSVG(quoteText, author, textColor);
+      // Use the production domain to serve the design
+      // Printful will fetch the SVG from this URL
+      const productionDomain = 'https://quote-it.co';
       
-      // Upload design to Firebase Storage
-      console.log('Uploading design to Firebase Storage...');
-      const designUrl = await this.uploadToFirebaseStorage(designSVG, `${externalId}-${textColor}-design.svg`);
-      console.log('Design uploaded successfully:', designUrl);
+      // Extract quote ID from external ID if not provided
+      const actualQuoteId = quoteId || externalId.replace('quote-', '').replace('-white', '').replace('-gold', '');
+      const designUrl = `${productionDomain}/api/designs/${actualQuoteId}/${textColor}`;
+      
+      console.log('[PRINTFUL] Design URL for Printful:', designUrl);
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
       // Variant IDs from Printful catalog:

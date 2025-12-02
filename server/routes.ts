@@ -24,9 +24,73 @@ if (process.env.STRIPE_SECRET_KEY) {
 // Check if Printful is configured
 const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
 
+// Test Printful connection on startup
+async function testPrintfulOnStartup() {
+  if (isPrintfulConfigured) {
+    console.log('[PRINTFUL] API token configured, testing connection...');
+    try {
+      const result = await printfulService.testConnection();
+      if (result.success) {
+        console.log('[PRINTFUL] Connection successful:', result.message);
+        if (result.storeInfo) {
+          console.log('[PRINTFUL] Store info:', JSON.stringify(result.storeInfo));
+        }
+      } else {
+        console.error('[PRINTFUL] Connection failed:', result.message);
+        if (result.error) {
+          console.error('[PRINTFUL] Error details:', result.error);
+        }
+      }
+    } catch (error: any) {
+      console.error('[PRINTFUL] Startup test error:', error.message);
+    }
+  } else {
+    console.log('[PRINTFUL] API token not configured - Printful integration disabled');
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Firebase authentication
   await setupFirebaseAuth(app);
+  
+  // Test Printful connection on startup
+  testPrintfulOnStartup();
+  
+  // Public endpoint to serve SVG designs for Printful
+  // Printful will fetch the design from this URL
+  app.get('/api/designs/:quoteId/:textColor', async (req, res) => {
+    try {
+      const { quoteId, textColor } = req.params;
+      
+      // Validate text color
+      if (textColor !== 'white' && textColor !== 'gold') {
+        return res.status(400).json({ message: 'Invalid text color. Must be "white" or "gold"' });
+      }
+      
+      // Get the quote
+      const quote = await storage.getQuote(quoteId);
+      if (!quote) {
+        return res.status(404).json({ message: 'Quote not found' });
+      }
+      
+      // Get the author
+      const author = await storage.getUser(quote.authorId);
+      const authorName = author 
+        ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Anonymous'
+        : 'Anonymous';
+      
+      // Generate the SVG design
+      const svg = await printfulService.generateDesignSVGPublic(quote.text, authorName, textColor as 'white' | 'gold');
+      
+      // Return as SVG
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.send(svg);
+    } catch (error: any) {
+      console.error('Error generating design:', error);
+      res.status(500).json({ message: 'Error generating design: ' + error.message });
+    }
+  });
 
   // Helper function to check and reset daily post count
   const checkDailyPostLimit = async (userId: string): Promise<{ canPost: boolean; remaining: number }> => {
@@ -400,7 +464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const printfulProduct = await printfulService.createProduct(
         quote.text,
         authorName,
-        `quote-${quoteId}`
+        `quote-${quoteId}`,
+        'white',
+        quote.id
       );
 
       // Create product in our database
@@ -563,6 +629,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(orders.rows);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching orders: " + error.message });
+    }
+  });
+
+  // Test Printful API connection
+  app.get("/api/admin/printful/test", requireAdmin, async (req: any, res: any) => {
+    try {
+      const result = await printfulService.testConnection();
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false,
+        message: "Error testing Printful connection",
+        error: error.message 
+      });
+    }
+  });
+
+  // Re-create Printful products for a weekly winner that's missing them
+  app.post("/api/admin/printful/recreate-products/:winnerId", requireAdmin, async (req: any, res: any) => {
+    try {
+      const { winnerId } = req.params;
+      
+      // Get the weekly winner
+      const winner = await storage.getWeeklyWinner(winnerId);
+      if (!winner) {
+        return res.status(404).json({ message: "Weekly winner not found" });
+      }
+
+      // Get the quote
+      const quote = await storage.getQuote(winner.quoteId);
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found for this winner" });
+      }
+
+      // Get the author
+      const author = await storage.getUser(quote.authorId);
+      if (!author) {
+        return res.status(404).json({ message: "Author not found for this quote" });
+      }
+
+      const authorName = `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Anonymous';
+      const externalId = `quote-${quote.id}`;
+
+      // Check if Printful is configured
+      if (!isPrintfulConfigured) {
+        return res.status(400).json({ 
+          message: "Printful is not configured. Please set PRINTFUL_API_TOKEN." 
+        });
+      }
+
+      // First test connection
+      const connectionTest = await printfulService.testConnection();
+      if (!connectionTest.success) {
+        return res.status(400).json({
+          message: "Printful connection failed: " + connectionTest.message,
+          error: connectionTest.error
+        });
+      }
+
+      const results = {
+        whiteProduct: null as any,
+        goldProduct: null as any,
+        errors: [] as string[]
+      };
+
+      // Create white text product (for sale)
+      try {
+        console.log('[ADMIN] Creating white text Printful product...');
+        const printfulProduct = await printfulService.createProduct(
+          quote.text,
+          authorName,
+          externalId,
+          'white',
+          quote.id
+        );
+
+        // Find or update the existing product
+        const existingProducts = await storage.getActiveProducts();
+        const existingWhiteProduct = existingProducts.find(p => 
+          p.quoteId === quote.id && !p.name.includes("Gold Edition")
+        );
+
+        if (existingWhiteProduct) {
+          // Update existing product with Printful data
+          await storage.updateProduct(existingWhiteProduct.id, {
+            printfulSyncProductId: printfulProduct.id,
+            printfulSyncVariants: printfulProduct,
+          });
+          results.whiteProduct = { id: existingWhiteProduct.id, printfulId: printfulProduct.id, updated: true };
+        } else {
+          // Create new product
+          const newProduct = await storage.createProduct({
+            quoteId: quote.id,
+            name: `"${quote.text.substring(0, 50)}${quote.text.length > 50 ? '...' : ''}"`,
+            description: `Premium black t-shirt featuring the quote by ${authorName}`,
+            price: '29.99',
+            imageUrl: null,
+            isActive: true,
+            printfulSyncProductId: printfulProduct.id,
+            printfulSyncVariants: printfulProduct,
+          });
+          results.whiteProduct = { id: newProduct.id, printfulId: printfulProduct.id, created: true };
+        }
+        console.log('[ADMIN] White text product created/updated successfully');
+      } catch (error: any) {
+        console.error('[ADMIN] Error creating white product:', error.message);
+        results.errors.push(`White product: ${error.message}`);
+      }
+
+      // Create gold text product (winner exclusive)
+      try {
+        console.log('[ADMIN] Creating gold text Printful product...');
+        const printfulWinnerProduct = await printfulService.createProduct(
+          quote.text,
+          authorName,
+          `${externalId}-gold`,
+          'gold',
+          quote.id
+        );
+
+        // Find or update the existing gold product
+        const allProducts = await storage.getAllProducts();
+        const existingGoldProduct = allProducts.find(p => 
+          p.quoteId === quote.id && p.name.includes("Gold Edition")
+        );
+
+        if (existingGoldProduct) {
+          // Update existing product with Printful data
+          await storage.updateProduct(existingGoldProduct.id, {
+            printfulSyncProductId: printfulWinnerProduct.id,
+            printfulSyncVariants: printfulWinnerProduct,
+          });
+          results.goldProduct = { id: existingGoldProduct.id, printfulId: printfulWinnerProduct.id, updated: true };
+        } else {
+          // Create new product
+          const winnerProduct = await storage.createProduct({
+            quoteId: quote.id,
+            name: `"${quote.text.substring(0, 50)}${quote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
+            description: `Exclusive gold text edition for the winning author ${authorName}`,
+            price: '0.00',
+            imageUrl: null,
+            isActive: false,
+            printfulSyncProductId: printfulWinnerProduct.id,
+            printfulSyncVariants: printfulWinnerProduct,
+          });
+          results.goldProduct = { id: winnerProduct.id, printfulId: printfulWinnerProduct.id, created: true };
+        }
+        console.log('[ADMIN] Gold text product created/updated successfully');
+      } catch (error: any) {
+        console.error('[ADMIN] Error creating gold product:', error.message);
+        results.errors.push(`Gold product: ${error.message}`);
+      }
+
+      if (results.errors.length > 0 && !results.whiteProduct && !results.goldProduct) {
+        return res.status(500).json({
+          message: "Failed to create both products",
+          errors: results.errors
+        });
+      }
+
+      res.json({
+        message: results.errors.length > 0 ? "Partially successful" : "Products created successfully",
+        results
+      });
+    } catch (error: any) {
+      console.error('[ADMIN] Error recreating Printful products:', error);
+      res.status(500).json({ message: "Error recreating products: " + error.message });
+    }
+  });
+
+  // List all weekly winners with their product status
+  app.get("/api/admin/printful/winners", requireAdmin, async (req: any, res: any) => {
+    try {
+      const winners = await storage.getAllWeeklyWinners();
+      
+      // Get product info for each winner
+      const winnersWithProducts = await Promise.all(winners.map(async (winner) => {
+        const quote = await storage.getQuote(winner.quoteId);
+        const allProducts = await storage.getAllProducts();
+        const products = allProducts.filter(p => p.quoteId === winner.quoteId);
+        
+        return {
+          id: winner.id,
+          weekOf: winner.weekStartDate,
+          quoteText: quote?.text?.substring(0, 100) + (quote?.text && quote.text.length > 100 ? '...' : ''),
+          products: products.map(p => ({
+            id: p.id,
+            name: p.name.substring(0, 50),
+            isActive: p.isActive,
+            hasPrintfulSync: !!p.printfulSyncProductId
+          }))
+        };
+      }));
+
+      res.json(winnersWithProducts);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching winners: " + error.message });
     }
   });
 

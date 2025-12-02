@@ -63,7 +63,8 @@ export async function selectWeeklyWinner() {
               topQuote.text,
               authorName,
               `quote-${topQuote.id}-white`,
-              'white'
+              'white',
+              topQuote.id
             );
 
             // Create product in database with Printful data
@@ -83,7 +84,9 @@ export async function selectWeeklyWinner() {
             console.log(`[SCHEDULER] White text product created with Printful: ${product.id}`);
           } catch (printfulError: any) {
             // If Printful fails, create a demo product anyway so store isn't empty
-            console.log('[SCHEDULER] Printful creation failed, creating demo product anyway...');
+            console.error('[SCHEDULER] Printful creation failed:', printfulError.message);
+            console.error('[SCHEDULER] Printful error details:', printfulError.response?.data || 'No additional details');
+            console.log('[SCHEDULER] Creating demo product anyway...');
             const productData = {
               quoteId: topQuote.id,
               weeklyWinnerId: winner.id,
@@ -110,7 +113,8 @@ export async function selectWeeklyWinner() {
               topQuote.text,
               authorName,
               `quote-${topQuote.id}-gold`,
-              'gold'
+              'gold',
+              topQuote.id
             );
 
             // Create winner's exclusive product in database
@@ -130,7 +134,9 @@ export async function selectWeeklyWinner() {
             console.log(`[SCHEDULER] Gold text product created with Printful: ${winnerProduct.id}`);
           } catch (printfulWinnerError: any) {
             // If Printful fails for winner product, create demo anyway
-            console.log('[SCHEDULER] Printful gold product creation failed, creating demo anyway...');
+            console.error('[SCHEDULER] Printful gold product creation failed:', printfulWinnerError.message);
+            console.error('[SCHEDULER] Printful gold error details:', printfulWinnerError.response?.data || 'No additional details');
+            console.log('[SCHEDULER] Creating demo gold product anyway...');
             const winnerProductData = {
               quoteId: topQuote.id,
               weeklyWinnerId: winner.id,
