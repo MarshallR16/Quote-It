@@ -40,6 +40,8 @@ export default function VoteControls({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes/personalized"] });
     },
   });
 
