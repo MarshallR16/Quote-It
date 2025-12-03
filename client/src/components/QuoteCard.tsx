@@ -87,8 +87,8 @@ export default function QuoteCard({
       <blockquote className="text-2xl font-medium leading-tight mb-4">
         "<QuoteText text={content} />"
       </blockquote>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <Avatar className="w-8 h-8" data-testid={`avatar-author-${id}`}>
             <AvatarImage src={authorProfileImageUrl || undefined} alt={author} />
             <AvatarFallback>
@@ -114,7 +114,7 @@ export default function QuoteCard({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {isOwner && (
             <Button
               size="icon"
