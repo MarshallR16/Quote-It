@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserCheck, UserPlus, UserMinus, User as UserIcon } from "lucide-react";
+import { Loader2, UserCheck, UserPlus, UserMinus, User as UserIcon, Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -119,7 +119,17 @@ export default function FriendsPage() {
   return (
     <div className="min-h-screen pb-20 md:pb-8 pt-16">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold font-display mb-6">Friends & Following</h1>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <h1 className="text-3xl font-bold font-display">Friends & Following</h1>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/search")}
+            data-testid="button-search-people"
+          >
+            <Search className="h-4 w-4 mr-2" />
+            Find People
+          </Button>
+        </div>
         
         <Tabs defaultValue="friends" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">

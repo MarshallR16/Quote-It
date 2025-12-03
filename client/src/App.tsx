@@ -29,6 +29,7 @@ import StorePage from "@/pages/StorePage";
 import ProfilePage from "@/pages/ProfilePage";
 import UserProfilePage from "@/pages/UserProfilePage";
 import FriendsPage from "@/pages/FriendsPage";
+import SearchPeoplePage from "@/pages/SearchPeoplePage";
 import AdminPage from "@/pages/AdminPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
@@ -171,6 +172,7 @@ function Router() {
           <Route path="/store" component={StorePage} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/friends" component={FriendsPage} />
+          <Route path="/search" component={SearchPeoplePage} />
           <Route path="/users/:userId" component={UserProfilePage} />
           <Route path="/admin" component={AdminPage} />
           <Route path="/checkout/success" component={CheckoutSuccessPage} />
