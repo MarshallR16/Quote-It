@@ -75,6 +75,12 @@ export interface IStorage {
   getFriends(userId: string): Promise<User[]>;
   getFriendsQuotes(userId: string): Promise<QuoteWithAuthor[]>;
   getFollowingQuotes(userId: string): Promise<QuoteWithAuthor[]>;
+
+  // Search methods
+  searchUsers(query: string, limit?: number): Promise<User[]>;
+  
+  // Quote deletion helpers
+  isQuoteWeeklyWinner(quoteId: string): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -1152,6 +1158,39 @@ export class DbStorage implements IStorage {
     }
     
     return result as QuoteWithAuthor[];
+  }
+
+  // Search methods
+  async searchUsers(query: string, limit: number = 20): Promise<User[]> {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+    
+    const searchTerm = `%${query.trim().toLowerCase()}%`;
+    
+    const result = await db
+      .select()
+      .from(users)
+      .where(
+        sql`(LOWER(${users.firstName}) LIKE ${searchTerm} 
+          OR LOWER(${users.lastName}) LIKE ${searchTerm} 
+          OR LOWER(${users.username}) LIKE ${searchTerm}
+          OR LOWER(CONCAT(${users.firstName}, ' ', ${users.lastName})) LIKE ${searchTerm})`
+      )
+      .limit(limit);
+    
+    return result;
+  }
+
+  // Quote deletion helpers
+  async isQuoteWeeklyWinner(quoteId: string): Promise<boolean> {
+    const result = await db
+      .select({ id: weeklyWinners.id })
+      .from(weeklyWinners)
+      .where(eq(weeklyWinners.quoteId, quoteId))
+      .limit(1);
+    
+    return result.length > 0;
   }
 }
 

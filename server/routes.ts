@@ -126,6 +126,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { canPost, remaining };
   };
 
+  // Search users
+  app.get('/api/users/search', async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      
+      if (!query || query.trim().length < 2) {
+        return res.json({ users: [] });
+      }
+      
+      const users = await storage.searchUsers(query, limit);
+      res.json({ users });
+    } catch (error: any) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ message: "Failed to search users" });
+    }
+  });
+
   // Check daily post limit
   app.get('/api/users/daily-post-limit', isAuthenticated, async (req: any, res) => {
     try {
@@ -314,14 +332,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.firebaseUser.uid;
+      const user = await storage.getUser(userId);
 
       const quote = await storage.getQuote(id);
       if (!quote) {
         return res.status(404).json({ message: "Quote not found" });
       }
 
-      if (quote.authorId !== userId) {
+      // Allow admins or quote owners to delete
+      if (quote.authorId !== userId && !user?.isAdmin) {
         return res.status(403).json({ message: "Not authorized to delete this quote" });
+      }
+
+      // Prevent deleting weekly winners to protect store and history
+      const isWeeklyWinner = await storage.isQuoteWeeklyWinner(id);
+      if (isWeeklyWinner) {
+        return res.status(409).json({ 
+          message: "Cannot delete this quote because it was selected as a weekly winner" 
+        });
       }
 
       await storage.deleteQuote(id);
