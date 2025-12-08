@@ -408,31 +408,31 @@ export class PrintfulService {
             variant_id: 4016, 
             retail_price: '29.99', 
             external_id: `${externalId}-S`,
-            files: [{ url: designUrl }]
+            files: [{ type: 'front', url: designUrl }]
           },
           { 
             variant_id: 4017, 
             retail_price: '29.99', 
             external_id: `${externalId}-M`,
-            files: [{ url: designUrl }]
+            files: [{ type: 'front', url: designUrl }]
           },
           { 
             variant_id: 4018, 
             retail_price: '29.99', 
             external_id: `${externalId}-L`,
-            files: [{ url: designUrl }]
+            files: [{ type: 'front', url: designUrl }]
           },
           { 
             variant_id: 4019, 
             retail_price: '29.99', 
             external_id: `${externalId}-XL`,
-            files: [{ url: designUrl }]
+            files: [{ type: 'front', url: designUrl }]
           },
           { 
             variant_id: 4020, 
             retail_price: '29.99', 
             external_id: `${externalId}-2XL`,
-            files: [{ url: designUrl }]
+            files: [{ type: 'front', url: designUrl }]
           },
         ],
       };
