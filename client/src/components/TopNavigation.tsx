@@ -88,7 +88,7 @@ export default function TopNavigation({
             variant="ghost"
             size="default"
             className="gap-2"
-            onClick={() => setLocation("/leaderboard")}
+            onClick={() => setLocation("/archive")}
             data-testid="button-nav-archive"
           >
             <Flame className="w-4 h-4" />

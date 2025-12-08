@@ -109,7 +109,7 @@ function Router() {
 
     const routes: Record<NavItem, string> = {
       feed: "/",
-      archive: "/leaderboard",
+      archive: "/archive",
       store: "/store",
       profile: "/profile",
     };
@@ -117,7 +117,7 @@ function Router() {
   };
 
   const getCurrentNavItem = (): NavItem => {
-    if (location === "/leaderboard") return "archive";
+    if (location === "/archive") return "archive";
     if (location === "/store") return "store";
     if (location === "/profile") return "profile";
     return "feed";
@@ -168,7 +168,7 @@ function Router() {
           <Route path="/terms" component={TermsPage} />
           <Route path="/support" component={SupportPage} />
           <Route path="/" component={FeedPage} />
-          <Route path="/leaderboard" component={LeaderboardPage} />
+          <Route path="/archive" component={LeaderboardPage} />
           <Route path="/store" component={StorePage} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/friends" component={FriendsPage} />
