@@ -1472,22 +1472,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin-only endpoint to preview shirt designs with custom text
   // SECURITY: Only admins can access this to prevent abuse
+  // NOTE: SVG generation is a local operation - it doesn't require Printful API
   app.get('/api/admin/design-preview', requireAdmin, async (req: any, res: any) => {
     try {
-      // Check if Printful service is available
-      if (!isPrintfulConfigured || !printfulService) {
-        return res.status(503).json({ message: 'Printful not configured. Design preview unavailable.' });
-      }
+      console.log('[ADMIN PREVIEW] Request received:', { 
+        quote: req.query.quote?.substring(0, 30), 
+        author: req.query.author,
+        color: req.query.color,
+        isPrintfulConfigured 
+      });
       
       const quoteText = req.query.quote as string;
       const author = req.query.author as string || 'Anonymous';
       const textColor = (req.query.color as string) || 'white';
       
       if (!quoteText) {
+        console.log('[ADMIN PREVIEW] No quote text provided');
         return res.status(400).json({ message: 'Quote text is required' });
       }
       
       if (textColor !== 'white' && textColor !== 'gold') {
+        console.log('[ADMIN PREVIEW] Invalid text color:', textColor);
         return res.status(400).json({ message: 'Invalid text color. Use "white" or "gold"' });
       }
       
@@ -1495,20 +1500,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const truncatedQuote = quoteText.substring(0, 500);
       const truncatedAuthor = author.substring(0, 100);
       
-      // Generate the SVG design
+      // Generate the SVG design (this is a LOCAL operation, doesn't need Printful API)
+      console.log('[ADMIN PREVIEW] Generating SVG design...');
       const svg = await printfulService.generateDesignSVGPublic(
         truncatedQuote, 
         truncatedAuthor, 
         textColor as 'white' | 'gold'
       );
       
+      console.log('[ADMIN PREVIEW] SVG generated successfully, length:', svg.length);
+      
       // Return as SVG
       res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'no-cache');
       res.send(svg);
     } catch (error: any) {
-      console.error('Error generating design preview:', error);
-      res.status(500).json({ message: 'Error generating design preview' });
+      console.error('[ADMIN PREVIEW] Error generating design preview:', error);
+      res.status(500).json({ message: 'Error generating design preview: ' + error.message });
     }
   });
 
