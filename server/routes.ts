@@ -86,14 +86,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 1. Have been selected as weekly winners, OR
       // 2. Have an associated product (products are only created for winners)
       const weeklyWinners = await storage.getAllWeeklyWinners();
-      const isWeeklyWinner = weeklyWinners.some(w => w.quoteId === quoteId);
+      // Convert to string for comparison since URL params are strings
+      const isWeeklyWinner = weeklyWinners.some(w => String(w.quoteId) === String(quoteId));
       
       // Also check if this quote has an associated product
       const allProducts = await storage.getAllProducts();
-      const hasProduct = allProducts.some((p: { quoteId: string | null }) => p.quoteId === quoteId);
+      const hasProduct = allProducts.some((p: { quoteId: string | null }) => String(p.quoteId) === String(quoteId));
+      
+      console.log(`[DESIGN] Request for quoteId=${quoteId}, textColor=${textColor}, isWeeklyWinner=${isWeeklyWinner}, hasProduct=${hasProduct}`);
       
       if (!isWeeklyWinner && !hasProduct) {
         // Return generic 404 to prevent enumeration
+        console.log(`[DESIGN] Denied: quoteId=${quoteId} is not a winner and has no product`);
         return res.status(404).json({ message: 'Not found' });
       }
       
