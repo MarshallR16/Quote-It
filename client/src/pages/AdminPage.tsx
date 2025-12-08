@@ -1,10 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Trophy, DollarSign, Package, ShoppingCart, Clock, Shield } from "lucide-react";
+import { useState } from "react";
+import { Trophy, DollarSign, Package, ShoppingCart, Clock, Shield, Shirt, Eye } from "lucide-react";
 
 interface Analytics {
   total_orders: number;
@@ -27,6 +31,13 @@ interface Order {
 export default function AdminPage() {
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Design preview state
+  const [previewQuote, setPreviewQuote] = useState("The only way to do great work is to love what you do.");
+  const [previewAuthor, setPreviewAuthor] = useState("Steve Jobs");
+  const [previewColor, setPreviewColor] = useState<'white' | 'gold'>('white');
+  const [previewKey, setPreviewKey] = useState(0);
+  const [previewError, setPreviewError] = useState(false);
 
   const { data: weeklyWinner, isLoading: isLoadingWinner } = useQuery<any>({
     queryKey: ["/api/weekly-winner/current"],
@@ -182,6 +193,115 @@ export default function AdminPage() {
             </Card>
           </div>
         )}
+
+        {/* Design Preview Section */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Shirt className="w-6 h-6" />
+            <h2 className="text-xl font-bold">T-Shirt Design Preview</h2>
+          </div>
+          <p className="text-muted-foreground mb-6">
+            Test how any quote will look on a shirt before it goes to production
+          </p>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Input Section */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="preview-quote" className="text-sm font-medium">Quote Text</Label>
+                <Textarea
+                  id="preview-quote"
+                  value={previewQuote}
+                  onChange={(e) => setPreviewQuote(e.target.value)}
+                  placeholder="Enter the quote text..."
+                  className="mt-1.5 min-h-[100px]"
+                  data-testid="input-preview-quote"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="preview-author" className="text-sm font-medium">Author Name</Label>
+                <Input
+                  id="preview-author"
+                  value={previewAuthor}
+                  onChange={(e) => setPreviewAuthor(e.target.value)}
+                  placeholder="Enter author name..."
+                  className="mt-1.5"
+                  data-testid="input-preview-author"
+                />
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Text Color</Label>
+                <div className="flex gap-2 mt-1.5">
+                  <Button
+                    variant={previewColor === 'white' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPreviewColor('white')}
+                    data-testid="button-color-white"
+                  >
+                    White (Store Version)
+                  </Button>
+                  <Button
+                    variant={previewColor === 'gold' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPreviewColor('gold')}
+                    data-testid="button-color-gold"
+                  >
+                    Gold (Winner Edition)
+                  </Button>
+                </div>
+              </div>
+              
+              <Button
+                onClick={() => {
+                  setPreviewError(false);
+                  setPreviewKey(k => k + 1);
+                }}
+                className="w-full"
+                data-testid="button-refresh-preview"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Refresh Preview
+              </Button>
+            </div>
+            
+            {/* Preview Section */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Preview (on black shirt background)</Label>
+              <div className="bg-black rounded-md p-4 aspect-[4/5] flex items-center justify-center overflow-hidden">
+                {previewError ? (
+                  <div className="text-center px-4">
+                    <Shirt className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm">
+                      Design preview unavailable
+                    </p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      Printful integration may not be configured
+                    </p>
+                  </div>
+                ) : previewQuote.trim() ? (
+                  <img
+                    key={previewKey}
+                    src={`/api/admin/design-preview?quote=${encodeURIComponent(previewQuote)}&author=${encodeURIComponent(previewAuthor)}&color=${previewColor}`}
+                    alt="Shirt design preview"
+                    className="max-w-full max-h-full object-contain"
+                    data-testid="img-design-preview"
+                    onError={() => setPreviewError(true)}
+                    onLoad={() => setPreviewError(false)}
+                  />
+                ) : (
+                  <p className="text-gray-500 text-center">
+                    Enter quote text to see preview
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                This shows exactly how the design will appear on Printful shirts
+              </p>
+            </div>
+          </div>
+        </Card>
 
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-4">

@@ -1462,6 +1462,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin-only endpoint to preview shirt designs with custom text
+  // SECURITY: Only admins can access this to prevent abuse
+  app.get('/api/admin/design-preview', requireAdmin, async (req: any, res: any) => {
+    try {
+      // Check if Printful service is available
+      if (!isPrintfulConfigured || !printfulService) {
+        return res.status(503).json({ message: 'Printful not configured. Design preview unavailable.' });
+      }
+      
+      const quoteText = req.query.quote as string;
+      const author = req.query.author as string || 'Anonymous';
+      const textColor = (req.query.color as string) || 'white';
+      
+      if (!quoteText) {
+        return res.status(400).json({ message: 'Quote text is required' });
+      }
+      
+      if (textColor !== 'white' && textColor !== 'gold') {
+        return res.status(400).json({ message: 'Invalid text color. Use "white" or "gold"' });
+      }
+      
+      // Limit quote length to prevent abuse
+      const truncatedQuote = quoteText.substring(0, 500);
+      const truncatedAuthor = author.substring(0, 100);
+      
+      // Generate the SVG design
+      const svg = await printfulService.generateDesignSVGPublic(
+        truncatedQuote, 
+        truncatedAuthor, 
+        textColor as 'white' | 'gold'
+      );
+      
+      // Return as SVG
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.send(svg);
+    } catch (error: any) {
+      console.error('Error generating design preview:', error);
+      res.status(500).json({ message: 'Error generating design preview' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
