@@ -389,12 +389,12 @@ export class PrintfulService {
       console.log('[PRINTFUL] Design URL for Printful:', designUrl);
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
-      // Variant IDs from Printful catalog:
-      // 4011 - S / Black
-      // 4012 - M / Black
-      // 4013 - L / Black
-      // 4014 - XL / Black
-      // 4017 - 2XL / Black
+      // Variant IDs from Printful catalog for BLACK color:
+      // 4012 - S / Black
+      // 4013 - M / Black
+      // 4014 - L / Black
+      // 4015 - XL / Black
+      // 4016 - 2XL / Black
 
       const productName = `"${quoteText.substring(0, 50)}${quoteText.length > 50 ? '...' : ''}"`;
       
@@ -405,31 +405,31 @@ export class PrintfulService {
         },
         sync_variants: [
           { 
-            variant_id: 4011, 
+            variant_id: 4012, 
             retail_price: '29.99', 
             external_id: `${externalId}-S`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4012, 
+            variant_id: 4013, 
             retail_price: '29.99', 
             external_id: `${externalId}-M`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4013, 
+            variant_id: 4014, 
             retail_price: '29.99', 
             external_id: `${externalId}-L`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4014, 
+            variant_id: 4015, 
             retail_price: '29.99', 
             external_id: `${externalId}-XL`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4017, 
+            variant_id: 4016, 
             retail_price: '29.99', 
             external_id: `${externalId}-2XL`,
             files: [{ url: designUrl }]
