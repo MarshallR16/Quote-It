@@ -1,0 +1,142 @@
+2025-12-08 16:19:13.60
+ad2a7518
+User
+[SCHEDULER] Weekly winner created: 586c35cd-54f3-4cfd-b64b-ad69ac212d21
+2025-12-08 16:19:13.63
+ad2a7518
+User
+[SCHEDULER] Testing Printful connection before product creation...
+2025-12-08 16:19:13.63
+ad2a7518
+User
+[PRINTFUL] Testing API connection...
+2025-12-08 16:19:13.63
+ad2a7518
+User
+[SCHEDULER] Author for shirt: Baxter Cheesman
+2025-12-08 16:19:13.91
+ad2a7518
+User
+[PRINTFUL] Connected to store: Quote-It
+2025-12-08 16:19:14.12
+ad2a7518
+User
+[PRINTFUL] Creating product for quote with white text: Throw me to the wolves and they’ll come back pregn...
+2025-12-08 16:19:14.12
+ad2a7518
+User
+[SCHEDULER] Creating white text product for store...
+2025-12-08 16:19:14.12
+ad2a7518
+User
+Creating Printful product...
+2025-12-08 16:19:14.12
+ad2a7518
+User
+[SCHEDULER] Printful connection successful: Quote-It
+2025-12-08 16:19:14.12
+ad2a7518
+User
+[PRINTFUL] Design URL for Printful: https://quote-it.co/api/designs/a4a6c720-ae20-48b2-88aa-8b8c66615637/white
+2025-12-08 16:19:14.72
+ad2a7518
+User
+Printful product created successfully: 406551991
+2025-12-08 16:19:14.76
+ad2a7518
+User
+[PRINTFUL] Creating product for quote with gold text: Throw me to the wolves and they’ll come back pregn...
+2025-12-08 16:19:14.76
+ad2a7518
+User
+[PRINTFUL] Design URL for Printful: https://quote-it.co/api/designs/a4a6c720-ae20-48b2-88aa-8b8c66615637/gold
+2025-12-08 16:19:14.76
+ad2a7518
+User
+[SCHEDULER] Creating gold text product for winner...
+2025-12-08 16:19:14.76
+ad2a7518
+User
+Creating Printful product...
+2025-12-08 16:19:14.76
+ad2a7518
+User
+[SCHEDULER] White text product created with Printful: 5dca269a-d565-45e2-81b5-d8c8b21e6fba
+2025-12-08 16:19:15.35
+ad2a7518
+User
+Printful product created successfully: 406551994
+2025-12-08 16:19:15.38
+ad2a7518
+User
+[SCHEDULER] Gold text product created with Printful: 2f6c3b8e-8031-4f37-94e5-e49cc3913189
+2025-12-08 16:19:15.46
+ad2a7518
+User
+[SCHEDULER] Weekly winner selection completed successfully
+2025-12-08 16:19:15.46
+ad2a7518
+User
+[SCHEDULER] Created complimentary order with gold text for winner: 2601230d-4e3b-4c81-a73b-dc0cd343a599
+2025-12-08 16:19:15.46
+ad2a7518
+User
+10:19:15 PM [express] POST /api/admin/select-weekly-winner 200 in 2035ms :: {"success":true,"winner":…
+2025-12-08 16:19:16.47
+ad2a7518
+User
+[API /weekly-winner/current] API version: v2-active-products-fix
+2025-12-08 16:19:16.51
+ad2a7518
+User
+[API /weekly-winner/current] Raw data from storage: {"winnerId":"586c35cd-54f3-4cfd-b64b-ad69ac212d21","quoteId":"a4a6c720-ae20-48b2-88aa-8b8c66615637","quoteText":"Throw me to the wolves and they’ll come back pregnant","voteCount":14,"authorId":"2LmAk
+2025-12-08 16:19:16.51
+ad2a7518
+User
+[API /weekly-winner/current] productId: 5dca269a-d565-45e2-81b5-d8c8b21e6fba
+2025-12-08 16:19:16.51
+ad2a7518
+User
+10:19:16 PM [express] GET /api/weekly-winner/current 200 in 34ms :: {"_apiVersion":"v2","product":{"i…
+2025-12-08 16:19:20.37
+ad2a7518
+User
+10:19:20 PM [express] GET /api/designs/a4a6c720-ae20-48b2-88aa-8b8c66615637/white 200 in 131ms
+2025-12-08 16:19:20.73
+ad2a7518
+User
+10:19:20 PM [express] GET /api/designs/a4a6c720-ae20-48b2-88aa-8b8c66615637/gold 200 in 117ms
+2025-12-08 16:19:20.73
+ad2a7518
+User
+10:19:20 PM [express] GET /api/designs/a4a6c720-ae20-48b2-88aa-8b8c66615637/gold 200 in 117ms
+2025-12-08 16:19:49.55
+ad2a7518
+User
+10:19:49 PM [express] GET /api/shirt-archive 200 in 143ms :: [{"winnerId":"586c35cd-54f3-4cfd-b64b-ad…
+2025-12-08 16:19:53.93
+ad2a7518
+User
+[API /weekly-winner/current] API version: v2-active-products-fix
+
+2025-12-08 16:19:53.96
+ad2a7518
+User
+[API /weekly-winner/current] Raw data from storage: {"winnerId":"586c35cd-54f3-4cfd-b64b-ad69ac212d21","quoteId":"a4a6c720-ae20-48b2-88aa-8b8c66615637","quoteText":"Throw me to the wolves and they’ll come back pregnant","voteCount":14,"authorId":"2LmAk
+2025-12-08 16:19:53.96
+ad2a7518
+User
+[API /weekly-winner/current] productId: 5dca269a-d565-45e2-81b5-d8c8b21e6fba
+2025-12-08 16:19:53.96
+ad2a7518
+User
+10:19:53 PM [express] GET /api/weekly-winner/current 200 in 32ms :: {"_apiVersion":"v2","product":{"i…
+2025-12-08 16:19:55.11
+ad2a7518
+User
+10:19:55 PM [express] GET /api/shirt-archive 200 in 38ms :: [{"winnerId":"586c35cd-54f3-4cfd-b64b-ad6…
+
+2025-12-08 16:20:03.25
+ad2a7518
+User
+10:20:03 PM [express] GET /api/shirt-archive 20
