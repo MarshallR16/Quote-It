@@ -50,13 +50,21 @@ export async function selectWeeklyWinner() {
       let product: any = null;
       let winnerProduct: any = null;
 
-      // Automatically create Printful products if configured
+      // Get author info - use display name for better shirt appearance (always needed for products)
+      const author = await storage.getUser(topQuote.authorId);
+      const authorName = author 
+        ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.username || author.email?.split('@')[0] || 'Anonymous'
+        : 'Anonymous';
+      
+      console.log(`[SCHEDULER] Author for shirt: ${authorName}`);
+
+      // Test Printful connection if configured
+      let printfulAvailable = false;
       if (isPrintfulConfigured && printfulService) {
         try {
-          // First test Printful connection
           console.log('[SCHEDULER] Testing Printful connection before product creation...');
           const connectionTest = await printfulService.testConnection();
-          const printfulAvailable = connectionTest.success;
+          printfulAvailable = connectionTest.success;
           
           if (!printfulAvailable) {
             console.error('[SCHEDULER] Printful connection failed:', connectionTest.message);
@@ -64,20 +72,22 @@ export async function selectWeeklyWinner() {
           } else {
             console.log('[SCHEDULER] Printful connection successful:', connectionTest.storeInfo?.name);
           }
-          
-          // Get author info - use display name for better shirt appearance
-          const author = await storage.getUser(topQuote.authorId);
-          const authorName = author 
-            ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.username || author.email?.split('@')[0] || 'Anonymous'
-            : 'Anonymous';
-          
-          console.log(`[SCHEDULER] Author for shirt: ${authorName}`);
+        } catch (connError: any) {
+          console.error('[SCHEDULER] Printful connection test error:', connError.message);
+          printfulAvailable = false;
+        }
+      } else {
+        console.log('[SCHEDULER] Printful not configured, will create demo products');
+      }
+
+      // ALWAYS create products - try Printful first if available, fallback to demo
+      try {
 
           // Create WHITE text version (for store)
           console.log('[SCHEDULER] Creating white text product for store...');
           let printfulProduct = null;
           
-          if (printfulAvailable) {
+          if (printfulAvailable && printfulService) {
             // Try to create via Printful
             try {
               printfulProduct = await printfulService.createProduct(
@@ -146,7 +156,7 @@ export async function selectWeeklyWinner() {
           console.log('[SCHEDULER] Creating gold text product for winner...');
           let printfulWinnerProduct = null;
           
-          if (printfulAvailable) {
+          if (printfulAvailable && printfulService) {
             try {
               printfulWinnerProduct = await printfulService.createProduct(
                 topQuote.text,
@@ -234,11 +244,30 @@ export async function selectWeeklyWinner() {
               console.error('[SCHEDULER] Error creating complimentary order:', error.message);
             }
           }
-        } catch (error: any) {
-          console.error('[SCHEDULER] Error creating Printful product:', error.message);
+      } catch (error: any) {
+        console.error('[SCHEDULER] Error creating products:', error.message);
+        // Even on error, try to create at minimum a demo product if we don't have one
+        if (!product) {
+          try {
+            console.log('[SCHEDULER] Attempting to create demo product after error...');
+            const demoProductData = {
+              quoteId: topQuote.id,
+              weeklyWinnerId: winner.id,
+              name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`,
+              description: `Weekly Winner - Quote by ${authorName}`,
+              price: '29.99',
+              imageUrl: null,
+              printfulSyncProductId: null,
+              printfulSyncVariants: null,
+              isActive: true,
+            };
+            product = await storage.createProduct(demoProductData);
+            console.log(`[SCHEDULER] Emergency demo product created: ${product.id}`);
+            await storage.updateWeeklyWinner(winner.id, { productId: product.id });
+          } catch (demoError: any) {
+            console.error('[SCHEDULER] Failed to create emergency demo product:', demoError.message);
+          }
         }
-      } else {
-        console.log('[SCHEDULER] Printful not configured, skipping product creation');
       }
 
       console.log('[SCHEDULER] Weekly winner selection completed successfully');
