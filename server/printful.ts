@@ -408,31 +408,86 @@ export class PrintfulService {
             variant_id: 4016, 
             retail_price: '29.99', 
             external_id: `${externalId}-S`,
-            files: [{ type: 'front', url: designUrl }]
+            files: [{ 
+              type: 'front', 
+              url: designUrl,
+              position: {
+                area_width: 1800,
+                area_height: 2400,
+                width: 1800,
+                height: 2160,
+                top: 120,
+                left: 0
+              }
+            }]
           },
           { 
             variant_id: 4017, 
             retail_price: '29.99', 
             external_id: `${externalId}-M`,
-            files: [{ type: 'front', url: designUrl }]
+            files: [{ 
+              type: 'front', 
+              url: designUrl,
+              position: {
+                area_width: 1800,
+                area_height: 2400,
+                width: 1800,
+                height: 2160,
+                top: 120,
+                left: 0
+              }
+            }]
           },
           { 
             variant_id: 4018, 
             retail_price: '29.99', 
             external_id: `${externalId}-L`,
-            files: [{ type: 'front', url: designUrl }]
+            files: [{ 
+              type: 'front', 
+              url: designUrl,
+              position: {
+                area_width: 1800,
+                area_height: 2400,
+                width: 1800,
+                height: 2160,
+                top: 120,
+                left: 0
+              }
+            }]
           },
           { 
             variant_id: 4019, 
             retail_price: '29.99', 
             external_id: `${externalId}-XL`,
-            files: [{ type: 'front', url: designUrl }]
+            files: [{ 
+              type: 'front', 
+              url: designUrl,
+              position: {
+                area_width: 1800,
+                area_height: 2400,
+                width: 1800,
+                height: 2160,
+                top: 120,
+                left: 0
+              }
+            }]
           },
           { 
             variant_id: 4020, 
             retail_price: '29.99', 
             external_id: `${externalId}-2XL`,
-            files: [{ type: 'front', url: designUrl }]
+            files: [{ 
+              type: 'front', 
+              url: designUrl,
+              position: {
+                area_width: 1800,
+                area_height: 2400,
+                width: 1800,
+                height: 2160,
+                top: 120,
+                left: 0
+              }
+            }]
           },
         ],
       };
