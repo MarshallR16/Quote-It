@@ -24,7 +24,7 @@ if (process.env.STRIPE_SECRET_KEY) {
 // Check if Printful is configured
 const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
 
-// Test Printful connection on startup
+// Test Printful connection on startup and verify variant IDs
 async function testPrintfulOnStartup() {
   if (isPrintfulConfigured) {
     console.log('[PRINTFUL] API token configured, testing connection...');
@@ -34,6 +34,18 @@ async function testPrintfulOnStartup() {
         console.log('[PRINTFUL] Connection successful:', result.message);
         if (result.storeInfo) {
           console.log('[PRINTFUL] Store info:', JSON.stringify(result.storeInfo));
+        }
+        
+        // Verify correct black variant IDs from catalog
+        try {
+          const catalogInfo = await printfulService.getCatalogVariants(71);
+          console.log('[PRINTFUL] Bella+Canvas 3001 BLACK variant IDs from catalog:');
+          catalogInfo.blackVariants.forEach((v: any) => {
+            console.log(`  - ${v.size}: ${v.variant_id} (${v.color})`);
+          });
+          console.log('[PRINTFUL] Code is configured to use: [4016, 4017, 4018, 4019, 4020]');
+        } catch (catalogError: any) {
+          console.error('[PRINTFUL] Could not fetch catalog variants:', catalogError.message);
         }
       } else {
         console.error('[PRINTFUL] Connection failed:', result.message);
@@ -1517,6 +1529,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('[ADMIN PREVIEW] Error generating design preview:', error);
       res.status(500).json({ message: 'Error generating design preview: ' + error.message });
+    }
+  });
+
+  // Admin endpoint to debug Printful variants and verify correct IDs
+  app.get('/api/admin/printful-debug', requireAdmin, async (req: any, res: any) => {
+    try {
+      console.log('[ADMIN] Fetching Printful debug info...');
+      
+      // Get catalog variants (the correct black IDs from Printful)
+      const catalogInfo = await printfulService.getCatalogVariants(71);
+      
+      // Get store products (what's actually in our store)
+      const storeInfo = await printfulService.getStoreProducts();
+      
+      res.json({
+        message: 'Printful debug information',
+        catalog: {
+          product: catalogInfo.product,
+          blackVariantIds: catalogInfo.blackVariants.map((v: any) => ({
+            id: v.variant_id,
+            size: v.size,
+            color: v.color
+          })),
+          totalVariants: catalogInfo.allVariantsCount,
+        },
+        store: storeInfo,
+        codeConfig: {
+          variantsInCode: [4016, 4017, 4018, 4019, 4020],
+          note: 'These are the variant IDs currently configured in the code (S, M, L, XL, 2XL)'
+        }
+      });
+    } catch (error: any) {
+      console.error('[ADMIN] Printful debug error:', error);
+      res.status(500).json({ message: 'Error fetching Printful debug info: ' + error.message });
     }
   });
 

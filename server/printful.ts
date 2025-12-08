@@ -389,12 +389,12 @@ export class PrintfulService {
       console.log('[PRINTFUL] Design URL for Printful:', designUrl);
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
-      // Variant IDs from Printful catalog for BLACK color:
-      // 4012 - S / Black
-      // 4013 - M / Black
-      // 4014 - L / Black
-      // 4015 - XL / Black
-      // 4016 - 2XL / Black
+      // Variant IDs from Printful catalog for BLACK color (verified from API):
+      // 4016 - S / Black
+      // 4017 - M / Black
+      // 4018 - L / Black
+      // 4019 - XL / Black
+      // 4020 - 2XL / Black
 
       const productName = `"${quoteText.substring(0, 50)}${quoteText.length > 50 ? '...' : ''}"`;
       
@@ -405,31 +405,31 @@ export class PrintfulService {
         },
         sync_variants: [
           { 
-            variant_id: 4012, 
+            variant_id: 4016, 
             retail_price: '29.99', 
             external_id: `${externalId}-S`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4013, 
+            variant_id: 4017, 
             retail_price: '29.99', 
             external_id: `${externalId}-M`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4014, 
+            variant_id: 4018, 
             retail_price: '29.99', 
             external_id: `${externalId}-L`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4015, 
+            variant_id: 4019, 
             retail_price: '29.99', 
             external_id: `${externalId}-XL`,
             files: [{ url: designUrl }]
           },
           { 
-            variant_id: 4016, 
+            variant_id: 4020, 
             retail_price: '29.99', 
             external_id: `${externalId}-2XL`,
             files: [{ url: designUrl }]
@@ -437,9 +437,11 @@ export class PrintfulService {
         ],
       };
 
-      console.log('Creating Printful product...');
+      console.log('[PRINTFUL] Creating product with data:', JSON.stringify(data, null, 2));
+      console.log('[PRINTFUL] Variant IDs being sent:', data.sync_variants.map(v => v.variant_id));
       const response = await printfulClient.post('/store/products', data);
-      console.log('Printful product created successfully:', response.data.result.id);
+      console.log('[PRINTFUL] Product created successfully:', response.data.result.id);
+      console.log('[PRINTFUL] Response:', JSON.stringify(response.data.result, null, 2));
       
       return response.data.result;
     } catch (error: any) {
@@ -545,6 +547,91 @@ export class PrintfulService {
     } catch (error: any) {
       console.error('Printful confirm order error:', error.response?.data || error.message);
       throw new Error(`Failed to confirm Printful order: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get product variants from Printful catalog to verify correct variant IDs
+   * Product ID 71 = Bella+Canvas 3001 Unisex T-Shirt
+   */
+  async getCatalogVariants(productId: number = 71): Promise<any> {
+    try {
+      console.log(`[PRINTFUL] Fetching catalog variants for product ${productId}...`);
+      const response = await printfulClient.get(`/products/${productId}`);
+      const product = response.data.result.product;
+      const variants = response.data.result.variants;
+      
+      // Filter for black variants
+      const blackVariants = variants.filter((v: any) => 
+        v.color?.toLowerCase() === 'black' || 
+        v.color_code === '#000000' ||
+        v.name?.toLowerCase().includes('black')
+      );
+      
+      console.log(`[PRINTFUL] Found ${blackVariants.length} black variants for ${product.title}`);
+      
+      return {
+        product: {
+          id: product.id,
+          title: product.title,
+          type: product.type,
+        },
+        blackVariants: blackVariants.map((v: any) => ({
+          variant_id: v.id,
+          size: v.size,
+          color: v.color,
+          color_code: v.color_code,
+          name: v.name,
+          price: v.price,
+        })),
+        allVariantsCount: variants.length,
+      };
+    } catch (error: any) {
+      console.error('[PRINTFUL] Error fetching catalog variants:', error.response?.data || error.message);
+      throw new Error(`Failed to fetch catalog variants: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get existing store products to see their variants
+   */
+  async getStoreProducts(): Promise<any> {
+    try {
+      console.log('[PRINTFUL] Fetching store products...');
+      const response = await printfulClient.get('/store/products');
+      const products = response.data.result;
+      
+      // Get detailed info for each product including variants
+      const detailedProducts = [];
+      for (const product of products.slice(0, 5)) { // Limit to 5 most recent
+        try {
+          const detailResponse = await printfulClient.get(`/store/products/${product.id}`);
+          const syncProduct = detailResponse.data.result.sync_product;
+          const syncVariants = detailResponse.data.result.sync_variants;
+          
+          detailedProducts.push({
+            id: syncProduct.id,
+            name: syncProduct.name,
+            variants: syncVariants.map((v: any) => ({
+              variant_id: v.variant_id,
+              name: v.name,
+              color: v.color,
+              size: v.size,
+              retail_price: v.retail_price,
+            })),
+          });
+        } catch (e) {
+          // Skip if can't get details
+        }
+      }
+      
+      return {
+        totalProducts: products.length,
+        products: detailedProducts,
+      };
+    } catch (error: any) {
+      console.error('[PRINTFUL] Error fetching store products:', error.response?.data || error.message);
+      throw new Error(`Failed to fetch store products: ${error.message}`);
     }
   }
 }
