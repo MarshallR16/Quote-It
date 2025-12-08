@@ -57,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   testPrintfulOnStartup();
   
   // Secure endpoint to serve SVG designs for Printful
-  // SECURITY: Only serves designs for weekly winners to prevent:
+  // SECURITY: Only serves designs for quotes with products or weekly winners to prevent:
   // - Unauthorized access to unpublished quotes
   // - Quote ID enumeration attacks
   // - Malicious SVG injection through non-winner quotes
@@ -70,12 +70,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid text color' });
       }
       
-      // SECURITY CHECK: Only allow designs for quotes that have been selected as weekly winners
-      // This prevents exposure of private/unpublished quotes
+      // SECURITY CHECK: Only allow designs for quotes that:
+      // 1. Have been selected as weekly winners, OR
+      // 2. Have an associated product (products are only created for winners)
       const weeklyWinners = await storage.getAllWeeklyWinners();
       const isWeeklyWinner = weeklyWinners.some(w => w.quoteId === quoteId);
       
-      if (!isWeeklyWinner) {
+      // Also check if this quote has an associated product
+      const allProducts = await storage.getAllProducts();
+      const hasProduct = allProducts.some((p: { quoteId: string | null }) => p.quoteId === quoteId);
+      
+      if (!isWeeklyWinner && !hasProduct) {
         // Return generic 404 to prevent enumeration
         return res.status(404).json({ message: 'Not found' });
       }
