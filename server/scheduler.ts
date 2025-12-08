@@ -46,6 +46,10 @@ export async function selectWeeklyWinner() {
 
       console.log(`[SCHEDULER] Weekly winner created: ${winner.id}`);
 
+      // Declare product variables outside if block so they're accessible for return
+      let product: any = null;
+      let winnerProduct: any = null;
+
       // Automatically create Printful products if configured
       if (isPrintfulConfigured && printfulService) {
         try {
@@ -72,7 +76,6 @@ export async function selectWeeklyWinner() {
           // Create WHITE text version (for store)
           console.log('[SCHEDULER] Creating white text product for store...');
           let printfulProduct = null;
-          let product = null;
           
           if (printfulAvailable) {
             // Try to create via Printful
@@ -142,7 +145,6 @@ export async function selectWeeklyWinner() {
           // Create GOLD text version (exclusive for winner)
           console.log('[SCHEDULER] Creating gold text product for winner...');
           let printfulWinnerProduct = null;
-          let winnerProduct = null;
           
           if (printfulAvailable) {
             try {
@@ -240,7 +242,15 @@ export async function selectWeeklyWinner() {
       }
 
       console.log('[SCHEDULER] Weekly winner selection completed successfully');
-      return { success: true, winner };
+      
+      // Return full data for frontend display
+      return { 
+        success: true, 
+        winner,
+        quote: topQuote,
+        product: product || null,
+        winnerProduct: winnerProduct || null
+      };
     } catch (error: any) {
       console.error('[SCHEDULER] Error selecting weekly winner:', error.message);
       throw error;

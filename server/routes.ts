@@ -620,6 +620,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true,
         winner: result.winner,
+        quote: result.quote,
+        product: result.product,
+        winnerProduct: result.winnerProduct,
         message: 'Weekly winner selected and Printful products created'
       });
     } catch (error: any) {
