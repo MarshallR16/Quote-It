@@ -716,6 +716,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // List all products from Printful store
+  app.get("/api/admin/printful/products", requireAdmin, async (req: any, res: any) => {
+    try {
+      if (!isPrintfulConfigured) {
+        return res.status(400).json({ message: "Printful is not configured" });
+      }
+      
+      const products = await printfulService.listProducts();
+      
+      // Get detailed info for first few products to show file status
+      const detailedProducts = await Promise.all(
+        products.slice(0, 5).map(async (p: any) => {
+          try {
+            const details = await printfulService.getProductDetails(p.id);
+            return {
+              ...p,
+              hasFiles: details.sync_variants?.some((v: any) => v.files && v.files.length > 0),
+              variantCount: details.sync_variants?.length || 0,
+              firstVariantFiles: details.sync_variants?.[0]?.files || []
+            };
+          } catch {
+            return { ...p, error: 'Could not fetch details' };
+          }
+        })
+      );
+      
+      res.json({
+        totalProducts: products.length,
+        products: products,
+        detailedSample: detailedProducts
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        message: "Error listing Printful products",
+        error: error.message 
+      });
+    }
+  });
+
   // Re-create Printful products for a weekly winner that's missing them
   app.post("/api/admin/printful/recreate-products/:winnerId", requireAdmin, async (req: any, res: any) => {
     try {

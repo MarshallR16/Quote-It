@@ -519,6 +519,32 @@ export class PrintfulService {
   }
 
   /**
+   * List all products in the Printful store
+   */
+  async listProducts(): Promise<any[]> {
+    try {
+      const response = await printfulClient.get('/store/products');
+      return response.data.result || [];
+    } catch (error: any) {
+      console.error('Printful list products error:', error.response?.data || error.message);
+      throw new Error(`Failed to list Printful products: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get detailed product info including variants and files
+   */
+  async getProductDetails(syncProductId: number): Promise<any> {
+    try {
+      const response = await printfulClient.get(`/store/products/${syncProductId}`);
+      return response.data.result;
+    } catch (error: any) {
+      console.error('Printful get product details error:', error.response?.data || error.message);
+      throw new Error(`Failed to get Printful product details: ${error.message}`);
+    }
+  }
+
+  /**
    * Create a mockup for a product variant
    */
   async createMockup(variantId: number, imageUrl: string): Promise<string> {
