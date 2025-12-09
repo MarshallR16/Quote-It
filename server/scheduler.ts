@@ -228,21 +228,26 @@ export async function selectWeeklyWinner() {
             });
           }
 
-          // Create complimentary order for the winner using GOLD text version
-          if (winnerProduct) {
+          // Create complimentary order for the winner
+          // Use gold product if available, otherwise fall back to white product
+          const orderProduct = winnerProduct || product;
+          if (orderProduct) {
             try {
               const complimentaryOrder = await storage.createOrder({
                 userId: topQuote.authorId,
-                productId: winnerProduct.id, // Use gold text version
+                productId: orderProduct.id,
                 amount: '0.00',
                 status: 'awaiting_address',
                 isComplimentary: true,
                 includeAuthor: true,
               });
-              console.log('[SCHEDULER] Created complimentary order with gold text for winner:', complimentaryOrder.id);
+              console.log('[SCHEDULER] Created complimentary order for winner:', complimentaryOrder.id, 
+                winnerProduct ? '(gold edition)' : '(white edition fallback)');
             } catch (error: any) {
               console.error('[SCHEDULER] Error creating complimentary order:', error.message);
             }
+          } else {
+            console.error('[SCHEDULER] Cannot create complimentary order - no product available');
           }
       } catch (error: any) {
         console.error('[SCHEDULER] Error creating products:', error.message);
