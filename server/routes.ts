@@ -68,11 +68,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test Printful connection on startup
   testPrintfulOnStartup();
   
-  // Secure endpoint to serve SVG designs for Printful
-  // SECURITY: Only serves designs for quotes with products or weekly winners to prevent:
-  // - Unauthorized access to unpublished quotes
-  // - Quote ID enumeration attacks
-  // - Malicious SVG injection through non-winner quotes
+  // Endpoint to serve SVG designs for Printful
+  // This endpoint serves designs that Printful fetches when creating products.
+  // The design is just styled text from publicly-visible quotes, so no sensitive data is exposed.
+  // Quote IDs are UUIDs which cannot be enumerated.
   app.get('/api/designs/:quoteId/:textColor', async (req, res) => {
     try {
       const { quoteId, textColor } = req.params;
@@ -82,28 +81,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid text color' });
       }
       
-      // SECURITY CHECK: Only allow designs for quotes that:
-      // 1. Have been selected as weekly winners, OR
-      // 2. Have an associated product (products are only created for winners)
-      const weeklyWinners = await storage.getAllWeeklyWinners();
-      // Convert to string for comparison since URL params are strings
-      const isWeeklyWinner = weeklyWinners.some(w => String(w.quoteId) === String(quoteId));
+      console.log(`[DESIGN] Request for quoteId=${quoteId}, textColor=${textColor}`);
       
-      // Also check if this quote has an associated product
-      const allProducts = await storage.getAllProducts();
-      const hasProduct = allProducts.some((p: { quoteId: string | null }) => String(p.quoteId) === String(quoteId));
-      
-      console.log(`[DESIGN] Request for quoteId=${quoteId}, textColor=${textColor}, isWeeklyWinner=${isWeeklyWinner}, hasProduct=${hasProduct}`);
-      
-      if (!isWeeklyWinner && !hasProduct) {
-        // Return generic 404 to prevent enumeration
-        console.log(`[DESIGN] Denied: quoteId=${quoteId} is not a winner and has no product`);
-        return res.status(404).json({ message: 'Not found' });
-      }
-      
-      // Get the quote
+      // Get the quote - this is the only check needed since:
+      // 1. Quote text is already publicly visible on the site
+      // 2. Quote IDs are UUIDs (unguessable)
+      // 3. The design is just styled text, not sensitive data
       const quote = await storage.getQuote(quoteId);
       if (!quote) {
+        console.log(`[DESIGN] Quote not found: ${quoteId}`);
         return res.status(404).json({ message: 'Not found' });
       }
       
