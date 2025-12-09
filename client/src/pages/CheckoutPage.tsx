@@ -13,6 +13,56 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 
+const COUNTRIES = [
+  { code: "US", name: "United States" },
+  { code: "CA", name: "Canada" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "ES", name: "Spain" },
+  { code: "IT", name: "Italy" },
+  { code: "NL", name: "Netherlands" },
+  { code: "BE", name: "Belgium" },
+  { code: "AT", name: "Austria" },
+  { code: "CH", name: "Switzerland" },
+  { code: "SE", name: "Sweden" },
+  { code: "NO", name: "Norway" },
+  { code: "DK", name: "Denmark" },
+  { code: "FI", name: "Finland" },
+  { code: "IE", name: "Ireland" },
+  { code: "PT", name: "Portugal" },
+  { code: "PL", name: "Poland" },
+  { code: "CZ", name: "Czech Republic" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "JP", name: "Japan" },
+  { code: "KR", name: "South Korea" },
+  { code: "SG", name: "Singapore" },
+  { code: "HK", name: "Hong Kong" },
+  { code: "MX", name: "Mexico" },
+  { code: "BR", name: "Brazil" },
+];
+
+const US_STATES = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" },
+  { code: "AR", name: "Arkansas" }, { code: "CA", name: "California" }, { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" }, { code: "FL", name: "Florida" },
+  { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" }, { code: "ID", name: "Idaho" },
+  { code: "IL", name: "Illinois" }, { code: "IN", name: "Indiana" }, { code: "IA", name: "Iowa" },
+  { code: "KS", name: "Kansas" }, { code: "KY", name: "Kentucky" }, { code: "LA", name: "Louisiana" },
+  { code: "ME", name: "Maine" }, { code: "MD", name: "Maryland" }, { code: "MA", name: "Massachusetts" },
+  { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" }, { code: "MS", name: "Mississippi" },
+  { code: "MO", name: "Missouri" }, { code: "MT", name: "Montana" }, { code: "NE", name: "Nebraska" },
+  { code: "NV", name: "Nevada" }, { code: "NH", name: "New Hampshire" }, { code: "NJ", name: "New Jersey" },
+  { code: "NM", name: "New Mexico" }, { code: "NY", name: "New York" }, { code: "NC", name: "North Carolina" },
+  { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" }, { code: "OK", name: "Oklahoma" },
+  { code: "OR", name: "Oregon" }, { code: "PA", name: "Pennsylvania" }, { code: "RI", name: "Rhode Island" },
+  { code: "SC", name: "South Carolina" }, { code: "SD", name: "South Dakota" }, { code: "TN", name: "Tennessee" },
+  { code: "TX", name: "Texas" }, { code: "UT", name: "Utah" }, { code: "VT", name: "Vermont" },
+  { code: "VA", name: "Virginia" }, { code: "WA", name: "Washington" }, { code: "WV", name: "West Virginia" },
+  { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" }, { code: "DC", name: "Washington DC" },
+];
+
 // Initialize Stripe - will be null if key is not provided
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
   ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
@@ -353,6 +403,25 @@ export default function CheckoutPage() {
               </div>
               
               <div>
+                <Label htmlFor="country">Country</Label>
+                <Select
+                  value={shippingInfo.country_code}
+                  onValueChange={(value) => setShippingInfo({ ...shippingInfo, country_code: value, state_code: '' })}
+                >
+                  <SelectTrigger id="country" data-testid="select-country">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label htmlFor="address1">Street Address</Label>
                 <Input
                   id="address1"
@@ -375,19 +444,36 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="state">State</Label>
-                  <Input
-                    id="state"
-                    value={shippingInfo.state_code}
-                    onChange={(e) => setShippingInfo({ ...shippingInfo, state_code: e.target.value })}
-                    placeholder="CA"
-                    maxLength={2}
-                    required
-                    data-testid="input-state"
-                  />
+                  <Label htmlFor="state">{shippingInfo.country_code === 'US' ? 'State' : 'Region/Province'}</Label>
+                  {shippingInfo.country_code === 'US' ? (
+                    <Select
+                      value={shippingInfo.state_code}
+                      onValueChange={(value) => setShippingInfo({ ...shippingInfo, state_code: value })}
+                    >
+                      <SelectTrigger id="state" data-testid="select-state">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map((state) => (
+                          <SelectItem key={state.code} value={state.code}>
+                            {state.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="state"
+                      value={shippingInfo.state_code}
+                      onChange={(e) => setShippingInfo({ ...shippingInfo, state_code: e.target.value })}
+                      placeholder="Province/Region"
+                      required
+                      data-testid="input-state"
+                    />
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="zip">ZIP Code</Label>
+                  <Label htmlFor="zip">{shippingInfo.country_code === 'US' ? 'ZIP Code' : 'Postal Code'}</Label>
                   <Input
                     id="zip"
                     value={shippingInfo.zip}

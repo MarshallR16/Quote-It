@@ -84,6 +84,36 @@ const US_STATES = [
 
 const T_SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
 
+const COUNTRIES = [
+  { code: "US", name: "United States" },
+  { code: "CA", name: "Canada" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "ES", name: "Spain" },
+  { code: "IT", name: "Italy" },
+  { code: "NL", name: "Netherlands" },
+  { code: "BE", name: "Belgium" },
+  { code: "AT", name: "Austria" },
+  { code: "CH", name: "Switzerland" },
+  { code: "SE", name: "Sweden" },
+  { code: "NO", name: "Norway" },
+  { code: "DK", name: "Denmark" },
+  { code: "FI", name: "Finland" },
+  { code: "IE", name: "Ireland" },
+  { code: "PT", name: "Portugal" },
+  { code: "PL", name: "Poland" },
+  { code: "CZ", name: "Czech Republic" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "JP", name: "Japan" },
+  { code: "KR", name: "South Korea" },
+  { code: "SG", name: "Singapore" },
+  { code: "HK", name: "Hong Kong" },
+  { code: "MX", name: "Mexico" },
+  { code: "BR", name: "Brazil" },
+];
+
 export default function WinnerCelebrationModal({ 
   open, 
   orderData,
@@ -178,15 +208,20 @@ export default function WinnerCelebrationModal({
     }
   };
 
+  const handleClose = () => {
+    // Mark as notified so it doesn't show again
+    if (orderData) {
+      localStorage.setItem(`winner_notified_${orderData.order.id}`, "true");
+    }
+    onComplete();
+  };
+
   if (!orderData) return null;
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
       <DialogContent 
-        className="max-w-md" 
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        className="max-w-md"
       >
         {step === "celebration" && (
           <>
@@ -277,6 +312,26 @@ export default function WinnerCelebrationModal({
                 </div>
 
                 <div className="col-span-2 space-y-2">
+                  <Label htmlFor="country">Country *</Label>
+                  <Select
+                    value={shippingInfo.country_code}
+                    onValueChange={(value) => handleShippingChange("country_code", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger data-testid="select-shipping-country">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRIES.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-2 space-y-2">
                   <Label htmlFor="address1">Street Address *</Label>
                   <Input
                     id="address1"
@@ -305,27 +360,40 @@ export default function WinnerCelebrationModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="state">State *</Label>
-                  <Select
-                    value={shippingInfo.state_code}
-                    onValueChange={(value) => handleShippingChange("state_code", value)}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger data-testid="select-shipping-state">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {US_STATES.map((state) => (
-                        <SelectItem key={state.code} value={state.code}>
-                          {state.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="state">{shippingInfo.country_code === "US" ? "State" : "Region/Province"} *</Label>
+                  {shippingInfo.country_code === "US" ? (
+                    <Select
+                      value={shippingInfo.state_code}
+                      onValueChange={(value) => handleShippingChange("state_code", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger data-testid="select-shipping-state">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map((state) => (
+                          <SelectItem key={state.code} value={state.code}>
+                            {state.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="state"
+                      type="text"
+                      value={shippingInfo.state_code}
+                      onChange={(e) => handleShippingChange("state_code", e.target.value)}
+                      placeholder="Province/Region"
+                      disabled={isLoading}
+                      required
+                      data-testid="input-shipping-state"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="zip">ZIP Code *</Label>
+                  <Label htmlFor="zip">{shippingInfo.country_code === "US" ? "ZIP Code" : "Postal Code"} *</Label>
                   <Input
                     id="zip"
                     type="text"
