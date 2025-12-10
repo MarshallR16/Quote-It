@@ -161,6 +161,9 @@ function Router() {
             setLocation("/profile");
           }
         }}
+        onClaimFreeShirt={() => {
+          setShowWinnerModal(true);
+        }}
       />
       <main className="pt-16 mt-safe">
         <Switch>

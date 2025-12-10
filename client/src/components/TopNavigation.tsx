@@ -15,11 +15,13 @@ import WeeklyWinnerCountdown from "@/components/WeeklyWinnerCountdown";
 interface TopNavigationProps {
   onCreateClick?: () => void;
   onProfileClick?: () => void;
+  onClaimFreeShirt?: () => void;
 }
 
 export default function TopNavigation({
   onCreateClick,
   onProfileClick,
+  onClaimFreeShirt,
 }: TopNavigationProps) {
   const [darkMode, setDarkMode] = useState(false);
   const { user, isAuthenticated } = useAuth();
@@ -126,11 +128,7 @@ export default function TopNavigation({
                   size="default"
                   className="rounded-full gap-2 bg-green-600 hover:bg-green-700"
                   onClick={() => {
-                    setLocation("/profile");
-                    toast({
-                      title: "You won!",
-                      description: "Claim your free shirt on your profile page",
-                    });
+                    onClaimFreeShirt?.();
                   }}
                   data-testid="button-free-shirt"
                 >
