@@ -5,6 +5,40 @@ import { PrintfulService } from './printful';
 const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
 const printfulService = isPrintfulConfigured ? new PrintfulService() : null;
 
+// Design base URL for Printful - defaults to production domain
+// Printful must be able to access designs externally, so this should be a publicly accessible URL
+const DESIGN_BASE_URL = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
+
+/**
+ * Generate a mockup image for a product using Printful's mockup generator
+ * and store the mockup URL in the database
+ */
+async function generateAndStoreMockup(productId: string, quoteId: string, textColor: 'white' | 'gold'): Promise<string | null> {
+  if (!printfulService) {
+    console.log('[MOCKUP] Printful not configured, skipping mockup generation');
+    return null;
+  }
+
+  try {
+    const designUrl = `${DESIGN_BASE_URL}/api/designs/${quoteId}/${textColor}`;
+    
+    console.log(`[MOCKUP] Generating mockup for product ${productId}, design: ${designUrl}`);
+    
+    // Use variant ID 4018 (L / Black) for mockup - common display size
+    const mockupUrl = await printfulService.createMockup(4018, designUrl);
+    
+    // Update product with mockup URL
+    await storage.updateProduct(productId, { imageUrl: mockupUrl });
+    
+    console.log(`[MOCKUP] Mockup stored for product ${productId}: ${mockupUrl}`);
+    return mockupUrl;
+  } catch (error: any) {
+    console.error(`[MOCKUP] Failed to generate mockup for product ${productId}:`, error.message);
+    // Don't throw - mockup generation failure shouldn't break the flow
+    return null;
+  }
+}
+
 export async function selectWeeklyWinner() {
   try {
     console.log('[SCHEDULER] Running weekly winner selection...');
@@ -226,6 +260,19 @@ export async function selectWeeklyWinner() {
               productId: product.id,
               winnerProductId: winnerProduct.id,
             });
+          }
+
+          // Generate mockups for both products in the background
+          // This runs after products are created and won't block the winner flow
+          if (product) {
+            generateAndStoreMockup(product.id, topQuote.id, 'white')
+              .then(url => url && console.log('[SCHEDULER] White mockup ready'))
+              .catch(err => console.error('[SCHEDULER] White mockup failed:', err.message));
+          }
+          if (winnerProduct) {
+            generateAndStoreMockup(winnerProduct.id, topQuote.id, 'gold')
+              .then(url => url && console.log('[SCHEDULER] Gold mockup ready'))
+              .catch(err => console.error('[SCHEDULER] Gold mockup failed:', err.message));
           }
 
           // Create complimentary order for the winner

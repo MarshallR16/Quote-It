@@ -378,13 +378,13 @@ export class PrintfulService {
     try {
       console.log(`[PRINTFUL] Creating product for quote with ${textColor} text:`, quoteText.substring(0, 50) + '...');
       
-      // Use the production domain to serve the design
-      // Printful will fetch the SVG from this URL
-      const productionDomain = 'https://quote-it.co';
+      // Use configurable design base URL (defaults to production domain)
+      // Printful must be able to access this URL externally
+      const designBaseUrl = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
       
       // Extract quote ID from external ID if not provided
       const actualQuoteId = quoteId || externalId.replace('quote-', '').replace('-white', '').replace('-gold', '');
-      const designUrl = `${productionDomain}/api/designs/${actualQuoteId}/${textColor}`;
+      const designUrl = `${designBaseUrl}/api/designs/${actualQuoteId}/${textColor}`;
       
       console.log('[PRINTFUL] Design URL for Printful:', designUrl);
 

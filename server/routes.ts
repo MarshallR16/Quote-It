@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupFirebaseAuth, isAuthenticated, requireAdmin } from "./firebaseAuth";
-import { insertProductSchema, insertOrderSchema } from "@shared/schema";
+import { insertProductSchema, insertOrderSchema, type Product, type WeeklyWinner } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { printfulService } from "./printful";
 import Stripe from "stripe";
@@ -23,6 +23,10 @@ if (process.env.STRIPE_SECRET_KEY) {
 
 // Check if Printful is configured
 const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
+
+// Design base URL for Printful - defaults to production domain
+// Printful must be able to access designs externally, so this should be a publicly accessible URL
+const DESIGN_BASE_URL = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
 
 // Test Printful connection on startup and verify variant IDs
 async function testPrintfulOnStartup() {
@@ -110,6 +114,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error generating design:', error);
       // Return generic error to prevent information disclosure
       res.status(500).json({ message: 'Internal error' });
+    }
+  });
+
+  // Debug endpoint to check if design URL is accessible and generate mockup
+  app.get('/api/admin/debug/design/:quoteId', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.firebaseUser.uid);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { quoteId } = req.params;
+      const requestedColor = req.query.textColor as string | undefined;
+
+      // Get the quote
+      const quote = await storage.getQuote(quoteId);
+      if (!quote) {
+        return res.status(404).json({ message: 'Quote not found' });
+      }
+
+      // Get author info
+      const author = await storage.getUser(quote.authorId);
+      const authorName = author 
+        ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Anonymous'
+        : 'Anonymous';
+
+      // Build the design URLs using configurable base URL
+      const designUrlWhite = `${DESIGN_BASE_URL}/api/designs/${quoteId}/white`;
+      const designUrlGold = `${DESIGN_BASE_URL}/api/designs/${quoteId}/gold`;
+
+      // Helper function to test URL accessibility
+      const testDesignUrl = async (url: string): Promise<{ accessible: boolean; error: string | null }> => {
+        try {
+          const axios = (await import('axios')).default;
+          const response = await axios.get(url, { timeout: 10000 });
+          const accessible = response.status === 200 && response.headers['content-type']?.includes('svg');
+          return { accessible, error: null };
+        } catch (error: any) {
+          return { accessible: false, error: error.message };
+        }
+      };
+
+      // Test both design URLs or just the requested one
+      let whiteTest = { accessible: false, error: null as string | null };
+      let goldTest = { accessible: false, error: null as string | null };
+      
+      if (!requestedColor || requestedColor === 'white') {
+        whiteTest = await testDesignUrl(designUrlWhite);
+      }
+      if (!requestedColor || requestedColor === 'gold') {
+        goldTest = await testDesignUrl(designUrlGold);
+      }
+
+      // Check if there's an existing product for this quote
+      const allProducts = await storage.getAllProducts();
+      const productsForQuote = allProducts.filter((p: Product) => p.quoteId === quoteId);
+      
+      // Check weekly winner status
+      const winners = await storage.getAllWeeklyWinners();
+      const isWeeklyWinner = winners.some((w: WeeklyWinner) => w.quoteId === quoteId);
+
+      res.json({
+        quoteId,
+        quoteText: quote.text.substring(0, 100) + (quote.text.length > 100 ? '...' : ''),
+        authorName,
+        designUrls: {
+          white: designUrlWhite,
+          gold: designUrlGold,
+        },
+        designAccessibility: {
+          white: whiteTest,
+          gold: goldTest,
+        },
+        printfulConfigured: isPrintfulConfigured,
+        existingProducts: productsForQuote.map((p: Product) => ({
+          id: p.id,
+          name: p.name,
+          imageUrl: p.imageUrl,
+          printfulSyncProductId: p.printfulSyncProductId,
+          isActive: p.isActive,
+        })),
+        isWeeklyWinner,
+      });
+    } catch (error: any) {
+      console.error('Debug design error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Admin endpoint to generate mockup for a product
+  app.post('/api/admin/products/:productId/generate-mockup', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.firebaseUser.uid);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      // Check if Printful is configured
+      if (!isPrintfulConfigured) {
+        return res.status(400).json({ 
+          message: 'Printful is not configured. Cannot generate mockups without PRINTFUL_API_TOKEN.' 
+        });
+      }
+
+      const { productId } = req.params;
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+
+      // Get the quote for this product
+      const quote = await storage.getQuote(product.quoteId);
+      if (!quote) {
+        return res.status(404).json({ message: 'Quote not found' });
+      }
+
+      // Determine text color from product name
+      const textColor = product.name.toLowerCase().includes('gold') ? 'gold' : 'white';
+      
+      // Build design URL using configurable base URL (Printful must be able to access externally)
+      const designUrl = `${DESIGN_BASE_URL}/api/designs/${product.quoteId}/${textColor}`;
+
+      // Generate mockup using Printful
+      console.log(`[MOCKUP] Generating mockup for product ${productId}, design URL: ${designUrl}`);
+      
+      // Use variant ID 4018 (L / Black) for mockup - a common size for display
+      const mockupUrl = await printfulService.createMockup(4018, designUrl);
+      
+      // Update product with mockup URL
+      await storage.updateProduct(productId, { imageUrl: mockupUrl });
+      
+      console.log(`[MOCKUP] Mockup generated and stored: ${mockupUrl}`);
+      
+      res.json({
+        success: true,
+        productId,
+        mockupUrl,
+        designUrl,
+      });
+    } catch (error: any) {
+      console.error('Generate mockup error:', error);
+      res.status(500).json({ message: error.message });
     }
   });
 
