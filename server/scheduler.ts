@@ -116,30 +116,57 @@ export async function selectWeeklyWinner() {
 
       // ALWAYS create products - try Printful first if available, fallback to demo
       try {
+          // Generate mockups FIRST so we can use them as thumbnails in Printful
+          let whiteMockupUrl: string | null = null;
+          let goldMockupUrl: string | null = null;
+          
+          if (printfulAvailable && printfulService) {
+            const whiteDesignUrl = `${DESIGN_BASE_URL}/api/designs/${topQuote.id}/white`;
+            const goldDesignUrl = `${DESIGN_BASE_URL}/api/designs/${topQuote.id}/gold`;
+            
+            // Generate white mockup
+            try {
+              console.log('[SCHEDULER] Generating white mockup before product creation...');
+              whiteMockupUrl = await printfulService.createMockup(4018, whiteDesignUrl);
+              console.log('[SCHEDULER] White mockup generated:', whiteMockupUrl);
+            } catch (mockupError: any) {
+              console.error('[SCHEDULER] White mockup generation failed:', mockupError.message);
+            }
+            
+            // Generate gold mockup
+            try {
+              console.log('[SCHEDULER] Generating gold mockup before product creation...');
+              goldMockupUrl = await printfulService.createMockup(4018, goldDesignUrl);
+              console.log('[SCHEDULER] Gold mockup generated:', goldMockupUrl);
+            } catch (mockupError: any) {
+              console.error('[SCHEDULER] Gold mockup generation failed:', mockupError.message);
+            }
+          }
 
           // Create WHITE text version (for store)
           console.log('[SCHEDULER] Creating white text product for store...');
           let printfulProduct = null;
           
           if (printfulAvailable && printfulService) {
-            // Try to create via Printful
+            // Try to create via Printful - pass mockup as thumbnail
             try {
               printfulProduct = await printfulService.createProduct(
                 topQuote.text,
                 authorName,
                 `quote-${topQuote.id}-white`,
                 'white',
-                topQuote.id
+                topQuote.id,
+                whiteMockupUrl || undefined
               );
 
-              // Create product in database with Printful data
+              // Create product in database with Printful data and mockup URL
               const productData = {
                 quoteId: topQuote.id,
                 weeklyWinnerId: winner.id,
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`,
                 description: `Quote by ${authorName}`,
                 price: '29.99',
-                imageUrl: null,
+                imageUrl: whiteMockupUrl,
                 printfulSyncProductId: printfulProduct.id,
                 printfulSyncVariants: printfulProduct,
                 isActive: true,
@@ -158,7 +185,7 @@ export async function selectWeeklyWinner() {
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`,
                 description: `Weekly Winner - Quote by ${authorName}`,
                 price: '29.99',
-                imageUrl: null,
+                imageUrl: whiteMockupUrl,
                 printfulSyncProductId: null,
                 printfulSyncVariants: null,
                 isActive: true,
@@ -197,17 +224,18 @@ export async function selectWeeklyWinner() {
                 authorName,
                 `quote-${topQuote.id}-gold`,
                 'gold',
-                topQuote.id
+                topQuote.id,
+                goldMockupUrl || undefined
               );
 
-              // Create winner's exclusive product in database
+              // Create winner's exclusive product in database with mockup
               const winnerProductData = {
                 quoteId: topQuote.id,
                 weeklyWinnerId: winner.id,
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
                 description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
                 price: '29.99',
-                imageUrl: null,
+                imageUrl: goldMockupUrl,
                 printfulSyncProductId: printfulWinnerProduct.id,
                 printfulSyncVariants: printfulWinnerProduct,
                 isActive: false, // Not for sale - winner exclusive
@@ -226,7 +254,7 @@ export async function selectWeeklyWinner() {
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
                 description: `Quote by ${authorName} - Exclusive Winner's Edition`,
                 price: '29.99',
-                imageUrl: null,
+                imageUrl: goldMockupUrl,
                 printfulSyncProductId: null,
                 printfulSyncVariants: null,
                 isActive: false, // Not for sale - winner exclusive
@@ -261,19 +289,8 @@ export async function selectWeeklyWinner() {
               winnerProductId: winnerProduct.id,
             });
           }
-
-          // Generate mockups for both products in the background
-          // This runs after products are created and won't block the winner flow
-          if (product) {
-            generateAndStoreMockup(product.id, topQuote.id, 'white')
-              .then(url => url && console.log('[SCHEDULER] White mockup ready'))
-              .catch(err => console.error('[SCHEDULER] White mockup failed:', err.message));
-          }
-          if (winnerProduct) {
-            generateAndStoreMockup(winnerProduct.id, topQuote.id, 'gold')
-              .then(url => url && console.log('[SCHEDULER] Gold mockup ready'))
-              .catch(err => console.error('[SCHEDULER] Gold mockup failed:', err.message));
-          }
+          
+          // No need for background mockup generation - we generated them upfront
 
           // Create complimentary order for the winner
           // Use gold product if available, otherwise fall back to white product

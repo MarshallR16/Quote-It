@@ -374,7 +374,7 @@ export class PrintfulService {
   /**
    * Create a sync product with variants and design file in Printful
    */
-  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string): Promise<PrintfulProduct> {
+  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string, thumbnailUrl?: string): Promise<PrintfulProduct> {
     try {
       console.log(`[PRINTFUL] Creating product for quote with ${textColor} text:`, quoteText.substring(0, 50) + '...');
       
@@ -387,6 +387,9 @@ export class PrintfulService {
       const designUrl = `${designBaseUrl}/api/designs/${actualQuoteId}/${textColor}`;
       
       console.log('[PRINTFUL] Design URL for Printful:', designUrl);
+      if (thumbnailUrl) {
+        console.log('[PRINTFUL] Thumbnail URL for Printful:', thumbnailUrl);
+      }
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
       // Variant IDs from Printful catalog for BLACK color (verified from API):
@@ -398,11 +401,19 @@ export class PrintfulService {
 
       const productName = `"${quoteText.substring(0, 50)}${quoteText.length > 50 ? '...' : ''}"`;
       
+      // Build sync_product with optional thumbnail
+      const syncProduct: any = {
+        name: productName,
+        external_id: externalId,
+      };
+      
+      // Add thumbnail URL if provided - this shows as the product image in Printful dashboard
+      if (thumbnailUrl) {
+        syncProduct.thumbnail_url = thumbnailUrl;
+      }
+      
       const data = {
-        sync_product: {
-          name: productName,
-          external_id: externalId,
-        },
+        sync_product: syncProduct,
         sync_variants: [
           { 
             variant_id: 4016, 
