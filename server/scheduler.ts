@@ -116,57 +116,30 @@ export async function selectWeeklyWinner() {
 
       // ALWAYS create products - try Printful first if available, fallback to demo
       try {
-          // Generate mockups FIRST so we can use them as thumbnails in Printful
-          let whiteMockupUrl: string | null = null;
-          let goldMockupUrl: string | null = null;
-          
-          if (printfulAvailable && printfulService) {
-            const whiteDesignUrl = `${DESIGN_BASE_URL}/api/designs/${topQuote.id}/white`;
-            const goldDesignUrl = `${DESIGN_BASE_URL}/api/designs/${topQuote.id}/gold`;
-            
-            // Generate white mockup
-            try {
-              console.log('[SCHEDULER] Generating white mockup before product creation...');
-              whiteMockupUrl = await printfulService.createMockup(4018, whiteDesignUrl);
-              console.log('[SCHEDULER] White mockup generated:', whiteMockupUrl);
-            } catch (mockupError: any) {
-              console.error('[SCHEDULER] White mockup generation failed:', mockupError.message);
-            }
-            
-            // Generate gold mockup
-            try {
-              console.log('[SCHEDULER] Generating gold mockup before product creation...');
-              goldMockupUrl = await printfulService.createMockup(4018, goldDesignUrl);
-              console.log('[SCHEDULER] Gold mockup generated:', goldMockupUrl);
-            } catch (mockupError: any) {
-              console.error('[SCHEDULER] Gold mockup generation failed:', mockupError.message);
-            }
-          }
-
           // Create WHITE text version (for store)
+          // Note: createProduct now uploads design directly to Printful's File Library
           console.log('[SCHEDULER] Creating white text product for store...');
           let printfulProduct = null;
           
           if (printfulAvailable && printfulService) {
-            // Try to create via Printful - pass mockup as thumbnail
+            // Try to create via Printful - design is uploaded directly to Printful
             try {
               printfulProduct = await printfulService.createProduct(
                 topQuote.text,
                 authorName,
                 `quote-${topQuote.id}-white`,
                 'white',
-                topQuote.id,
-                whiteMockupUrl || undefined
+                topQuote.id
               );
 
-              // Create product in database with Printful data and mockup URL
+              // Create product in database with Printful data
               const productData = {
                 quoteId: topQuote.id,
                 weeklyWinnerId: winner.id,
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`,
                 description: `Quote by ${authorName}`,
                 price: '29.99',
-                imageUrl: whiteMockupUrl,
+                imageUrl: null, // Will be fetched from Printful if needed
                 printfulSyncProductId: printfulProduct.id,
                 printfulSyncVariants: printfulProduct,
                 isActive: true,
@@ -185,7 +158,7 @@ export async function selectWeeklyWinner() {
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`,
                 description: `Weekly Winner - Quote by ${authorName}`,
                 price: '29.99',
-                imageUrl: whiteMockupUrl,
+                imageUrl: null,
                 printfulSyncProductId: null,
                 printfulSyncVariants: null,
                 isActive: true,
@@ -214,6 +187,7 @@ export async function selectWeeklyWinner() {
           }
 
           // Create GOLD text version (exclusive for winner)
+          // Note: createProduct now uploads design directly to Printful's File Library
           console.log('[SCHEDULER] Creating gold text product for winner...');
           let printfulWinnerProduct = null;
           
@@ -224,18 +198,17 @@ export async function selectWeeklyWinner() {
                 authorName,
                 `quote-${topQuote.id}-gold`,
                 'gold',
-                topQuote.id,
-                goldMockupUrl || undefined
+                topQuote.id
               );
 
-              // Create winner's exclusive product in database with mockup
+              // Create winner's exclusive product in database
               const winnerProductData = {
                 quoteId: topQuote.id,
                 weeklyWinnerId: winner.id,
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
                 description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
                 price: '29.99',
-                imageUrl: goldMockupUrl,
+                imageUrl: null,
                 printfulSyncProductId: printfulWinnerProduct.id,
                 printfulSyncVariants: printfulWinnerProduct,
                 isActive: false, // Not for sale - winner exclusive
@@ -254,7 +227,7 @@ export async function selectWeeklyWinner() {
                 name: `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
                 description: `Quote by ${authorName} - Exclusive Winner's Edition`,
                 price: '29.99',
-                imageUrl: goldMockupUrl,
+                imageUrl: null,
                 printfulSyncProductId: null,
                 printfulSyncVariants: null,
                 isActive: false, // Not for sale - winner exclusive

@@ -347,6 +347,45 @@ export class PrintfulService {
   }
 
   /**
+   * Upload SVG design directly to Printful's File Library
+   * Returns the file ID that can be used when creating products
+   */
+  async uploadDesignToFileLibrary(svgContent: string, filename: string): Promise<{ id: number; url: string; thumbnailUrl: string }> {
+    try {
+      console.log(`[PRINTFUL] Uploading design to File Library: ${filename}`);
+      
+      // Create form data with the SVG content as a file
+      const form = new FormData();
+      const svgBuffer = Buffer.from(svgContent, 'utf-8');
+      form.append('file', svgBuffer, {
+        filename: filename,
+        contentType: 'image/svg+xml',
+      });
+      
+      // Upload to Printful's File Library
+      const response = await axios.post(`${PRINTFUL_API_URL}/files`, form, {
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          ...form.getHeaders(),
+        },
+      });
+      
+      const result = response.data.result;
+      console.log(`[PRINTFUL] Design uploaded successfully. File ID: ${result.id}`);
+      console.log(`[PRINTFUL] File URL: ${result.url}`);
+      
+      return {
+        id: result.id,
+        url: result.url,
+        thumbnailUrl: result.thumbnail_url || result.preview_url || result.url,
+      };
+    } catch (error: any) {
+      console.error('[PRINTFUL] File upload error:', error.response?.data || error.message);
+      throw new Error(`Failed to upload design to Printful: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  /**
    * Upload SVG to Firebase Storage and return public URL (fallback)
    */
   private async uploadToFirebaseStorage(fileContent: string, fileName: string): Promise<string> {
@@ -373,23 +412,21 @@ export class PrintfulService {
 
   /**
    * Create a sync product with variants and design file in Printful
+   * Now uploads design directly to Printful's File Library for reliability
    */
   async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string, thumbnailUrl?: string): Promise<PrintfulProduct> {
     try {
       console.log(`[PRINTFUL] Creating product for quote with ${textColor} text:`, quoteText.substring(0, 50) + '...');
       
-      // Use configurable design base URL (defaults to production domain)
-      // Printful must be able to access this URL externally
-      const designBaseUrl = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
+      // Step 1: Generate the SVG design
+      console.log('[PRINTFUL] Generating SVG design...');
+      const svgContent = await this.generateDesignSVG(quoteText, author, textColor);
       
-      // Extract quote ID from external ID if not provided
-      const actualQuoteId = quoteId || externalId.replace('quote-', '').replace('-white', '').replace('-gold', '');
-      const designUrl = `${designBaseUrl}/api/designs/${actualQuoteId}/${textColor}`;
-      
-      console.log('[PRINTFUL] Design URL for Printful:', designUrl);
-      if (thumbnailUrl) {
-        console.log('[PRINTFUL] Thumbnail URL for Printful:', thumbnailUrl);
-      }
+      // Step 2: Upload the design directly to Printful's File Library
+      const filename = `quote-${quoteId || externalId}-${textColor}.svg`;
+      console.log('[PRINTFUL] Uploading design to Printful File Library...');
+      const uploadedFile = await this.uploadDesignToFileLibrary(svgContent, filename);
+      console.log(`[PRINTFUL] Design uploaded with File ID: ${uploadedFile.id}`);
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
       // Variant IDs from Printful catalog for BLACK color (verified from API):
@@ -401,16 +438,26 @@ export class PrintfulService {
 
       const productName = `"${quoteText.substring(0, 50)}${quoteText.length > 50 ? '...' : ''}"`;
       
-      // Build sync_product with optional thumbnail
+      // Build sync_product with thumbnail from the uploaded file
       const syncProduct: any = {
         name: productName,
         external_id: externalId,
+        thumbnail: uploadedFile.thumbnailUrl,
       };
       
-      // Add thumbnail URL if provided - this shows as the product image in Printful dashboard
-      if (thumbnailUrl) {
-        syncProduct.thumbnail_url = thumbnailUrl;
-      }
+      // File reference for all variants - using file ID instead of URL
+      const fileSpec = { 
+        id: uploadedFile.id,
+        type: 'front',
+        position: {
+          area_width: 1800,
+          area_height: 2400,
+          width: 1800,
+          height: 2160,
+          top: 120,
+          left: 0
+        }
+      };
       
       const data = {
         sync_product: syncProduct,
@@ -419,95 +466,39 @@ export class PrintfulService {
             variant_id: 4016, 
             retail_price: '29.99', 
             external_id: `${externalId}-S`,
-            files: [{ 
-              type: 'front', 
-              url: designUrl,
-              position: {
-                area_width: 1800,
-                area_height: 2400,
-                width: 1800,
-                height: 2160,
-                top: 120,
-                left: 0
-              }
-            }]
+            files: [fileSpec]
           },
           { 
             variant_id: 4017, 
             retail_price: '29.99', 
             external_id: `${externalId}-M`,
-            files: [{ 
-              type: 'front', 
-              url: designUrl,
-              position: {
-                area_width: 1800,
-                area_height: 2400,
-                width: 1800,
-                height: 2160,
-                top: 120,
-                left: 0
-              }
-            }]
+            files: [fileSpec]
           },
           { 
             variant_id: 4018, 
             retail_price: '29.99', 
             external_id: `${externalId}-L`,
-            files: [{ 
-              type: 'front', 
-              url: designUrl,
-              position: {
-                area_width: 1800,
-                area_height: 2400,
-                width: 1800,
-                height: 2160,
-                top: 120,
-                left: 0
-              }
-            }]
+            files: [fileSpec]
           },
           { 
             variant_id: 4019, 
             retail_price: '29.99', 
             external_id: `${externalId}-XL`,
-            files: [{ 
-              type: 'front', 
-              url: designUrl,
-              position: {
-                area_width: 1800,
-                area_height: 2400,
-                width: 1800,
-                height: 2160,
-                top: 120,
-                left: 0
-              }
-            }]
+            files: [fileSpec]
           },
           { 
             variant_id: 4020, 
             retail_price: '29.99', 
             external_id: `${externalId}-2XL`,
-            files: [{ 
-              type: 'front', 
-              url: designUrl,
-              position: {
-                area_width: 1800,
-                area_height: 2400,
-                width: 1800,
-                height: 2160,
-                top: 120,
-                left: 0
-              }
-            }]
+            files: [fileSpec]
           },
         ],
       };
 
-      console.log('[PRINTFUL] Creating product with data:', JSON.stringify(data, null, 2));
-      console.log('[PRINTFUL] Variant IDs being sent:', data.sync_variants.map(v => v.variant_id));
+      console.log('[PRINTFUL] Creating product with File ID:', uploadedFile.id);
+      console.log('[PRINTFUL] Variant IDs being sent:', data.sync_variants.map((v: any) => v.variant_id));
       const response = await printfulClient.post('/store/products', data);
       console.log('[PRINTFUL] Product created successfully:', response.data.result.id);
-      console.log('[PRINTFUL] Response:', JSON.stringify(response.data.result, null, 2));
       
       return response.data.result;
     } catch (error: any) {
