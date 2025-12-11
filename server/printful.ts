@@ -359,6 +359,49 @@ export class PrintfulService {
   }
 
   /**
+   * Verify that a design URL is accessible and returns valid SVG
+   * This MUST be called before creating Printful products to ensure designs work
+   */
+  async verifyDesignUrl(designUrl: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`[PRINTFUL] Verifying design URL is accessible: ${designUrl}`);
+      
+      const response = await axios.get(designUrl, { 
+        timeout: 15000,
+        validateStatus: (status) => true // Don't throw on any status
+      });
+      
+      if (response.status !== 200) {
+        const errorMsg = `Design URL returned status ${response.status}. The quote may not exist in the database.`;
+        console.error(`[PRINTFUL] Design URL verification FAILED: ${errorMsg}`);
+        return { success: false, error: errorMsg };
+      }
+      
+      const contentType = response.headers['content-type'] || '';
+      if (!contentType.includes('svg') && !contentType.includes('xml')) {
+        const errorMsg = `Design URL did not return SVG (got ${contentType}). Response may be an error page.`;
+        console.error(`[PRINTFUL] Design URL verification FAILED: ${errorMsg}`);
+        return { success: false, error: errorMsg };
+      }
+      
+      // Check that response contains valid SVG content
+      const content = typeof response.data === 'string' ? response.data : '';
+      if (!content.includes('<svg') || !content.includes('</svg>')) {
+        const errorMsg = 'Design URL response does not contain valid SVG content.';
+        console.error(`[PRINTFUL] Design URL verification FAILED: ${errorMsg}`);
+        return { success: false, error: errorMsg };
+      }
+      
+      console.log(`[PRINTFUL] Design URL verified successfully: ${designUrl}`);
+      return { success: true };
+    } catch (error: any) {
+      const errorMsg = `Failed to fetch design URL: ${error.message}`;
+      console.error(`[PRINTFUL] Design URL verification FAILED: ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
    * Upload SVG to Firebase Storage and return public URL (fallback)
    */
   private async uploadToFirebaseStorage(fileContent: string, fileName: string): Promise<string> {
@@ -386,6 +429,7 @@ export class PrintfulService {
   /**
    * Create a sync product with variants and design file in Printful
    * Uses the public design endpoint URL for Printful to fetch designs
+   * IMPORTANT: Verifies design URL is accessible before creating product
    */
   async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string): Promise<PrintfulProduct> {
     try {
@@ -394,6 +438,13 @@ export class PrintfulService {
       // Get the design URL that Printful will fetch from
       const designUrl = this.getDesignUrl(quoteId || externalId, textColor);
       console.log('[PRINTFUL] Design URL for Printful:', designUrl);
+      
+      // CRITICAL: Verify design URL is accessible BEFORE creating product
+      // This prevents creating products that Printful can't render mockups for
+      const verification = await this.verifyDesignUrl(designUrl);
+      if (!verification.success) {
+        throw new Error(`DESIGN URL NOT ACCESSIBLE: ${verification.error}. Cannot create Printful product without a valid design. Make sure the quote exists in the production database.`);
+      }
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
       // Variant IDs from Printful catalog for BLACK color (verified from API):
