@@ -237,8 +237,8 @@ export default function ProfilePage() {
     : "recently";
 
   return (
-    <div className="min-h-screen pb-20 md:pb-8 pt-16">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen pb-20 md:pb-8 pt-16 overflow-x-hidden">
+      <div className="max-w-4xl mx-auto px-4 py-8 overflow-hidden">
         <div className="grid gap-6 md:grid-cols-3">
           {/* User Stats - Sticky on desktop */}
           <div className="md:col-span-1">
