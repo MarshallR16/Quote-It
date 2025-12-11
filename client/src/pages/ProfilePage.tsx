@@ -3,13 +3,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import UserStats from "@/components/UserStats";
 import QuoteCard from "@/components/QuoteCard";
+import WinnerCelebrationModal from "@/components/WinnerCelebrationModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDistanceToNow } from "date-fns";
-import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy, Upload, X, Trash2, AlertTriangle, HelpCircle } from "lucide-react";
+import { Package, Loader2, LogOut, Settings, Share2, Copy, Check, Flame, Trophy, Upload, X, Trash2, AlertTriangle, HelpCircle, Gift } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth, uploadProfileImage } from "@/lib/firebase";
 import { useLocation } from "wouter";
@@ -37,6 +38,7 @@ export default function ProfilePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [showClaimModal, setShowClaimModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: userQuotes = [], isLoading: quotesLoading } = useQuery<QuoteWithAuthor[]>({
@@ -64,6 +66,20 @@ export default function ProfilePage() {
     queryKey: ["/api/followers"],
     enabled: !!user?.id,
   });
+
+  const { data: complimentaryOrders = [] } = useQuery<any[]>({
+    queryKey: ["/api/orders/my-complimentary"],
+    enabled: !!user?.id,
+  });
+
+  const { data: winnerOrderData } = useQuery<any>({
+    queryKey: ["/api/winner/pending-order"],
+    enabled: !!user?.id,
+  });
+
+  const pendingFreeShirt = complimentaryOrders.find(
+    (order) => order.status === "awaiting_address"
+  );
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -341,6 +357,32 @@ export default function ProfilePage() {
                       <div className="text-sm text-muted-foreground">Used</div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Free Shirt Claim Section */}
+            {pendingFreeShirt && (
+              <Card data-testid="card-free-shirt" className="border-yellow-500 bg-gradient-to-r from-yellow-500/10 to-orange-500/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+                    <Gift className="w-5 h-5" />
+                    Congratulations, Winner!
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Your quote won this week's competition! You've earned a FREE exclusive gold-lettered T-shirt. 
+                    Claim it now by providing your shipping information.
+                  </p>
+                  <Button
+                    onClick={() => setShowClaimModal(true)}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white"
+                    data-testid="button-claim-free-shirt"
+                  >
+                    <Gift className="w-4 h-4 mr-2" />
+                    Claim Your Free Shirt
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -671,6 +713,17 @@ export default function ProfilePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Winner Celebration Modal for claiming free shirt */}
+      <WinnerCelebrationModal
+        open={showClaimModal}
+        orderData={winnerOrderData}
+        onComplete={() => {
+          setShowClaimModal(false);
+          queryClient.invalidateQueries({ queryKey: ["/api/orders/my-complimentary"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/winner/pending-order"] });
+        }}
+      />
     </div>
   );
 }
