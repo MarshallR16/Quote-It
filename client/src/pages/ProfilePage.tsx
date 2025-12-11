@@ -237,9 +237,9 @@ export default function ProfilePage() {
     : "recently";
 
   return (
-    <div className="min-h-screen pb-20 md:pb-8 pt-16 overflow-x-hidden">
-      <div className="max-w-4xl mx-auto px-4 py-8 overflow-hidden">
-        <div className="grid gap-6 md:grid-cols-3">
+    <div className="min-h-screen pb-20 md:pb-8 pt-16 w-full">
+      <div className="w-full max-w-4xl mx-auto px-4 py-8">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-3 w-full">
           {/* User Stats - Sticky on desktop */}
           <div className="md:col-span-1">
             <div className="md:sticky md:top-24">
@@ -317,7 +317,7 @@ export default function ProfilePage() {
                     Share your referral code! Each person who signs up gives you one 10% off purchase.
                   </p>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-muted rounded-md px-4 py-3 font-mono text-lg font-bold">
+                    <div className="flex-1 min-w-0 bg-muted rounded-md px-4 py-3 font-mono text-lg font-bold truncate">
                       {user.referralCode}
                     </div>
                     <Button
