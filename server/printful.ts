@@ -185,11 +185,11 @@ export class PrintfulService {
   /**
    * Public method to generate SVG design (for serving via API endpoint)
    */
-  async generateDesignSVGPublic(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white'): Promise<string> {
-    return this.generateDesignSVG(quoteText, author, textColor);
+  async generateDesignSVGPublic(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white', includeAuthor: boolean = true): Promise<string> {
+    return this.generateDesignSVG(quoteText, author, textColor, includeAuthor);
   }
 
-  private async generateDesignSVG(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white'): Promise<string> {
+  private async generateDesignSVG(quoteText: string, author: string, textColor: 'white' | 'gold' = 'white', includeAuthor: boolean = true): Promise<string> {
     // Use custom domain for QR code on all shirts
     const appUrl = 'https://quote-it.co';
 
@@ -216,8 +216,10 @@ export class PrintfulService {
     // Calculate heights for vertical centering
     const quoteBlockHeight = quoteFontSize + (wrappedLines.length - 1) * lineSpacing;
     
-    // Total content height (QR is now inline with author, not below)
-    const totalContentHeight = quoteBlockHeight + gapBetweenQuoteAndAuthor + authorFontSize;
+    // Total content height depends on whether we include author
+    const totalContentHeight = includeAuthor 
+      ? quoteBlockHeight + gapBetweenQuoteAndAuthor + authorFontSize
+      : quoteBlockHeight + gapBetweenQuoteAndAuthor + qrSize; // QR below quote when no author
     
     // Position design in upper-middle area of the shirt (42% down for good T-shirt placement)
     const designCenterY = canvasHeight * 0.42;
@@ -236,23 +238,37 @@ export class PrintfulService {
       return `<tspan x="${canvasCenterX}" dy="${isFirst ? '0' : lineSpacing}">${openQuote}${this.escapeXml(line)}${closeQuote}</tspan>`;
     }).join('\n    ');
 
-    // Position author below the last line of the quote
+    // Position elements below the quote
     const lastQuoteLineY = quoteStartY + (wrappedLines.length - 1) * lineSpacing;
-    const authorY = lastQuoteLineY + gapBetweenQuoteAndAuthor + authorFontSize;
     
-    // Author text with em dash
-    const authorWithDash = `\u2014${this.escapeXml(author)}`;
+    let authorSection = '';
+    let qrX: number;
+    let qrY: number;
     
-    // Calculate author text width to position QR code inline after it
-    const authorTextWidth = this.estimateTextWidth(authorWithDash, authorFontSize);
-    
-    // Position QR code inline, right after the author name
-    // Author text is centered, so we calculate from center + half author width + gap
-    const qrX = canvasCenterX + (authorTextWidth / 2) + qrGap;
-    // Vertically center QR with the author text baseline
-    const qrY = authorY - qrSize + 20; // Offset to align with text baseline
+    if (includeAuthor && author) {
+      // Author text with em dash
+      const authorWithDash = `\u2014${this.escapeXml(author)}`;
+      const authorY = lastQuoteLineY + gapBetweenQuoteAndAuthor + authorFontSize;
+      
+      // Calculate author text width to position QR code inline after it
+      const authorTextWidth = this.estimateTextWidth(authorWithDash, authorFontSize);
+      
+      // Position QR code inline, right after the author name
+      qrX = canvasCenterX + (authorTextWidth / 2) + qrGap;
+      qrY = authorY - qrSize + 20; // Offset to align with text baseline
+      
+      authorSection = `
+  <!-- Author name with em dash (centered, same color as quote) -->
+  <text x="${canvasCenterX}" y="${authorY}" font-family="Georgia, 'Times New Roman', serif" font-size="${authorFontSize}" text-anchor="middle" fill="${textColorHex}">
+    ${authorWithDash}
+  </text>`;
+    } else {
+      // No author - center QR code below the quote
+      qrX = canvasCenterX - (qrSize / 2);
+      qrY = lastQuoteLineY + gapBetweenQuoteAndAuthor;
+    }
 
-    // Create SVG with quote text, author, and QR code inline
+    // Create SVG with quote text, optionally author, and QR code
     // Background is transparent - will print on black shirt
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="4500" height="5400" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -263,13 +279,8 @@ export class PrintfulService {
   <text x="${canvasCenterX}" y="${quoteStartY}" font-family="Georgia, 'Times New Roman', serif" font-size="${quoteFontSize}" font-weight="normal" text-anchor="middle" fill="${textColorHex}">
     ${quoteTspans}
   </text>
-  
-  <!-- Author name with em dash (centered, same color as quote) -->
-  <text x="${canvasCenterX}" y="${authorY}" font-family="Georgia, 'Times New Roman', serif" font-size="${authorFontSize}" text-anchor="middle" fill="${textColorHex}">
-    ${authorWithDash}
-  </text>
-  
-  <!-- QR Code (inline after author name) -->
+  ${authorSection}
+  <!-- QR Code ${includeAuthor ? '(inline after author name)' : '(centered below quote)'} -->
   <image x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" xlink:href="${qrCodeDataUrl}"/>
 </svg>`;
 

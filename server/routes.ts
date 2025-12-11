@@ -82,13 +82,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/designs/:quoteId/:textColor', async (req, res) => {
     try {
       const { quoteId, textColor } = req.params;
+      const includeAuthor = req.query.includeAuthor !== 'false'; // Default to true
       
       // Validate text color
       if (textColor !== 'white' && textColor !== 'gold') {
         return res.status(400).json({ message: 'Invalid text color' });
       }
       
-      console.log(`[DESIGN] Request for quoteId=${quoteId}, textColor=${textColor}`);
+      console.log(`[DESIGN] Request for quoteId=${quoteId}, textColor=${textColor}, includeAuthor=${includeAuthor}`);
       
       // Get the quote - this is the only check needed since:
       // 1. Quote text is already publicly visible on the site
@@ -100,14 +101,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Not found' });
       }
       
-      // Get the author
-      const author = await storage.getUser(quote.authorId);
-      const authorName = author 
-        ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Anonymous'
-        : 'Anonymous';
+      // Get the author (only needed if including attribution)
+      let authorName = '';
+      if (includeAuthor) {
+        const author = await storage.getUser(quote.authorId);
+        authorName = author 
+          ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Anonymous'
+          : 'Anonymous';
+      }
       
       // Generate the SVG design with sanitized input
-      const svg = await printfulService.generateDesignSVGPublic(quote.text, authorName, textColor as 'white' | 'gold');
+      const svg = await printfulService.generateDesignSVGPublic(quote.text, authorName, textColor as 'white' | 'gold', includeAuthor);
       
       // Convert SVG to PNG using sharp - Printful requires raster images (PNG/JPG), not SVG
       // The SVG is 4500x5400 pixels which is high resolution for print
