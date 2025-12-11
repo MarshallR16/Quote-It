@@ -464,9 +464,11 @@ export class PrintfulService {
       };
       
       // File reference for all variants - Printful fetches from the public URL
+      // CRITICAL: type must be 'default' for print files, placement specifies front/back
       const fileSpec = { 
         url: designUrl,
-        type: 'front',
+        type: 'default',
+        placement: 'front',
         position: {
           area_width: 1800,
           area_height: 2400,
