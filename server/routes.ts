@@ -11,6 +11,7 @@ import { sql } from "drizzle-orm";
 import { users } from "@shared/schema";
 import { selectWeeklyWinner } from "./scheduler";
 import sharp from "sharp";
+import { containsBlockedContent } from "./contentFilter";
 
 // Stripe will be initialized when keys are provided
 let stripe: Stripe | null = null;
@@ -467,6 +468,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (text.length > 280) {
         return res.status(400).json({ message: "Quote must be 280 characters or less" });
+      }
+
+      // Check for blocked content (slurs/derogatory terms)
+      const contentCheck = containsBlockedContent(text);
+      if (contentCheck.blocked) {
+        return res.status(400).json({ message: contentCheck.reason });
       }
 
       // Atomically check limit, increment counter, and create quote in a single transaction
