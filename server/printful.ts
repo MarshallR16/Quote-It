@@ -347,42 +347,15 @@ export class PrintfulService {
   }
 
   /**
-   * Upload SVG design directly to Printful's File Library
-   * Returns the file ID that can be used when creating products
+   * Get the design URL for a quote
+   * On production, Printful fetches from the public design endpoint
+   * Falls back to base64 data URL if no production URL available
    */
-  async uploadDesignToFileLibrary(svgContent: string, filename: string): Promise<{ id: number; url: string; thumbnailUrl: string }> {
-    try {
-      console.log(`[PRINTFUL] Uploading design to File Library: ${filename}`);
-      
-      // Create form data with the SVG content as a file
-      const form = new FormData();
-      const svgBuffer = Buffer.from(svgContent, 'utf-8');
-      form.append('file', svgBuffer, {
-        filename: filename,
-        contentType: 'image/svg+xml',
-      });
-      
-      // Upload to Printful's File Library
-      const response = await axios.post(`${PRINTFUL_API_URL}/files`, form, {
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          ...form.getHeaders(),
-        },
-      });
-      
-      const result = response.data.result;
-      console.log(`[PRINTFUL] Design uploaded successfully. File ID: ${result.id}`);
-      console.log(`[PRINTFUL] File URL: ${result.url}`);
-      
-      return {
-        id: result.id,
-        url: result.url,
-        thumbnailUrl: result.thumbnail_url || result.preview_url || result.url,
-      };
-    } catch (error: any) {
-      console.error('[PRINTFUL] File upload error:', error.response?.data || error.message);
-      throw new Error(`Failed to upload design to Printful: ${error.response?.data?.error?.message || error.message}`);
-    }
+  getDesignUrl(quoteId: string, textColor: 'white' | 'gold'): string {
+    // Use production URL for Printful to fetch designs
+    // DESIGN_BASE_URL should be set to https://quote-it.co in production
+    const baseUrl = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
+    return `${baseUrl}/api/designs/${quoteId}/${textColor}`;
   }
 
   /**
@@ -412,21 +385,15 @@ export class PrintfulService {
 
   /**
    * Create a sync product with variants and design file in Printful
-   * Now uploads design directly to Printful's File Library for reliability
+   * Uses the public design endpoint URL for Printful to fetch designs
    */
-  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string, thumbnailUrl?: string): Promise<PrintfulProduct> {
+  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string): Promise<PrintfulProduct> {
     try {
       console.log(`[PRINTFUL] Creating product for quote with ${textColor} text:`, quoteText.substring(0, 50) + '...');
       
-      // Step 1: Generate the SVG design
-      console.log('[PRINTFUL] Generating SVG design...');
-      const svgContent = await this.generateDesignSVG(quoteText, author, textColor);
-      
-      // Step 2: Upload the design directly to Printful's File Library
-      const filename = `quote-${quoteId || externalId}-${textColor}.svg`;
-      console.log('[PRINTFUL] Uploading design to Printful File Library...');
-      const uploadedFile = await this.uploadDesignToFileLibrary(svgContent, filename);
-      console.log(`[PRINTFUL] Design uploaded with File ID: ${uploadedFile.id}`);
+      // Get the design URL that Printful will fetch from
+      const designUrl = this.getDesignUrl(quoteId || externalId, textColor);
+      console.log('[PRINTFUL] Design URL for Printful:', designUrl);
 
       // For T-shirts, we'll use Bella+Canvas 3001 (common high-quality unisex tee)
       // Variant IDs from Printful catalog for BLACK color (verified from API):
@@ -438,16 +405,16 @@ export class PrintfulService {
 
       const productName = `"${quoteText.substring(0, 50)}${quoteText.length > 50 ? '...' : ''}"`;
       
-      // Build sync_product with thumbnail from the uploaded file
+      // Build sync_product
       const syncProduct: any = {
         name: productName,
         external_id: externalId,
-        thumbnail: uploadedFile.thumbnailUrl,
+        thumbnail: designUrl,
       };
       
-      // File reference for all variants - using file ID instead of URL
+      // File reference for all variants - Printful fetches from the public URL
       const fileSpec = { 
-        id: uploadedFile.id,
+        url: designUrl,
         type: 'front',
         position: {
           area_width: 1800,
@@ -495,7 +462,7 @@ export class PrintfulService {
         ],
       };
 
-      console.log('[PRINTFUL] Creating product with File ID:', uploadedFile.id);
+      console.log('[PRINTFUL] Creating product with design URL:', designUrl);
       console.log('[PRINTFUL] Variant IDs being sent:', data.sync_variants.map((v: any) => v.variant_id));
       const response = await printfulClient.post('/store/products', data);
       console.log('[PRINTFUL] Product created successfully:', response.data.result.id);
