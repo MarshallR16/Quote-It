@@ -87,25 +87,25 @@ export default function QuoteCard({
       <blockquote className="text-2xl font-medium leading-tight mb-4">
         "<QuoteText text={content} />"
       </blockquote>
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <Avatar className="w-8 h-8" data-testid={`avatar-author-${id}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0 flex-shrink">
+          <Avatar className="w-8 h-8 flex-shrink-0" data-testid={`avatar-author-${id}`}>
             <AvatarImage src={authorProfileImageUrl || undefined} alt={author} />
             <AvatarFallback>
               <User className="w-4 h-4" />
             </AvatarFallback>
           </Avatar>
-          <div>
+          <div className="min-w-0">
             {authorId ? (
               <button
                 onClick={handleAuthorClick}
-                className="text-sm font-medium mb-1 hover:underline text-left"
+                className="text-sm font-medium mb-1 hover:underline text-left truncate block max-w-[150px] sm:max-w-[200px]"
                 data-testid="text-author"
               >
                 {author}
               </button>
             ) : (
-              <p className="text-sm font-medium mb-1" data-testid="text-author">
+              <p className="text-sm font-medium mb-1 truncate max-w-[150px] sm:max-w-[200px]" data-testid="text-author">
                 {author}
               </p>
             )}
@@ -114,7 +114,7 @@ export default function QuoteCard({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {isOwner && (
             <Button
               size="icon"
