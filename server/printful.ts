@@ -363,11 +363,12 @@ export class PrintfulService {
    * On production, Printful fetches from the public design endpoint
    * Falls back to base64 data URL if no production URL available
    */
-  getDesignUrl(quoteId: string, textColor: 'white' | 'gold'): string {
+  getDesignUrl(quoteId: string, textColor: 'white' | 'gold', includeAuthor: boolean = true): string {
     // Use production URL for Printful to fetch designs
     // DESIGN_BASE_URL should be set to https://quote-it.co in production
     const baseUrl = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
-    return `${baseUrl}/api/designs/${quoteId}/${textColor}`;
+    const authorParam = includeAuthor ? '' : '?includeAuthor=false';
+    return `${baseUrl}/api/designs/${quoteId}/${textColor}${authorParam}`;
   }
 
   /**
@@ -444,12 +445,12 @@ export class PrintfulService {
    * Uses the public design endpoint URL for Printful to fetch designs
    * IMPORTANT: Verifies design URL is accessible before creating product
    */
-  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string): Promise<PrintfulProduct> {
+  async createProduct(quoteText: string, author: string, externalId: string, textColor: 'white' | 'gold' = 'white', quoteId?: string, includeAuthor: boolean = true): Promise<PrintfulProduct> {
     try {
-      console.log(`[PRINTFUL] Creating product for quote with ${textColor} text:`, quoteText.substring(0, 50) + '...');
+      console.log(`[PRINTFUL] Creating product for quote with ${textColor} text, includeAuthor=${includeAuthor}:`, quoteText.substring(0, 50) + '...');
       
       // Get the design URL that Printful will fetch from
-      const designUrl = this.getDesignUrl(quoteId || externalId, textColor);
+      const designUrl = this.getDesignUrl(quoteId || externalId, textColor, includeAuthor);
       console.log('[PRINTFUL] Design URL for Printful:', designUrl);
       
       // CRITICAL: Verify design URL is accessible BEFORE creating product
