@@ -10,6 +10,7 @@ import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { users } from "@shared/schema";
 import { selectWeeklyWinner } from "./scheduler";
+import sharp from "sharp";
 
 // Stripe will be initialized when keys are provided
 let stripe: Stripe | null = null;
@@ -72,10 +73,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test Printful connection on startup
   testPrintfulOnStartup();
   
-  // Endpoint to serve SVG designs for Printful
+  // Endpoint to serve PNG designs for Printful
   // This endpoint serves designs that Printful fetches when creating products.
   // The design is just styled text from publicly-visible quotes, so no sensitive data is exposed.
   // Quote IDs are UUIDs which cannot be enumerated.
+  // IMPORTANT: Returns PNG (not SVG) because Printful requires raster images for DTG apparel
   app.get('/api/designs/:quoteId/:textColor', async (req, res) => {
     try {
       const { quoteId, textColor } = req.params;
@@ -106,10 +108,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate the SVG design with sanitized input
       const svg = await printfulService.generateDesignSVGPublic(quote.text, authorName, textColor as 'white' | 'gold');
       
-      // Return as SVG
-      res.setHeader('Content-Type', 'image/svg+xml');
+      // Convert SVG to PNG using sharp - Printful requires raster images (PNG/JPG), not SVG
+      // The SVG is 4500x5400 pixels which is high resolution for print
+      console.log(`[DESIGN] Converting SVG to PNG for quoteId=${quoteId}`);
+      const pngBuffer = await sharp(Buffer.from(svg))
+        .png()
+        .toBuffer();
+      
+      console.log(`[DESIGN] PNG generated successfully, size: ${pngBuffer.length} bytes`);
+      
+      // Return as PNG
+      res.setHeader('Content-Type', 'image/png');
       res.setHeader('Cache-Control', 'public, max-age=31536000');
-      res.send(svg);
+      res.send(pngBuffer);
     } catch (error: any) {
       console.error('Error generating design:', error);
       // Return generic error to prevent information disclosure

@@ -359,7 +359,7 @@ export class PrintfulService {
   }
 
   /**
-   * Verify that a design URL is accessible and returns valid SVG
+   * Verify that a design URL is accessible and returns valid PNG
    * This MUST be called before creating Printful products to ensure designs work
    */
   async verifyDesignUrl(designUrl: string): Promise<{ success: boolean; error?: string }> {
@@ -367,7 +367,8 @@ export class PrintfulService {
       console.log(`[PRINTFUL] Verifying design URL is accessible: ${designUrl}`);
       
       const response = await axios.get(designUrl, { 
-        timeout: 15000,
+        timeout: 30000, // PNG files are larger, need more time
+        responseType: 'arraybuffer', // Get binary data for PNG
         validateStatus: (status) => true // Don't throw on any status
       });
       
@@ -378,21 +379,21 @@ export class PrintfulService {
       }
       
       const contentType = response.headers['content-type'] || '';
-      if (!contentType.includes('svg') && !contentType.includes('xml')) {
-        const errorMsg = `Design URL did not return SVG (got ${contentType}). Response may be an error page.`;
+      if (!contentType.includes('png') && !contentType.includes('image')) {
+        const errorMsg = `Design URL did not return PNG (got ${contentType}). Response may be an error page.`;
         console.error(`[PRINTFUL] Design URL verification FAILED: ${errorMsg}`);
         return { success: false, error: errorMsg };
       }
       
-      // Check that response contains valid SVG content
-      const content = typeof response.data === 'string' ? response.data : '';
-      if (!content.includes('<svg') || !content.includes('</svg>')) {
-        const errorMsg = 'Design URL response does not contain valid SVG content.';
+      // Check that response is a reasonable PNG size (should be several MB for high-res print)
+      const size = response.data?.byteLength || 0;
+      if (size < 10000) { // Less than 10KB is definitely not a valid high-res PNG
+        const errorMsg = `Design URL returned data that's too small to be a valid print file (${size} bytes).`;
         console.error(`[PRINTFUL] Design URL verification FAILED: ${errorMsg}`);
         return { success: false, error: errorMsg };
       }
       
-      console.log(`[PRINTFUL] Design URL verified successfully: ${designUrl}`);
+      console.log(`[PRINTFUL] Design URL verified successfully: ${designUrl} (${size} bytes)`);
       return { success: true };
     } catch (error: any) {
       const errorMsg = `Failed to fetch design URL: ${error.message}`;
