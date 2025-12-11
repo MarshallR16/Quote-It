@@ -198,9 +198,8 @@ export class PrintfulService {
     // Wrap quote text to fit nicely on the shirt (40 chars per line)
     const wrappedLines = this.wrapText(quoteText, 40);
     
-    // Set text colors based on version
-    const quoteColor = textColor === 'gold' ? '#FFD700' : '#FFFFFF';
-    const authorColor = textColor === 'gold' ? '#DAA520' : '#CCCCCC';
+    // Set text colors based on version - author name matches quote color
+    const textColorHex = textColor === 'gold' ? '#FFD700' : '#FFFFFF';
     
     // Canvas dimensions: 4500x5400px (Printful recommended for 18"x24" print area)
     const canvasHeight = 5400;
@@ -210,15 +209,15 @@ export class PrintfulService {
     const quoteFontSize = 180;
     const lineSpacing = 220;
     const authorFontSize = 120;
-    const qrSize = 400;
+    const qrSize = 150; // Smaller QR code to fit inline with author
     const gapBetweenQuoteAndAuthor = 300;
-    const gapBetweenAuthorAndQR = 150;
+    const qrGap = 40; // Gap between author text and QR code
     
     // Calculate heights for vertical centering
     const quoteBlockHeight = quoteFontSize + (wrappedLines.length - 1) * lineSpacing;
     
-    // Total content height (always put QR below author for consistency and simplicity)
-    const totalContentHeight = quoteBlockHeight + gapBetweenQuoteAndAuthor + authorFontSize + gapBetweenAuthorAndQR + qrSize;
+    // Total content height (QR is now inline with author, not below)
+    const totalContentHeight = quoteBlockHeight + gapBetweenQuoteAndAuthor + authorFontSize;
     
     // Position design in upper-middle area of the shirt (42% down for good T-shirt placement)
     const designCenterY = canvasHeight * 0.42;
@@ -238,20 +237,22 @@ export class PrintfulService {
     }).join('\n    ');
 
     // Position author below the last line of the quote
-    // Text Y coordinate is the baseline, so we add authorFontSize to position below the quote baseline
     const lastQuoteLineY = quoteStartY + (wrappedLines.length - 1) * lineSpacing;
     const authorY = lastQuoteLineY + gapBetweenQuoteAndAuthor + authorFontSize;
     
-    // Position QR code centered below the author
-    // Since author text uses baseline positioning, the text renders above authorY
-    // QR y coordinate is top-left corner, so we position it below the author baseline
-    const qrX = canvasCenterX - (qrSize / 2);
-    const qrY = authorY + gapBetweenAuthorAndQR;
-
     // Author text with em dash
     const authorWithDash = `\u2014${this.escapeXml(author)}`;
+    
+    // Calculate author text width to position QR code inline after it
+    const authorTextWidth = this.estimateTextWidth(authorWithDash, authorFontSize);
+    
+    // Position QR code inline, right after the author name
+    // Author text is centered, so we calculate from center + half author width + gap
+    const qrX = canvasCenterX + (authorTextWidth / 2) + qrGap;
+    // Vertically center QR with the author text baseline
+    const qrY = authorY - qrSize + 20; // Offset to align with text baseline
 
-    // Create SVG with quote text, author, and QR code
+    // Create SVG with quote text, author, and QR code inline
     // Background is transparent - will print on black shirt
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="4500" height="5400" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -259,16 +260,16 @@ export class PrintfulService {
   <rect width="4500" height="5400" fill="none"/>
   
   <!-- Quote text (centered, large, wrapped, serif font) -->
-  <text x="${canvasCenterX}" y="${quoteStartY}" font-family="Georgia, 'Times New Roman', serif" font-size="${quoteFontSize}" font-weight="normal" text-anchor="middle" fill="${quoteColor}">
+  <text x="${canvasCenterX}" y="${quoteStartY}" font-family="Georgia, 'Times New Roman', serif" font-size="${quoteFontSize}" font-weight="normal" text-anchor="middle" fill="${textColorHex}">
     ${quoteTspans}
   </text>
   
-  <!-- Author name with em dash (centered) -->
-  <text x="${canvasCenterX}" y="${authorY}" font-family="Georgia, 'Times New Roman', serif" font-size="${authorFontSize}" text-anchor="middle" fill="${authorColor}">
+  <!-- Author name with em dash (centered, same color as quote) -->
+  <text x="${canvasCenterX}" y="${authorY}" font-family="Georgia, 'Times New Roman', serif" font-size="${authorFontSize}" text-anchor="middle" fill="${textColorHex}">
     ${authorWithDash}
   </text>
   
-  <!-- QR Code (centered below author) -->
+  <!-- QR Code (inline after author name) -->
   <image x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" xlink:href="${qrCodeDataUrl}"/>
 </svg>`;
 
