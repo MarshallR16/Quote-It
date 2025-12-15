@@ -100,10 +100,14 @@ export default function AdminPage() {
 
   const syncGoldProductMutation = useMutation({
     mutationFn: async () => {
+      console.log("[ADMIN FE] Starting sync gold product request...");
       const res = await apiRequest("POST", "/api/admin/sync-gold-product", {});
-      return await res.json();
+      const data = await res.json();
+      console.log("[ADMIN FE] Sync response:", data);
+      return data;
     },
     onSuccess: (data) => {
+      console.log("[ADMIN FE] onSuccess called with:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/weekly-winner/current"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
