@@ -1216,170 +1216,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // === 1. GOLD PRODUCT (winner exclusive, NOT for sale) ===
-      // Mirror white product flow exactly: reuse existing or create new
+      // Identical to white product creation - just different text color
       console.log(`[ADMIN] Processing Gold Edition product...`);
-      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${goldExternalId}`);
       let existingGoldPrintful = await printfulService.findProductByExternalId(goldExternalId);
       let printfulGoldProduct: any = null;
 
       if (existingGoldPrintful) {
-        console.log(`[ADMIN] Found existing gold product in Printful:`, JSON.stringify(existingGoldPrintful?.sync_product || existingGoldPrintful, null, 2).substring(0, 500));
-        const existingSyncProductId = existingGoldPrintful.sync_product?.id;
-        console.log(`[ADMIN] Gold product exists: ${existingSyncProductId}`);
-        // Reuse existing product (same as white flow - no update needed)
+        console.log(`[ADMIN] Found existing gold product in Printful: ${existingGoldPrintful.sync_product?.id}`);
         printfulGoldProduct = existingGoldPrintful;
       } else {
-        console.log(`[ADMIN] No existing gold product found in Printful, creating new one...`);
-        try {
-          printfulGoldProduct = await printfulService.createProduct(
-            winner.quoteText, authorName, goldExternalId, 'gold', winner.quoteId, true
-          );
-          console.log(`[ADMIN] Created gold product:`, JSON.stringify(printfulGoldProduct, null, 2).substring(0, 500));
-        } catch (e: any) {
-          console.error(`[ADMIN] Failed to create gold product: ${e.message}`);
-        }
+        console.log(`[ADMIN] Creating gold product in Printful...`);
+        // NO try/catch - let errors propagate so we can see what's wrong
+        printfulGoldProduct = await printfulService.createProduct(
+          winner.quoteText, authorName, goldExternalId, 'gold', winner.quoteId, true
+        );
+        console.log(`[ADMIN] Created gold product: ${printfulGoldProduct?.id}`);
       }
 
-      // Only save to DB if we have a valid Printful product (same pattern as white)
-      if (printfulGoldProduct) {
-        // Extract sync ID - handle both response formats (keep as integer for DB)
-        const goldSyncId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
-        console.log(`[ADMIN] Gold sync ID extracted: ${goldSyncId} (type: ${typeof goldSyncId})`);
-        
-        // Guard: Only save if we have a valid sync ID
-        if (!goldSyncId) {
-          console.error(`[ADMIN] Gold product created but no sync ID returned - skipping DB save`);
-        } else {
-          // Update or create gold product in database
-          if (existingGoldDbProduct) {
-            console.log(`[ADMIN] Updating existing DB product ${existingGoldDbProduct.id} with Printful sync ID: ${goldSyncId}`);
-            await storage.updateProduct(existingGoldDbProduct.id, {
-              printfulSyncProductId: goldSyncId,
-              printfulSyncVariants: printfulGoldProduct,
-              isActive: false // Gold is winner exclusive
-            });
-            results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncId, updated: true };
-          } else {
-            const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - Gold Edition`;
-            console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${goldSyncId}`);
-            const newProduct = await storage.createProduct({
-              quoteId: winner.quoteId,
-              name: productName,
-              description: `Winner's exclusive gold edition t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
-              price: '29.99',
-              imageUrl: null,
-              isActive: false, // Gold is winner exclusive
-              printfulSyncProductId: goldSyncId,
-              printfulSyncVariants: printfulGoldProduct,
-            });
-            results.goldProduct = { id: newProduct.id, printfulId: goldSyncId, created: true };
-          }
-        }
+      // Extract sync ID and save to DB
+      const goldSyncId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
+      if (!goldSyncId) {
+        throw new Error('Gold product creation failed - no sync ID returned from Printful');
       }
+      
+      if (existingGoldDbProduct) {
+        await storage.updateProduct(existingGoldDbProduct.id, {
+          printfulSyncProductId: goldSyncId,
+          printfulSyncVariants: printfulGoldProduct,
+          isActive: false
+        });
+        results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncId, updated: true };
+      } else {
+        const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - Gold Edition`;
+        const newProduct = await storage.createProduct({
+          quoteId: winner.quoteId,
+          name: productName,
+          description: `Winner's exclusive gold edition t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
+          price: '29.99',
+          imageUrl: null,
+          isActive: false,
+          printfulSyncProductId: goldSyncId,
+          printfulSyncVariants: printfulGoldProduct,
+        });
+        results.goldProduct = { id: newProduct.id, printfulId: goldSyncId, created: true };
+      }
+      console.log(`[ADMIN] Gold product synced with Printful ID: ${goldSyncId}`);
 
       // === 2. WHITE WITH AUTHOR (for sale) ===
       console.log(`[ADMIN] Processing White with Author product...`);
-      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${whiteWithAuthorExternalId}`);
       let existingWhiteWithAuthorPrintful = await printfulService.findProductByExternalId(whiteWithAuthorExternalId);
       let printfulWhiteWithAuthorProduct: any = null;
 
       if (existingWhiteWithAuthorPrintful) {
-        console.log(`[ADMIN] Found existing white with author product in Printful:`, JSON.stringify(existingWhiteWithAuthorPrintful?.sync_product || existingWhiteWithAuthorPrintful, null, 2).substring(0, 500));
-        const existingSyncProductId = existingWhiteWithAuthorPrintful.sync_product?.id;
-        console.log(`[ADMIN] White with author product exists: ${existingSyncProductId}`);
+        console.log(`[ADMIN] Found existing white with author product in Printful: ${existingWhiteWithAuthorPrintful.sync_product?.id}`);
         printfulWhiteWithAuthorProduct = existingWhiteWithAuthorPrintful;
       } else {
-        console.log(`[ADMIN] No existing white with author product found in Printful, creating new one...`);
-        try {
-          printfulWhiteWithAuthorProduct = await printfulService.createProduct(
-            winner.quoteText, authorName, whiteWithAuthorExternalId, 'white', winner.quoteId, true
-          );
-          console.log(`[ADMIN] Created white with author product:`, JSON.stringify(printfulWhiteWithAuthorProduct, null, 2).substring(0, 500));
-        } catch (e: any) {
-          console.error(`[ADMIN] Failed to create white with author product: ${e.message}`);
-        }
+        console.log(`[ADMIN] Creating white with author product in Printful...`);
+        printfulWhiteWithAuthorProduct = await printfulService.createProduct(
+          winner.quoteText, authorName, whiteWithAuthorExternalId, 'white', winner.quoteId, true
+        );
+        console.log(`[ADMIN] Created white with author product: ${printfulWhiteWithAuthorProduct?.id}`);
       }
 
-      if (printfulWhiteWithAuthorProduct) {
-        const whiteSyncId = printfulWhiteWithAuthorProduct?.sync_product?.id || printfulWhiteWithAuthorProduct?.id;
-        console.log(`[ADMIN] White with author sync ID extracted: ${whiteSyncId} (type: ${typeof whiteSyncId})`);
-        
-        if (existingWhiteWithAuthorDbProduct) {
-          console.log(`[ADMIN] Updating existing DB product ${existingWhiteWithAuthorDbProduct.id} with Printful sync ID: ${whiteSyncId}`);
-          await storage.updateProduct(existingWhiteWithAuthorDbProduct.id, {
-            printfulSyncProductId: whiteSyncId,
-            printfulSyncVariants: printfulWhiteWithAuthorProduct,
-            isActive: true // For sale
-          });
-          results.whiteWithAuthorProduct = { id: existingWhiteWithAuthorDbProduct.id, printfulId: whiteSyncId, updated: true };
-        } else {
-          const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition`;
-          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${whiteSyncId}`);
-          const newProduct = await storage.createProduct({
-            quoteId: winner.quoteId,
-            name: productName,
-            description: `Classic white text t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
-            price: '29.99',
-            imageUrl: null,
-            isActive: true, // For sale
-            printfulSyncProductId: whiteSyncId,
-            printfulSyncVariants: printfulWhiteWithAuthorProduct,
-          });
-          results.whiteWithAuthorProduct = { id: newProduct.id, printfulId: whiteSyncId, created: true };
-        }
+      const whiteSyncId = printfulWhiteWithAuthorProduct?.sync_product?.id || printfulWhiteWithAuthorProduct?.id;
+      if (!whiteSyncId) {
+        throw new Error('White with author product creation failed - no sync ID returned from Printful');
       }
+      
+      if (existingWhiteWithAuthorDbProduct) {
+        await storage.updateProduct(existingWhiteWithAuthorDbProduct.id, {
+          printfulSyncProductId: whiteSyncId,
+          printfulSyncVariants: printfulWhiteWithAuthorProduct,
+          isActive: true
+        });
+        results.whiteWithAuthorProduct = { id: existingWhiteWithAuthorDbProduct.id, printfulId: whiteSyncId, updated: true };
+      } else {
+        const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition`;
+        const newProduct = await storage.createProduct({
+          quoteId: winner.quoteId,
+          name: productName,
+          description: `Classic white text t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
+          price: '29.99',
+          imageUrl: null,
+          isActive: true,
+          printfulSyncProductId: whiteSyncId,
+          printfulSyncVariants: printfulWhiteWithAuthorProduct,
+        });
+        results.whiteWithAuthorProduct = { id: newProduct.id, printfulId: whiteSyncId, created: true };
+      }
+      console.log(`[ADMIN] White with author product synced with Printful ID: ${whiteSyncId}`);
 
       // === 3. WHITE NO AUTHOR (for sale) ===
       console.log(`[ADMIN] Processing White No Author product...`);
-      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${whiteNoAuthorExternalId}`);
       let existingWhiteNoAuthorPrintful = await printfulService.findProductByExternalId(whiteNoAuthorExternalId);
       let printfulWhiteNoAuthorProduct: any = null;
 
       if (existingWhiteNoAuthorPrintful) {
-        console.log(`[ADMIN] Found existing white no author product in Printful:`, JSON.stringify(existingWhiteNoAuthorPrintful?.sync_product || existingWhiteNoAuthorPrintful, null, 2).substring(0, 500));
-        const existingSyncProductId = existingWhiteNoAuthorPrintful.sync_product?.id;
-        console.log(`[ADMIN] White no author product exists: ${existingSyncProductId}`);
+        console.log(`[ADMIN] Found existing white no author product in Printful: ${existingWhiteNoAuthorPrintful.sync_product?.id}`);
         printfulWhiteNoAuthorProduct = existingWhiteNoAuthorPrintful;
       } else {
-        console.log(`[ADMIN] No existing white no author product found in Printful, creating new one...`);
-        try {
-          printfulWhiteNoAuthorProduct = await printfulService.createProduct(
-            winner.quoteText, authorName, whiteNoAuthorExternalId, 'white', winner.quoteId, false
-          );
-          console.log(`[ADMIN] Created white no author product:`, JSON.stringify(printfulWhiteNoAuthorProduct, null, 2).substring(0, 500));
-        } catch (e: any) {
-          console.error(`[ADMIN] Failed to create white no author product: ${e.message}`);
-        }
+        console.log(`[ADMIN] Creating white no author product in Printful...`);
+        printfulWhiteNoAuthorProduct = await printfulService.createProduct(
+          winner.quoteText, authorName, whiteNoAuthorExternalId, 'white', winner.quoteId, false
+        );
+        console.log(`[ADMIN] Created white no author product: ${printfulWhiteNoAuthorProduct?.id}`);
       }
 
-      if (printfulWhiteNoAuthorProduct) {
-        const noAuthorSyncId = printfulWhiteNoAuthorProduct?.sync_product?.id || printfulWhiteNoAuthorProduct?.id;
-        console.log(`[ADMIN] White no author sync ID extracted: ${noAuthorSyncId} (type: ${typeof noAuthorSyncId})`);
-        
-        if (existingWhiteNoAuthorDbProduct) {
-          console.log(`[ADMIN] Updating existing DB product ${existingWhiteNoAuthorDbProduct.id} with Printful sync ID: ${noAuthorSyncId}`);
-          await storage.updateProduct(existingWhiteNoAuthorDbProduct.id, {
-            printfulSyncProductId: noAuthorSyncId,
-            printfulSyncVariants: printfulWhiteNoAuthorProduct,
-            isActive: true // For sale
-          });
-          results.whiteNoAuthorProduct = { id: existingWhiteNoAuthorDbProduct.id, printfulId: noAuthorSyncId, updated: true };
-        } else {
-          const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition (No Author)`;
-          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${noAuthorSyncId}`);
-          const newProduct = await storage.createProduct({
-            quoteId: winner.quoteId,
-            name: productName,
-            description: `Minimalist white text t-shirt featuring: "${winner.quoteText}"`,
-            price: '29.99',
-            imageUrl: null,
-            isActive: true, // For sale
-            printfulSyncProductId: noAuthorSyncId,
-            printfulSyncVariants: printfulWhiteNoAuthorProduct,
-          });
-          results.whiteNoAuthorProduct = { id: newProduct.id, printfulId: noAuthorSyncId, created: true };
-        }
+      const noAuthorSyncId = printfulWhiteNoAuthorProduct?.sync_product?.id || printfulWhiteNoAuthorProduct?.id;
+      if (!noAuthorSyncId) {
+        throw new Error('White no author product creation failed - no sync ID returned from Printful');
       }
+      
+      if (existingWhiteNoAuthorDbProduct) {
+        await storage.updateProduct(existingWhiteNoAuthorDbProduct.id, {
+          printfulSyncProductId: noAuthorSyncId,
+          printfulSyncVariants: printfulWhiteNoAuthorProduct,
+          isActive: true
+        });
+        results.whiteNoAuthorProduct = { id: existingWhiteNoAuthorDbProduct.id, printfulId: noAuthorSyncId, updated: true };
+      } else {
+        const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition (No Author)`;
+        const newProduct = await storage.createProduct({
+          quoteId: winner.quoteId,
+          name: productName,
+          description: `Minimalist white text t-shirt featuring: "${winner.quoteText}"`,
+          price: '29.99',
+          imageUrl: null,
+          isActive: true,
+          printfulSyncProductId: noAuthorSyncId,
+          printfulSyncVariants: printfulWhiteNoAuthorProduct,
+        });
+        results.whiteNoAuthorProduct = { id: newProduct.id, printfulId: noAuthorSyncId, created: true };
+      }
+      console.log(`[ADMIN] White no author product synced with Printful ID: ${noAuthorSyncId}`);
 
       // Validate that sync IDs were obtained
       const errors: string[] = [];
