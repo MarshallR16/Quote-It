@@ -416,14 +416,17 @@ async function autoHealWeeklyWinnerProducts() {
       
       let goldProduct = null;
       
-      // Try to create with Printful if configured
-      if (isPrintfulConfigured && printfulService) {
+      // In development, skip Printful because design URLs point to production
+      // which may have different database state. Use admin endpoint to sync Printful later.
+      const isProduction = process.env.NODE_ENV === 'production';
+      
+      // Only try Printful in production where design URLs will work
+      if (isProduction && isPrintfulConfigured && printfulService) {
         try {
-          console.log('[SCHEDULER] Testing Printful connection for gold product creation...');
+          console.log('[SCHEDULER] Production environment - creating gold product with Printful...');
           const connectionTest = await printfulService.testConnection();
           
           if (connectionTest.success) {
-            console.log('[SCHEDULER] Printful available, creating gold product...');
             const printfulGoldProduct = await printfulService.createProduct(
               winner.quoteText,
               authorName,
@@ -451,9 +454,12 @@ async function autoHealWeeklyWinnerProducts() {
         } catch (printfulError: any) {
           console.error('[SCHEDULER] Printful gold product creation failed:', printfulError.message);
         }
+      } else if (!isProduction) {
+        console.log('[SCHEDULER] Development environment - skipping Printful, creating demo gold product');
+        console.log('[SCHEDULER] Use POST /api/admin/sync-gold-product to sync with Printful in production');
       }
       
-      // Fallback: create demo gold product if Printful failed
+      // Fallback: create demo gold product if Printful failed or not in production
       if (!goldProduct) {
         goldProduct = await storage.createProduct({
           quoteId: winner.quoteId,
