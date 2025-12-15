@@ -1216,6 +1216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // === 1. GOLD PRODUCT (winner exclusive, NOT for sale) ===
+      // Mirror white product flow exactly: reuse existing or create new
       console.log(`[ADMIN] Processing Gold Edition product...`);
       console.log(`[ADMIN] Looking for existing Printful product with external_id: ${goldExternalId}`);
       let existingGoldPrintful = await printfulService.findProductByExternalId(goldExternalId);
@@ -1224,49 +1225,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingGoldPrintful) {
         console.log(`[ADMIN] Found existing gold product in Printful:`, JSON.stringify(existingGoldPrintful?.sync_product || existingGoldPrintful, null, 2).substring(0, 500));
         const existingSyncProductId = existingGoldPrintful.sync_product?.id;
-        console.log(`[ADMIN] Updating existing gold product ${existingSyncProductId} with correct design`);
-        try {
-          printfulGoldProduct = await printfulService.updateProduct(existingSyncProductId, goldDesignUrl);
-          console.log(`[ADMIN] Update result:`, JSON.stringify(printfulGoldProduct?.sync_product || printfulGoldProduct, null, 2).substring(0, 500));
-        } catch (e: any) {
-          console.error(`[ADMIN] Failed to update gold product: ${e.message}`);
-          printfulGoldProduct = existingGoldPrintful;
-        }
+        console.log(`[ADMIN] Gold product exists: ${existingSyncProductId}`);
+        // Reuse existing product (same as white flow - no update needed)
+        printfulGoldProduct = existingGoldPrintful;
       } else {
         console.log(`[ADMIN] No existing gold product found in Printful, creating new one...`);
-        printfulGoldProduct = await printfulService.createProduct(
-          winner.quoteText, authorName, goldExternalId, 'gold', winner.quoteId, true
-        );
-        console.log(`[ADMIN] Created gold product:`, JSON.stringify(printfulGoldProduct, null, 2).substring(0, 500));
+        try {
+          printfulGoldProduct = await printfulService.createProduct(
+            winner.quoteText, authorName, goldExternalId, 'gold', winner.quoteId, true
+          );
+          console.log(`[ADMIN] Created gold product:`, JSON.stringify(printfulGoldProduct, null, 2).substring(0, 500));
+        } catch (e: any) {
+          console.error(`[ADMIN] Failed to create gold product: ${e.message}`);
+        }
       }
 
-      // Extract sync ID - handle both response formats (keep as integer for DB)
-      const goldSyncId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
-      console.log(`[ADMIN] Gold sync ID extracted: ${goldSyncId} (type: ${typeof goldSyncId})`);
-      
-      // Update or create gold product in database
-      if (existingGoldDbProduct) {
-        console.log(`[ADMIN] Updating existing DB product ${existingGoldDbProduct.id} with Printful sync ID: ${goldSyncId}`);
-        await storage.updateProduct(existingGoldDbProduct.id, {
-          printfulSyncProductId: goldSyncId,
-          printfulSyncVariants: printfulGoldProduct,
-          isActive: false // Gold is winner exclusive
-        });
-        results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncId, updated: true };
-      } else {
-        const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - Gold Edition`;
-        console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${goldSyncId}`);
-        const newProduct = await storage.createProduct({
-          quoteId: winner.quoteId,
-          name: productName,
-          description: `Winner's exclusive gold edition t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
-          price: '29.99',
-          imageUrl: null,
-          isActive: false, // Gold is winner exclusive
-          printfulSyncProductId: goldSyncId,
-          printfulSyncVariants: printfulGoldProduct,
-        });
-        results.goldProduct = { id: newProduct.id, printfulId: goldSyncId, created: true };
+      // Only save to DB if we have a valid Printful product (same pattern as white)
+      if (printfulGoldProduct) {
+        // Extract sync ID - handle both response formats (keep as integer for DB)
+        const goldSyncId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
+        console.log(`[ADMIN] Gold sync ID extracted: ${goldSyncId} (type: ${typeof goldSyncId})`);
+        
+        // Guard: Only save if we have a valid sync ID
+        if (!goldSyncId) {
+          console.error(`[ADMIN] Gold product created but no sync ID returned - skipping DB save`);
+        } else {
+          // Update or create gold product in database
+          if (existingGoldDbProduct) {
+            console.log(`[ADMIN] Updating existing DB product ${existingGoldDbProduct.id} with Printful sync ID: ${goldSyncId}`);
+            await storage.updateProduct(existingGoldDbProduct.id, {
+              printfulSyncProductId: goldSyncId,
+              printfulSyncVariants: printfulGoldProduct,
+              isActive: false // Gold is winner exclusive
+            });
+            results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncId, updated: true };
+          } else {
+            const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - Gold Edition`;
+            console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${goldSyncId}`);
+            const newProduct = await storage.createProduct({
+              quoteId: winner.quoteId,
+              name: productName,
+              description: `Winner's exclusive gold edition t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
+              price: '29.99',
+              imageUrl: null,
+              isActive: false, // Gold is winner exclusive
+              printfulSyncProductId: goldSyncId,
+              printfulSyncVariants: printfulGoldProduct,
+            });
+            results.goldProduct = { id: newProduct.id, printfulId: goldSyncId, created: true };
+          }
+        }
       }
 
       // === 2. WHITE WITH AUTHOR (for sale) ===
