@@ -1149,6 +1149,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync gold product with Printful for the most recent weekly winner
+  // This is used when products were created as demo products in development
+  // and need to be synced with Printful in production
+  app.post("/api/admin/sync-gold-product", requireAdmin, async (req: any, res: any) => {
+    try {
+      console.log('[ADMIN] Syncing gold product with Printful...');
+
+      // Check if Printful is configured
+      if (!isPrintfulConfigured) {
+        return res.status(400).json({ 
+          message: 'Printful is not configured. Cannot sync without PRINTFUL_API_TOKEN.' 
+        });
+      }
+
+      // Test Printful connection
+      const connectionTest = await printfulService.testConnection();
+      if (!connectionTest.success) {
+        return res.status(503).json({ 
+          message: 'Printful connection failed: ' + connectionTest.message 
+        });
+      }
+
+      // Get most recent weekly winner
+      const winner = await storage.getMostRecentWeeklyWinnerWithDetails();
+      if (!winner) {
+        return res.status(404).json({ message: 'No weekly winners found' });
+      }
+
+      console.log(`[ADMIN] Found winner: ${winner.winnerId}, quote: ${winner.quoteId}`);
+
+      // Get all products for this winner
+      const allProducts = await storage.getAllProducts();
+      const goldProduct = allProducts.find((p: Product) => 
+        p.quoteId === winner.quoteId && p.name.includes('Gold Edition')
+      );
+
+      if (!goldProduct) {
+        return res.status(404).json({ 
+          message: 'No gold product found for this winner. Create one first.' 
+        });
+      }
+
+      // Check if already synced
+      if (goldProduct.printfulSyncProductId) {
+        return res.json({
+          message: 'Gold product is already synced with Printful',
+          product: {
+            id: goldProduct.id,
+            name: goldProduct.name,
+            printfulSyncProductId: goldProduct.printfulSyncProductId
+          }
+        });
+      }
+
+      // Get author info
+      const author = await storage.getUser(winner.authorId);
+      const authorName = author 
+        ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.username || author.email?.split('@')[0] || 'Anonymous'
+        : winner.authorUsername || 'Anonymous';
+
+      console.log(`[ADMIN] Creating Printful product for quote: ${winner.quoteId}, author: ${authorName}`);
+
+      // Create Printful product
+      const printfulGoldProduct = await printfulService.createProduct(
+        winner.quoteText,
+        authorName,
+        `quote-${winner.quoteId}-gold`,
+        'gold',
+        winner.quoteId,
+        true // includeAuthor = true
+      );
+
+      // Update the database with Printful sync info
+      await storage.updateProduct(goldProduct.id, {
+        printfulSyncProductId: printfulGoldProduct.id,
+        printfulSyncVariants: printfulGoldProduct,
+      });
+
+      console.log(`[ADMIN] Gold product synced successfully: ${goldProduct.id} -> Printful: ${printfulGoldProduct.id}`);
+
+      res.json({
+        message: 'Gold product synced with Printful successfully',
+        product: {
+          id: goldProduct.id,
+          name: goldProduct.name,
+          printfulSyncProductId: printfulGoldProduct.id
+        },
+        winner: {
+          id: winner.winnerId,
+          quoteId: winner.quoteId,
+          authorName
+        }
+      });
+    } catch (error: any) {
+      console.error('[ADMIN] Error syncing gold product:', error);
+      res.status(500).json({ message: 'Error syncing gold product: ' + error.message });
+    }
+  });
+
   // Create payment intent for Stripe checkout
   app.post("/api/create-payment-intent", isAuthenticated, async (req: any, res) => {
     try {
