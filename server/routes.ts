@@ -1240,23 +1240,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[ADMIN] Created gold product:`, JSON.stringify(printfulGoldProduct, null, 2).substring(0, 500));
       }
 
-      // Extract sync ID - handle both response formats
+      // Extract sync ID - handle both response formats (keep as integer for DB)
       const goldSyncId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
-      const goldSyncIdStr = goldSyncId ? String(goldSyncId) : null;
-      console.log(`[ADMIN] Gold sync ID extracted: ${goldSyncIdStr} (raw: ${goldSyncId})`);
+      console.log(`[ADMIN] Gold sync ID extracted: ${goldSyncId} (type: ${typeof goldSyncId})`);
       
       // Update or create gold product in database
       if (existingGoldDbProduct) {
-        console.log(`[ADMIN] Updating existing DB product ${existingGoldDbProduct.id} with Printful sync ID: ${goldSyncIdStr}`);
+        console.log(`[ADMIN] Updating existing DB product ${existingGoldDbProduct.id} with Printful sync ID: ${goldSyncId}`);
         await storage.updateProduct(existingGoldDbProduct.id, {
-          printfulSyncProductId: goldSyncIdStr,
+          printfulSyncProductId: goldSyncId,
           printfulSyncVariants: printfulGoldProduct,
           isActive: false // Gold is winner exclusive
         });
-        results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncIdStr, updated: true };
+        results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncId, updated: true };
       } else {
         const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - Gold Edition`;
-        console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${goldSyncIdStr}`);
+        console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${goldSyncId}`);
         const newProduct = await storage.createProduct({
           quoteId: winner.quoteId,
           name: productName,
@@ -1264,10 +1263,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: '29.99',
           imageUrl: null,
           isActive: false, // Gold is winner exclusive
-          printfulSyncProductId: goldSyncIdStr,
+          printfulSyncProductId: goldSyncId,
           printfulSyncVariants: printfulGoldProduct,
         });
-        results.goldProduct = { id: newProduct.id, printfulId: goldSyncIdStr, created: true };
+        results.goldProduct = { id: newProduct.id, printfulId: goldSyncId, created: true };
       }
 
       // === 2. WHITE WITH AUTHOR (for sale) ===
@@ -1295,20 +1294,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (printfulWhiteWithAuthorProduct) {
         const whiteSyncId = printfulWhiteWithAuthorProduct?.sync_product?.id || printfulWhiteWithAuthorProduct?.id;
-        const whiteSyncIdStr = whiteSyncId ? String(whiteSyncId) : null;
-        console.log(`[ADMIN] White with author sync ID extracted: ${whiteSyncIdStr} (raw: ${whiteSyncId})`);
+        console.log(`[ADMIN] White with author sync ID extracted: ${whiteSyncId} (type: ${typeof whiteSyncId})`);
         
         if (existingWhiteWithAuthorDbProduct) {
-          console.log(`[ADMIN] Updating existing DB product ${existingWhiteWithAuthorDbProduct.id} with Printful sync ID: ${whiteSyncIdStr}`);
+          console.log(`[ADMIN] Updating existing DB product ${existingWhiteWithAuthorDbProduct.id} with Printful sync ID: ${whiteSyncId}`);
           await storage.updateProduct(existingWhiteWithAuthorDbProduct.id, {
-            printfulSyncProductId: whiteSyncIdStr,
+            printfulSyncProductId: whiteSyncId,
             printfulSyncVariants: printfulWhiteWithAuthorProduct,
             isActive: true // For sale
           });
-          results.whiteWithAuthorProduct = { id: existingWhiteWithAuthorDbProduct.id, printfulId: whiteSyncIdStr, updated: true };
+          results.whiteWithAuthorProduct = { id: existingWhiteWithAuthorDbProduct.id, printfulId: whiteSyncId, updated: true };
         } else {
           const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition`;
-          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${whiteSyncIdStr}`);
+          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${whiteSyncId}`);
           const newProduct = await storage.createProduct({
             quoteId: winner.quoteId,
             name: productName,
@@ -1316,10 +1314,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price: '29.99',
             imageUrl: null,
             isActive: true, // For sale
-            printfulSyncProductId: whiteSyncIdStr,
+            printfulSyncProductId: whiteSyncId,
             printfulSyncVariants: printfulWhiteWithAuthorProduct,
           });
-          results.whiteWithAuthorProduct = { id: newProduct.id, printfulId: whiteSyncIdStr, created: true };
+          results.whiteWithAuthorProduct = { id: newProduct.id, printfulId: whiteSyncId, created: true };
         }
       }
 
@@ -1348,20 +1346,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (printfulWhiteNoAuthorProduct) {
         const noAuthorSyncId = printfulWhiteNoAuthorProduct?.sync_product?.id || printfulWhiteNoAuthorProduct?.id;
-        const noAuthorSyncIdStr = noAuthorSyncId ? String(noAuthorSyncId) : null;
-        console.log(`[ADMIN] White no author sync ID extracted: ${noAuthorSyncIdStr} (raw: ${noAuthorSyncId})`);
+        console.log(`[ADMIN] White no author sync ID extracted: ${noAuthorSyncId} (type: ${typeof noAuthorSyncId})`);
         
         if (existingWhiteNoAuthorDbProduct) {
-          console.log(`[ADMIN] Updating existing DB product ${existingWhiteNoAuthorDbProduct.id} with Printful sync ID: ${noAuthorSyncIdStr}`);
+          console.log(`[ADMIN] Updating existing DB product ${existingWhiteNoAuthorDbProduct.id} with Printful sync ID: ${noAuthorSyncId}`);
           await storage.updateProduct(existingWhiteNoAuthorDbProduct.id, {
-            printfulSyncProductId: noAuthorSyncIdStr,
+            printfulSyncProductId: noAuthorSyncId,
             printfulSyncVariants: printfulWhiteNoAuthorProduct,
             isActive: true // For sale
           });
-          results.whiteNoAuthorProduct = { id: existingWhiteNoAuthorDbProduct.id, printfulId: noAuthorSyncIdStr, updated: true };
+          results.whiteNoAuthorProduct = { id: existingWhiteNoAuthorDbProduct.id, printfulId: noAuthorSyncId, updated: true };
         } else {
           const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition (No Author)`;
-          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${noAuthorSyncIdStr}`);
+          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${noAuthorSyncId}`);
           const newProduct = await storage.createProduct({
             quoteId: winner.quoteId,
             name: productName,
@@ -1369,10 +1366,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price: '29.99',
             imageUrl: null,
             isActive: true, // For sale
-            printfulSyncProductId: noAuthorSyncIdStr,
+            printfulSyncProductId: noAuthorSyncId,
             printfulSyncVariants: printfulWhiteNoAuthorProduct,
           });
-          results.whiteNoAuthorProduct = { id: newProduct.id, printfulId: noAuthorSyncIdStr, created: true };
+          results.whiteNoAuthorProduct = { id: newProduct.id, printfulId: noAuthorSyncId, created: true };
         }
       }
 
