@@ -1155,8 +1155,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 2. White with author (white text with author) - for sale
   // 3. White no-author (white text, no author) - for sale
   app.post("/api/admin/sync-gold-product", requireAdmin, async (req: any, res: any) => {
+    const requestId = Date.now();
+    console.log(`[ADMIN SYNC] ========== Request ${requestId} started at ${new Date().toISOString()} ==========`);
     try {
-      console.log('[ADMIN] Syncing all products with Printful...');
+      console.log(`[ADMIN SYNC ${requestId}] Syncing all products with Printful...`);
 
       // Check if Printful is configured
       if (!isPrintfulConfigured) {
@@ -1353,10 +1355,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log(`[ADMIN] All products synced successfully`);
+      console.log(`[ADMIN SYNC ${requestId}] All products synced successfully`);
 
       res.json({
-        message: 'All products synced successfully',
+        message: `All products synced successfully (request ${requestId})`,
+        requestId,
         results,
         winner: {
           id: winner.winnerId,
