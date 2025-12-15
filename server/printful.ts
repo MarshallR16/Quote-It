@@ -601,6 +601,78 @@ export class PrintfulService {
   }
 
   /**
+   * Update an existing Printful product with new design file
+   * Uses PUT /store/products/{id} to update product variants with new design URL
+   */
+  async updateProduct(syncProductId: number, designUrl: string, newExternalId?: string): Promise<any> {
+    try {
+      console.log(`[PRINTFUL] Updating product ${syncProductId} with new design URL: ${designUrl}`);
+      
+      // First verify the design URL is accessible
+      const verification = await this.verifyDesignUrl(designUrl);
+      if (!verification.success) {
+        throw new Error(`DESIGN URL NOT ACCESSIBLE: ${verification.error}. Cannot update Printful product without a valid design.`);
+      }
+
+      // Get current product details to preserve variant structure
+      const currentProduct = await this.getProductDetails(syncProductId);
+      if (!currentProduct) {
+        throw new Error(`Product ${syncProductId} not found in Printful`);
+      }
+
+      const syncProduct = currentProduct.sync_product;
+      const syncVariants = currentProduct.sync_variants || [];
+
+      // File reference for all variants
+      const fileSpec = { 
+        url: designUrl,
+        type: 'default',
+        placement: 'front',
+        position: {
+          area_width: 1800,
+          area_height: 2400,
+          width: 1800,
+          height: 2160,
+          top: 120,
+          left: 0
+        }
+      };
+
+      // Build updated sync_product
+      const updatedSyncProduct: any = {
+        name: syncProduct.name,
+        thumbnail: designUrl,
+      };
+      
+      if (newExternalId) {
+        updatedSyncProduct.external_id = newExternalId;
+      }
+
+      // Build updated sync_variants with new design
+      const updatedSyncVariants = syncVariants.map((variant: any) => ({
+        id: variant.id,
+        variant_id: variant.variant_id,
+        retail_price: variant.retail_price,
+        files: [fileSpec]
+      }));
+
+      const data = {
+        sync_product: updatedSyncProduct,
+        sync_variants: updatedSyncVariants,
+      };
+
+      console.log('[PRINTFUL] Sending PUT request to update product');
+      const response = await printfulClient.put(`/store/products/${syncProductId}`, data);
+      console.log('[PRINTFUL] Product updated successfully:', response.data.result?.sync_product?.id);
+      
+      return response.data.result;
+    } catch (error: any) {
+      console.error('Printful update product error:', error.response?.data || error.message);
+      throw new Error(`Failed to update Printful product: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  /**
    * Create a mockup for a product variant
    */
   async createMockup(variantId: number, imageUrl: string): Promise<string> {

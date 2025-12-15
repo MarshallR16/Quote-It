@@ -1150,8 +1150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync gold product with Printful for the most recent weekly winner
-  // This is used when products were created as demo products in development
-  // and need to be synced with Printful in production
+  // This endpoint:
+  // 1. Updates existing wrongly-tagged products to use correct gold design
+  // 2. Creates new no-author product if needed
+  // 3. Syncs gold product with Printful
   app.post("/api/admin/sync-gold-product", requireAdmin, async (req: any, res: any) => {
     try {
       console.log('[ADMIN] Syncing gold product with Printful...');
@@ -1191,75 +1193,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Check if already synced
-      if (goldProduct.printfulSyncProductId) {
-        return res.json({
-          message: 'Gold product is already synced with Printful',
-          product: {
-            id: goldProduct.id,
-            name: goldProduct.name,
-            printfulSyncProductId: goldProduct.printfulSyncProductId
-          }
-        });
-      }
-
       // Get author info
       const author = await storage.getUser(winner.authorId);
       const authorName = author 
         ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.username || author.email?.split('@')[0] || 'Anonymous'
         : winner.authorUsername || 'Anonymous';
 
-      const externalId = `quote-${winner.quoteId}-gold`;
-      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${externalId}`);
+      const goldExternalId = `quote-${winner.quoteId}-gold`;
+      const noAuthorExternalId = `quote-${winner.quoteId}-white-noauthor`;
+      
+      // Build design URLs
+      const goldDesignUrl = `${DESIGN_BASE_URL}/api/designs/${winner.quoteId}/gold`;
+      const noAuthorDesignUrl = `${DESIGN_BASE_URL}/api/designs/${winner.quoteId}/white?includeAuthor=false`;
 
-      // First check if product already exists in Printful
-      let printfulGoldProduct = await printfulService.findProductByExternalId(externalId);
-      let wasExisting = false;
+      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${goldExternalId}`);
 
-      if (printfulGoldProduct) {
-        console.log(`[ADMIN] Found existing Printful product: ${printfulGoldProduct.sync_product?.id}`);
-        wasExisting = true;
+      // First check if a product with gold external_id exists
+      let existingGoldProduct = await printfulService.findProductByExternalId(goldExternalId);
+      let goldProductUpdated = false;
+      let noAuthorProductCreated = false;
+      let printfulGoldProduct: any = null;
+      let printfulNoAuthorProduct: any = null;
+
+      if (existingGoldProduct) {
+        const existingSyncProductId = existingGoldProduct.sync_product?.id;
+        console.log(`[ADMIN] Found existing Printful product with gold external_id: ${existingSyncProductId}`);
+        
+        // The existing product might be wrongly using white/no-author design
+        // Update it to use the correct gold design with author
+        console.log(`[ADMIN] Updating existing product to use correct gold design: ${goldDesignUrl}`);
+        
+        try {
+          printfulGoldProduct = await printfulService.updateProduct(
+            existingSyncProductId,
+            goldDesignUrl
+          );
+          goldProductUpdated = true;
+          console.log(`[ADMIN] Successfully updated product ${existingSyncProductId} with gold design`);
+        } catch (updateError: any) {
+          console.error(`[ADMIN] Failed to update existing product: ${updateError.message}`);
+          // Fall back to using the existing product as-is
+          printfulGoldProduct = existingGoldProduct;
+        }
       } else {
-        // Create new Printful product
-        console.log(`[ADMIN] Creating new Printful product for quote: ${winner.quoteId}, author: ${authorName}`);
+        // Create new gold Printful product
+        console.log(`[ADMIN] Creating new gold Printful product for quote: ${winner.quoteId}, author: ${authorName}`);
         printfulGoldProduct = await printfulService.createProduct(
           winner.quoteText,
           authorName,
-          externalId,
+          goldExternalId,
           'gold',
           winner.quoteId,
           true // includeAuthor = true
         );
       }
 
-      // Get the sync product ID (structure differs based on whether it was found or created)
-      const syncProductId = wasExisting 
-        ? printfulGoldProduct.sync_product?.id 
-        : printfulGoldProduct.id;
+      // Now check if no-author product exists
+      console.log(`[ADMIN] Looking for no-author product with external_id: ${noAuthorExternalId}`);
+      let existingNoAuthorProduct = await printfulService.findProductByExternalId(noAuthorExternalId);
+
+      if (!existingNoAuthorProduct) {
+        // Create the no-author white product
+        console.log(`[ADMIN] Creating new no-author white product for quote: ${winner.quoteId}`);
+        try {
+          printfulNoAuthorProduct = await printfulService.createProduct(
+            winner.quoteText,
+            authorName, // Author name is passed but not used when includeAuthor=false
+            noAuthorExternalId,
+            'white',
+            winner.quoteId,
+            false // includeAuthor = false
+          );
+          noAuthorProductCreated = true;
+          console.log(`[ADMIN] Successfully created no-author product`);
+        } catch (createError: any) {
+          console.error(`[ADMIN] Failed to create no-author product: ${createError.message}`);
+          // Continue without the no-author product - gold is the priority
+        }
+      } else {
+        console.log(`[ADMIN] No-author product already exists: ${existingNoAuthorProduct.sync_product?.id}`);
+        printfulNoAuthorProduct = existingNoAuthorProduct;
+      }
+
+      // Get the sync product ID for gold (structure differs based on whether it was updated or created)
+      const syncProductId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
 
       // Update the database with Printful sync info
-      await storage.updateProduct(goldProduct.id, {
-        printfulSyncProductId: syncProductId,
-        printfulSyncVariants: printfulGoldProduct,
-      });
-
-      console.log(`[ADMIN] Gold product synced successfully: ${goldProduct.id} -> Printful: ${syncProductId}`);
+      if (!goldProduct.printfulSyncProductId || goldProductUpdated) {
+        await storage.updateProduct(goldProduct.id, {
+          printfulSyncProductId: syncProductId,
+          printfulSyncVariants: printfulGoldProduct,
+        });
+        console.log(`[ADMIN] Gold product synced successfully: ${goldProduct.id} -> Printful: ${syncProductId}`);
+      }
 
       res.json({
-        message: wasExisting 
-          ? 'Gold product linked to existing Printful product' 
-          : 'Gold product synced with Printful successfully',
-        product: {
+        message: 'Gold product sync completed',
+        goldProduct: {
           id: goldProduct.id,
           name: goldProduct.name,
-          printfulSyncProductId: syncProductId
+          printfulSyncProductId: syncProductId,
+          wasUpdated: goldProductUpdated,
+          designUrl: goldDesignUrl
         },
+        noAuthorProduct: printfulNoAuthorProduct ? {
+          printfulSyncProductId: printfulNoAuthorProduct.sync_product?.id || printfulNoAuthorProduct.id,
+          wasCreated: noAuthorProductCreated,
+          externalId: noAuthorExternalId,
+          designUrl: noAuthorDesignUrl
+        } : null,
         winner: {
           id: winner.winnerId,
           quoteId: winner.quoteId,
           authorName
-        },
-        wasExisting
+        }
       });
     } catch (error: any) {
       console.error('[ADMIN] Error syncing gold product:', error);
