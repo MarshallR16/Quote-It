@@ -389,33 +389,147 @@ async function autoHealWeeklyWinnerProducts() {
       return;
     }
     
-    // Check if winner has an active product
-    if (winner.productId) {
-      console.log('[SCHEDULER] Most recent weekly winner already has a product');
-      return;
+    // Get all products for this weekly winner
+    const winnerProducts = allProducts.filter(p => p.weeklyWinnerId === winner.winnerId);
+    console.log(`[SCHEDULER] Found ${winnerProducts.length} products for winner ${winner.winnerId}`);
+    
+    // Check if gold product exists (name contains "Gold Edition")
+    const hasGoldProduct = winnerProducts.some(p => p.name.includes('Gold Edition'));
+    
+    // Check if winner has basic products
+    const hasBasicProduct = winnerProducts.some(p => !p.name.includes('Gold Edition'));
+    
+    // Get author info for product creation
+    const author = await storage.getUser(winner.authorId);
+    const authorName = author 
+      ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.username || author.email?.split('@')[0] || 'Anonymous'
+      : winner.authorUsername || 'Anonymous';
+    
+    const truncatedQuote = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}"`;
+    
+    // Track the gold product (existing or newly created)
+    let goldProductId: string | null = null;
+    
+    // Create missing gold product for winner
+    if (!hasGoldProduct) {
+      console.log(`[SCHEDULER] Weekly winner ${winner.winnerId} is MISSING gold product - creating now...`);
+      
+      let goldProduct = null;
+      
+      // Try to create with Printful if configured
+      if (isPrintfulConfigured && printfulService) {
+        try {
+          console.log('[SCHEDULER] Testing Printful connection for gold product creation...');
+          const connectionTest = await printfulService.testConnection();
+          
+          if (connectionTest.success) {
+            console.log('[SCHEDULER] Printful available, creating gold product...');
+            const printfulGoldProduct = await printfulService.createProduct(
+              winner.quoteText,
+              authorName,
+              `quote-${winner.quoteId}-gold`,
+              'gold',
+              winner.quoteId,
+              true // includeAuthor = true
+            );
+            
+            goldProduct = await storage.createProduct({
+              quoteId: winner.quoteId,
+              weeklyWinnerId: winner.winnerId,
+              name: `${truncatedQuote} (Winner's Gold Edition)`,
+              description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
+              price: '29.99',
+              imageUrl: null,
+              printfulSyncProductId: printfulGoldProduct.id,
+              printfulSyncVariants: printfulGoldProduct,
+              isActive: false, // Not for sale - winner exclusive
+            });
+            console.log(`[SCHEDULER] Created gold product with Printful: ${goldProduct.id}`);
+          } else {
+            console.log('[SCHEDULER] Printful unavailable, creating demo gold product...');
+          }
+        } catch (printfulError: any) {
+          console.error('[SCHEDULER] Printful gold product creation failed:', printfulError.message);
+        }
+      }
+      
+      // Fallback: create demo gold product if Printful failed
+      if (!goldProduct) {
+        goldProduct = await storage.createProduct({
+          quoteId: winner.quoteId,
+          weeklyWinnerId: winner.winnerId,
+          name: `${truncatedQuote} (Winner's Gold Edition)`,
+          description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
+          price: '29.99',
+          imageUrl: null,
+          printfulSyncProductId: null,
+          printfulSyncVariants: null,
+          isActive: false, // Not for sale - winner exclusive
+        });
+        console.log(`[SCHEDULER] Created demo gold product: ${goldProduct.id}`);
+      }
+      
+      goldProductId = goldProduct.id;
+      
+      // Update winner with gold product ID
+      await storage.updateWeeklyWinner(winner.winnerId, { winnerProductId: goldProduct.id });
+      console.log('[SCHEDULER] Updated weekly winner with gold product ID');
+    } else {
+      console.log('[SCHEDULER] Gold product already exists for this winner');
+      // Get the existing gold product ID
+      const existingGoldProduct = winnerProducts.find(p => p.name.includes('Gold Edition'));
+      goldProductId = existingGoldProduct?.id || null;
     }
     
-    console.log(`[SCHEDULER] Weekly winner ${winner.winnerId} has no product - creating demo product...`);
+    // Always check for complimentary order - runs even if gold product already existed
+    if (goldProductId) {
+      const existingOrders = await storage.getOrdersByUser(winner.authorId);
+      const hasComplimentaryOrder = existingOrders.some(o => o.isComplimentary && o.productId === goldProductId);
+      
+      if (!hasComplimentaryOrder) {
+        try {
+          const complimentaryOrder = await storage.createOrder({
+            userId: winner.authorId,
+            productId: goldProductId,
+            amount: '0.00',
+            status: 'awaiting_address',
+            isComplimentary: true,
+            includeAuthor: true,
+          });
+          console.log('[SCHEDULER] Created complimentary order for winner:', complimentaryOrder.id);
+        } catch (orderError: any) {
+          console.error('[SCHEDULER] Error creating complimentary order:', orderError.message);
+        }
+      } else {
+        console.log('[SCHEDULER] Winner already has a complimentary order');
+      }
+    }
     
-    // Create demo product for this winner (imageUrl null so frontend uses built-in fallback)
-    const productData = {
-      quoteId: winner.quoteId,
-      weeklyWinnerId: winner.winnerId,
-      name: `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}"`,
-      description: `Weekly Winner - Quote by ${winner.authorUsername || 'unknown'}`,
-      price: '29.99',
-      imageUrl: null,
-      printfulProductId: null,
-      printfulSyncProductId: null,
-      isActive: true,
-    };
+    // Also ensure winner has at least one basic product
+    if (!hasBasicProduct) {
+      console.log(`[SCHEDULER] Weekly winner ${winner.winnerId} has no basic product - creating demo product...`);
+      
+      const basicProduct = await storage.createProduct({
+        quoteId: winner.quoteId,
+        weeklyWinnerId: winner.winnerId,
+        name: `${truncatedQuote} - With Attribution`,
+        description: `Quote by ${authorName}`,
+        price: '29.99',
+        imageUrl: null,
+        printfulSyncProductId: null,
+        printfulSyncVariants: null,
+        isActive: true,
+      });
+      console.log('[SCHEDULER] Created demo basic product:', basicProduct.id);
+      
+      // Update winner with product ID if not set
+      if (!winner.productId) {
+        await storage.updateWeeklyWinner(winner.winnerId, { productId: basicProduct.id });
+        console.log('[SCHEDULER] Updated weekly winner with basic product ID');
+      }
+    }
     
-    const product = await storage.createProduct(productData);
-    console.log('[SCHEDULER] Created demo product for weekly winner:', product.id);
-    
-    // Update the weekly winner with the product ID
-    await storage.updateWeeklyWinner(winner.winnerId, { productId: product.id });
-    console.log('[SCHEDULER] Updated weekly winner with product ID');
+    console.log('[SCHEDULER] Auto-heal completed');
     
   } catch (error: any) {
     console.error('[SCHEDULER] Error in auto-heal:', error.message);
