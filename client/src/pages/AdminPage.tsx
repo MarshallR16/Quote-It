@@ -347,7 +347,10 @@ export default function AdminPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => syncGoldProductMutation.mutate()}
+              onClick={() => {
+                console.log("[SYNC BTN] Button clicked at " + new Date().toISOString());
+                syncGoldProductMutation.mutate();
+              }}
               disabled={syncGoldProductMutation.isPending}
               data-testid="button-sync-gold-product"
             >
