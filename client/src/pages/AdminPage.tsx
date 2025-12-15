@@ -98,6 +98,28 @@ export default function AdminPage() {
     },
   });
 
+  const syncGoldProductMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/sync-gold-product", {});
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/weekly-winner/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Gold Product Synced!",
+        description: data.message || "Gold product has been synced with Printful",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Sync Failed",
+        description: error.message || "Failed to sync gold product with Printful",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Check if user is admin
   if (!user?.isAdmin) {
     return (
@@ -311,13 +333,23 @@ export default function AdminPage() {
           <p className="text-muted-foreground mb-4">
             Click to automatically select the quote with the highest votes and create a Printful T-shirt product
           </p>
-          <Button
-            onClick={() => selectWinnerMutation.mutate()}
-            disabled={selectWinnerMutation.isPending}
-            data-testid="button-select-winner"
-          >
-            {selectWinnerMutation.isPending ? "Processing..." : "Select Winner & Create Product"}
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => selectWinnerMutation.mutate()}
+              disabled={selectWinnerMutation.isPending}
+              data-testid="button-select-winner"
+            >
+              {selectWinnerMutation.isPending ? "Processing..." : "Select Winner & Create Product"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => syncGoldProductMutation.mutate()}
+              disabled={syncGoldProductMutation.isPending}
+              data-testid="button-sync-gold-product"
+            >
+              {syncGoldProductMutation.isPending ? "Syncing..." : "Sync Gold Product with Printful"}
+            </Button>
+          </div>
         </Card>
 
         {isLoadingWinner ? (
