@@ -1,0 +1,51 @@
+[Info] Successfully preconnected to https://fonts.gstatic.com/
+[Info] Successfully preconnected to https://fonts.googleapis.com/
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Info] Successfully preconnected to https://merchant-ui-api.stripe.com/
+[Info] Successfully preconnected to https://api.stripe.com/
+[Log] [useAuth] Firebase auth state changed: – "User: marshall_ruzicka@icloud.com" (index-BawBaf-2.js, line 2146)
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] Firebase auth state changed: – "User: marshall_ruzicka@icloud.com" (index-BawBaf-2.js, line 2146, x2)
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Error] Failed to load resource: the server responded with a status of 401 () (design-preview, line 0)
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+> Selected Element
+< <div class="min-h-screen pb-20 md:pb-8 pt-16">…</div>
+> fetch('/api/admin/printful/delete-all', { method: 'POST', credentials: 'include' }).then(r => r.json()).then(console.log)
+< Promise {status: "pending"}
+[Error] Failed to load resource: the server responded with a status of 401 () (delete-all, line 0)
+[Log] {message: "Unauthorized"}
+> fetch('/api/admin/printful/delete-all', { method: 'POST', credentials: 'include' }).then(r => r.json()).then(console.log)
+< Promise {status: "pending"}
+[Error] Failed to load resource: the server responded with a status of 401 () (delete-all, line 0)
+[Log] {message: "Unauthorized"}
