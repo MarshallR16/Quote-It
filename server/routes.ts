@@ -1149,6 +1149,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete ALL products from Printful and clear sync IDs from database
+  app.post("/api/admin/printful/delete-all", requireAdmin, async (req: any, res: any) => {
+    try {
+      console.log('[ADMIN] Deleting ALL Printful products...');
+
+      if (!isPrintfulConfigured) {
+        return res.status(400).json({ message: 'Printful is not configured' });
+      }
+
+      // Delete all products from Printful
+      const deletedCount = await printfulService.deleteAllProducts();
+
+      // Clear all Printful sync IDs from database products
+      const allProducts = await storage.getAllProducts();
+      let clearedCount = 0;
+      for (const product of allProducts) {
+        if (product.printfulSyncProductId) {
+          await storage.updateProduct(product.id, {
+            printfulSyncProductId: null,
+            printfulSyncVariants: null
+          });
+          clearedCount++;
+        }
+      }
+
+      console.log(`[ADMIN] Deleted ${deletedCount} Printful products, cleared ${clearedCount} DB sync IDs`);
+      res.json({ 
+        message: `Deleted ${deletedCount} products from Printful and cleared ${clearedCount} sync IDs from database`,
+        printfulDeleted: deletedCount,
+        dbCleared: clearedCount
+      });
+    } catch (error: any) {
+      console.error('[ADMIN] Delete all products error:', error.message);
+      res.status(500).json({ message: "Error deleting products: " + error.message });
+    }
+  });
+
   // Sync all products with Printful for the most recent weekly winner
   // Creates/updates all three products:
   // 1. Gold Edition (gold text with author) - winner exclusive, NOT for sale

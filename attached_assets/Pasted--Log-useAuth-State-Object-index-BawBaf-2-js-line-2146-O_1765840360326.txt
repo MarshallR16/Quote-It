@@ -1,0 +1,16 @@
+[Log] [useAuth] State: – Object (index-BawBaf-2.js, line 2146)
+Object
+> Selected Element
+< <h1 class="text-3xl font-bold font-display mb-2">Admin Panel</h1>
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object

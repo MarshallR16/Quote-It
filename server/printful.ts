@@ -568,6 +568,48 @@ export class PrintfulService {
   }
 
   /**
+   * Delete a product from Printful by sync product ID
+   */
+  async deleteProduct(syncProductId: number): Promise<void> {
+    try {
+      console.log(`[PRINTFUL] Deleting product ${syncProductId}...`);
+      await printfulClient.delete(`/store/products/${syncProductId}`);
+      console.log(`[PRINTFUL] Product ${syncProductId} deleted successfully`);
+    } catch (error: any) {
+      console.error(`Printful delete product error:`, error.response?.data || error.message);
+      throw new Error(`Failed to delete Printful product ${syncProductId}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete ALL products from the Printful store
+   * Returns count of deleted products
+   */
+  async deleteAllProducts(): Promise<number> {
+    try {
+      console.log('[PRINTFUL] Fetching all products to delete...');
+      const products = await this.listProducts();
+      console.log(`[PRINTFUL] Found ${products.length} products to delete`);
+      
+      let deleted = 0;
+      for (const product of products) {
+        try {
+          await this.deleteProduct(product.id);
+          deleted++;
+        } catch (e: any) {
+          console.error(`[PRINTFUL] Failed to delete product ${product.id}: ${e.message}`);
+        }
+      }
+      
+      console.log(`[PRINTFUL] Deleted ${deleted}/${products.length} products`);
+      return deleted;
+    } catch (error: any) {
+      console.error('Printful delete all products error:', error.message);
+      throw new Error(`Failed to delete all Printful products: ${error.message}`);
+    }
+  }
+
+  /**
    * Find a product in Printful by external_id
    * Returns the product if found, null if not found
    */

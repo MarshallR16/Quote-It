@@ -1,0 +1,113 @@
+[PRINTFUL] Testing API connection...
+2025-12-15 17:14:16.84
+fb5ae25c
+User
+[ADMIN] Syncing all products with Printful...
+2025-12-15 17:14:17.08
+fb5ae25c
+User
+[PRINTFUL] Connected to store: Quote-It
+2025-12-15 17:14:17.37
+fb5ae25c
+User
+[ADMIN] Found winner: e98d4132-86d6-49d9-a982-df468e94709a, quote: 6fd98fd6-8041-42f9-8c15-759633f1f2b4
+2025-12-15 17:14:17.47
+fb5ae25c
+User
+[ADMIN] Gold external_id: quote-6fd98fd6-8041-42f9-8c15-759633f1f2b4-gold
+2025-12-15 17:14:17.47
+fb5ae25c
+User
+[ADMIN] Searching Printful for existing gold product...
+2025-12-15 17:14:17.47
+fb5ae25c
+User
+[ADMIN] ========== GOLD PRODUCT DEBUG ==========
+2025-12-15 17:14:18.03
+fb5ae25c
+User
+[ADMIN] ========== END GOLD DEBUG ==========
+2025-12-15 17:14:18.03
+fb5ae25c
+User
+[ADMIN] REUSING existing gold product from Printful: 406880271
+2025-12-15 17:14:18.03
+fb5ae25c
+User
+[ADMIN] findProductByExternalId result: {"sync_product":{"id":406880271,"external_id":"quote-6fd98fd6-8041-42f9-8c15-759633f1f2b4-gold","name":"\"If I had a dollar for every racist joke I’ve made ...\"","variants":5,"synced":5,"thumbnail_url":"https://quote-it.co/api/designs/6fd98fd6-8041-42f9-8c15-759633f1f2b4/gold","is_ignored":false},"
+2025-12-15 17:14:18.10
+fb5ae25c
+User
+[ADMIN] Processing White with Author product...
+2025-12-15 17:14:18.10
+fb5ae25c
+User
+[ADMIN] Gold product synced with Printful ID: 406880271
+2025-12-15 17:14:18.67
+fb5ae25c
+User
+[ADMIN] Found existing white with author product in Printful: 406880268
+2025-12-15 17:14:18.73
+fb5ae25c
+User
+[ADMIN] White with author product synced with Printful ID: 406880268
+2025-12-15 17:14:18.73
+fb5ae25c
+User
+[ADMIN] Processing White No Author product...
+2025-12-15 17:14:19.31
+fb5ae25c
+User
+[ADMIN] Found existing white no author product in Printful: 407683095
+2025-12-15 17:14:19.40
+fb5ae25c
+User
+[ADMIN] White no author product synced with Printful ID: 407683095
+2025-12-15 17:14:19.40
+fb5ae25c
+User
+gold: 406880271,
+2025-12-15 17:14:19.40
+fb5ae25c
+User
+[ADMIN] All products synced successfully with IDs: {
+2025-12-15 17:14:19.40
+fb5ae25c
+User
+whiteWithAuthor: 406880268,
+2025-12-15 17:14:19.40
+fb5ae25c
+User
+whiteNoAuthor: 407683095
+2025-12-15 17:14:19.40
+fb5ae25c
+User
+}
+2025-12-15 17:14:19.40
+fb5ae25c
+User
+11:14:19 PM [express] POST /api/admin/sync-gold-product 200 in 5060ms :: {"message":"All products syn…
+2025-12-15 17:14:19.61
+fb5ae25c
+User
+[API /weekly-winner/current] API version: v2-active-products-fix
+2025-12-15 17:14:19.65
+fb5ae25c
+User
+[API /weekly-winner/current] Raw data from storage: {"winnerId":"e98d4132-86d6-49d9-a982-df468e94709a","quoteId":"6fd98fd6-8041-42f9-8c15-759633f1f2b4","quoteText":"If I had a dollar for every racist joke I’ve made today some black guy would probably r
+2025-12-15 17:14:19.65
+fb5ae25c
+User
+[API /weekly-winner/current] productId: 8656b67f-2889-4b81-973e-d0c07edaad1a
+2025-12-15 17:14:19.65
+fb5ae25c
+User
+11:14:19 PM [express] GET /api/weekly-winner/current 200 in 35ms :: {"_apiVersion":"v2","product":{"i…
+2025-12-15 17:14:19.65
+fb5ae25c
+User
+11:14:19 PM [express] GET /api/weekly-winner/current 200 in 35ms :: {"_apiVersion":"v2","product":{"i…
+2025-12-15 17:14:19.65
+fb5ae25c
+User
+11:14:19 PM [express] GET /api/weekly-winner/current 200 in 35ms :: {"_apiVersion":"v2","product":{"i…
