@@ -1373,7 +1373,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log('[ADMIN] All products synced successfully');
+      // Validate that sync IDs were obtained
+      const errors: string[] = [];
+      if (!results.goldProduct?.printfulId) {
+        errors.push('Gold product: No Printful sync ID obtained');
+      }
+      if (!results.whiteWithAuthorProduct?.printfulId) {
+        errors.push('White with author: No Printful sync ID obtained');
+      }
+      if (!results.whiteNoAuthorProduct?.printfulId) {
+        errors.push('White no author: No Printful sync ID obtained');
+      }
+
+      if (errors.length > 0) {
+        console.error('[ADMIN] Sync completed with errors:', errors);
+        return res.status(207).json({
+          message: `Sync completed with ${errors.length} issues`,
+          errors,
+          results,
+          winner: {
+            id: winner.winnerId,
+            quoteId: winner.quoteId,
+            authorName
+          },
+          designUrls: {
+            gold: goldDesignUrl,
+            whiteWithAuthor: whiteWithAuthorDesignUrl,
+            whiteNoAuthor: whiteNoAuthorDesignUrl
+          }
+        });
+      }
+
+      console.log('[ADMIN] All products synced successfully with IDs:', {
+        gold: results.goldProduct?.printfulId,
+        whiteWithAuthor: results.whiteWithAuthorProduct?.printfulId,
+        whiteNoAuthor: results.whiteNoAuthorProduct?.printfulId
+      });
 
       res.json({
         message: 'All products synced successfully',
