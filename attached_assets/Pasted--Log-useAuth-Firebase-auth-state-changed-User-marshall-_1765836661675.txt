@@ -1,0 +1,47 @@
+[Log] [useAuth] Firebase auth state changed: – "User: marshall_ruzicka@icloud.com" (index-BawBaf-2.js, line 2146)
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: null, isLoadingAuth: false, isLoadingDb: true, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: true, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: null, dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: null, dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: true, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: null, dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: true, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] Firebase auth state changed: – "User: marshall_ruzicka@icloud.com" (index-BawBaf-2.js, line 2146, x2)
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Error] Failed to load resource: the server responded with a status of 401 () (design-preview, line 0)
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
+[Log] [useAuth] State: – {firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, …} (index-BawBaf-2.js, line 2146)
+{firebaseUser: "marshall_ruzicka@icloud.com", dbUser: "marshall_ruzicka@icloud.com", isLoadingAuth: false, isLoadingDb: false, requiresProfileCompletion: false, …}Object
