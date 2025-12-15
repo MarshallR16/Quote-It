@@ -1209,38 +1209,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.username || author.email?.split('@')[0] || 'Anonymous'
         : winner.authorUsername || 'Anonymous';
 
-      console.log(`[ADMIN] Creating Printful product for quote: ${winner.quoteId}, author: ${authorName}`);
+      const externalId = `quote-${winner.quoteId}-gold`;
+      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${externalId}`);
 
-      // Create Printful product
-      const printfulGoldProduct = await printfulService.createProduct(
-        winner.quoteText,
-        authorName,
-        `quote-${winner.quoteId}-gold`,
-        'gold',
-        winner.quoteId,
-        true // includeAuthor = true
-      );
+      // First check if product already exists in Printful
+      let printfulGoldProduct = await printfulService.findProductByExternalId(externalId);
+      let wasExisting = false;
+
+      if (printfulGoldProduct) {
+        console.log(`[ADMIN] Found existing Printful product: ${printfulGoldProduct.sync_product?.id}`);
+        wasExisting = true;
+      } else {
+        // Create new Printful product
+        console.log(`[ADMIN] Creating new Printful product for quote: ${winner.quoteId}, author: ${authorName}`);
+        printfulGoldProduct = await printfulService.createProduct(
+          winner.quoteText,
+          authorName,
+          externalId,
+          'gold',
+          winner.quoteId,
+          true // includeAuthor = true
+        );
+      }
+
+      // Get the sync product ID (structure differs based on whether it was found or created)
+      const syncProductId = wasExisting 
+        ? printfulGoldProduct.sync_product?.id 
+        : printfulGoldProduct.id;
 
       // Update the database with Printful sync info
       await storage.updateProduct(goldProduct.id, {
-        printfulSyncProductId: printfulGoldProduct.id,
+        printfulSyncProductId: syncProductId,
         printfulSyncVariants: printfulGoldProduct,
       });
 
-      console.log(`[ADMIN] Gold product synced successfully: ${goldProduct.id} -> Printful: ${printfulGoldProduct.id}`);
+      console.log(`[ADMIN] Gold product synced successfully: ${goldProduct.id} -> Printful: ${syncProductId}`);
 
       res.json({
-        message: 'Gold product synced with Printful successfully',
+        message: wasExisting 
+          ? 'Gold product linked to existing Printful product' 
+          : 'Gold product synced with Printful successfully',
         product: {
           id: goldProduct.id,
           name: goldProduct.name,
-          printfulSyncProductId: printfulGoldProduct.id
+          printfulSyncProductId: syncProductId
         },
         winner: {
           id: winner.winnerId,
           quoteId: winner.quoteId,
           authorName
-        }
+        },
+        wasExisting
       });
     } catch (error: any) {
       console.error('[ADMIN] Error syncing gold product:', error);

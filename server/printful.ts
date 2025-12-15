@@ -568,6 +568,26 @@ export class PrintfulService {
   }
 
   /**
+   * Find a product in Printful by external_id
+   * Returns the product if found, null if not found
+   */
+  async findProductByExternalId(externalId: string): Promise<any | null> {
+    try {
+      const products = await this.listProducts();
+      const found = products.find((p: any) => p.external_id === externalId);
+      if (found) {
+        // Get full details including sync_variants
+        const details = await this.getProductDetails(found.id);
+        return details;
+      }
+      return null;
+    } catch (error: any) {
+      console.error('Printful find product by external_id error:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Get detailed product info including variants and files
    */
   async getProductDetails(syncProductId: number): Promise<any> {
