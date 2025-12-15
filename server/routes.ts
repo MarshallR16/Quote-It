@@ -1217,21 +1217,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // === 1. GOLD PRODUCT (winner exclusive, NOT for sale) ===
       // Identical to white product creation - just different text color
-      console.log(`[ADMIN] Processing Gold Edition product...`);
+      console.log(`[ADMIN] ========== GOLD PRODUCT DEBUG ==========`);
+      console.log(`[ADMIN] Gold external_id: ${goldExternalId}`);
+      console.log(`[ADMIN] Searching Printful for existing gold product...`);
       let existingGoldPrintful = await printfulService.findProductByExternalId(goldExternalId);
+      console.log(`[ADMIN] findProductByExternalId result:`, existingGoldPrintful ? JSON.stringify(existingGoldPrintful).substring(0, 300) : 'NULL');
       let printfulGoldProduct: any = null;
 
       if (existingGoldPrintful) {
-        console.log(`[ADMIN] Found existing gold product in Printful: ${existingGoldPrintful.sync_product?.id}`);
+        console.log(`[ADMIN] REUSING existing gold product from Printful: ${existingGoldPrintful.sync_product?.id}`);
         printfulGoldProduct = existingGoldPrintful;
       } else {
-        console.log(`[ADMIN] Creating gold product in Printful...`);
-        // NO try/catch - let errors propagate so we can see what's wrong
+        console.log(`[ADMIN] No gold product in Printful - CREATING NEW...`);
+        console.log(`[ADMIN] Calling createProduct('${winner.quoteText.substring(0,30)}...', '${authorName}', '${goldExternalId}', 'gold', '${winner.quoteId}', true)`);
         printfulGoldProduct = await printfulService.createProduct(
           winner.quoteText, authorName, goldExternalId, 'gold', winner.quoteId, true
         );
-        console.log(`[ADMIN] Created gold product: ${printfulGoldProduct?.id}`);
+        console.log(`[ADMIN] createProduct returned:`, JSON.stringify(printfulGoldProduct).substring(0, 500));
       }
+      console.log(`[ADMIN] ========== END GOLD DEBUG ==========`);
 
       // Extract sync ID and save to DB
       const goldSyncId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
