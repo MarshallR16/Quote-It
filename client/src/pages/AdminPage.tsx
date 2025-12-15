@@ -100,19 +100,15 @@ export default function AdminPage() {
 
   const syncGoldProductMutation = useMutation({
     mutationFn: async () => {
-      console.log("[ADMIN FE] Starting sync gold product request...");
       const res = await apiRequest("POST", "/api/admin/sync-gold-product", {});
-      const data = await res.json();
-      console.log("[ADMIN FE] Sync response:", data);
-      return data;
+      return await res.json();
     },
     onSuccess: (data) => {
-      console.log("[ADMIN FE] onSuccess called with:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/weekly-winner/current"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
-        title: "Gold Product Synced!",
-        description: data.message || "Gold product has been synced with Printful",
+        title: "Products Synced!",
+        description: data.message || "All products have been synced with Printful",
       });
     },
     onError: (error: any) => {
@@ -347,14 +343,11 @@ export default function AdminPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => {
-                console.log("[SYNC BTN] Button clicked at " + new Date().toISOString());
-                syncGoldProductMutation.mutate();
-              }}
+              onClick={() => syncGoldProductMutation.mutate()}
               disabled={syncGoldProductMutation.isPending}
               data-testid="button-sync-gold-product"
             >
-              {syncGoldProductMutation.isPending ? "Syncing..." : "Sync Gold Product with Printful"}
+              {syncGoldProductMutation.isPending ? "Syncing..." : "Sync All Products with Printful"}
             </Button>
           </div>
         </Card>
