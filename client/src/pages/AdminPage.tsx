@@ -120,6 +120,28 @@ export default function AdminPage() {
     },
   });
 
+  const deleteAllPrintfulMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/printful/delete-all", {});
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/weekly-winner/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Printful Products Deleted!",
+        description: data.message || "All products deleted from Printful",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete Printful products",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Check if user is admin
   if (!user?.isAdmin) {
     return (
@@ -348,6 +370,18 @@ export default function AdminPage() {
               data-testid="button-sync-gold-product"
             >
               {syncGoldProductMutation.isPending ? "Syncing..." : "Sync All Products with Printful"}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirm("Delete ALL products from Printful? This cannot be undone.")) {
+                  deleteAllPrintfulMutation.mutate();
+                }
+              }}
+              disabled={deleteAllPrintfulMutation.isPending}
+              data-testid="button-delete-all-printful"
+            >
+              {deleteAllPrintfulMutation.isPending ? "Deleting..." : "Delete All Printful Products"}
             </Button>
           </div>
         </Card>
