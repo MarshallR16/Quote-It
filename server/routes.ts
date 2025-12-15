@@ -910,9 +910,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Re-create Printful products for a weekly winner that's missing them
+  // Creates 3 products: gold (winner), white+author (for sale), white no-author (for sale)
   app.post("/api/admin/printful/recreate-products/:winnerId", requireAdmin, async (req: any, res: any) => {
     try {
       const { winnerId } = req.params;
+      const { goldOnly } = req.query; // Optional: only create gold product
       
       // Get the weekly winner
       const winner = await storage.getWeeklyWinner(winnerId);
@@ -933,7 +935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const authorName = `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Anonymous';
-      const externalId = `quote-${quote.id}`;
+      const truncatedQuote = `"${quote.text.substring(0, 50)}${quote.text.length > 50 ? '...' : ''}"`;
 
       // Check if Printful is configured
       if (!isPrintfulConfigured) {
@@ -952,53 +954,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const results = {
-        whiteProduct: null as any,
+        whiteWithAuthor: null as any,
+        whiteNoAuthor: null as any,
         goldProduct: null as any,
         errors: [] as string[]
       };
 
-      // Create white text product (for sale)
-      try {
-        console.log('[ADMIN] Creating white text Printful product...');
-        const printfulProduct = await printfulService.createProduct(
-          quote.text,
-          authorName,
-          externalId,
-          'white',
-          quote.id
-        );
+      // Skip white products if goldOnly is set
+      if (!goldOnly) {
+        // Create white text product WITH author (for sale)
+        try {
+          console.log('[ADMIN] Creating white text product WITH author...');
+          const printfulProduct = await printfulService.createProduct(
+            quote.text,
+            authorName,
+            `quote-${quote.id}-white-author`,
+            'white',
+            quote.id,
+            true // includeAuthor = true
+          );
 
-        // Find or update the existing product
-        const existingProducts = await storage.getActiveProducts();
-        const existingWhiteProduct = existingProducts.find(p => 
-          p.quoteId === quote.id && !p.name.includes("Gold Edition")
-        );
+          // Find existing "With Attribution" product
+          const allProducts = await storage.getAllProducts();
+          const existingProduct = allProducts.find(p => 
+            p.quoteId === quote.id && p.name.includes("With Attribution")
+          );
 
-        if (existingWhiteProduct) {
-          // Update existing product with Printful data
-          await storage.updateProduct(existingWhiteProduct.id, {
-            printfulSyncProductId: printfulProduct.id,
-            printfulSyncVariants: printfulProduct,
-          });
-          results.whiteProduct = { id: existingWhiteProduct.id, printfulId: printfulProduct.id, updated: true };
-        } else {
-          // Create new product
-          const newProduct = await storage.createProduct({
-            quoteId: quote.id,
-            name: `"${quote.text.substring(0, 50)}${quote.text.length > 50 ? '...' : ''}"`,
-            description: `Premium black t-shirt featuring the quote by ${authorName}`,
-            price: '29.99',
-            imageUrl: null,
-            isActive: true,
-            printfulSyncProductId: printfulProduct.id,
-            printfulSyncVariants: printfulProduct,
-          });
-          results.whiteProduct = { id: newProduct.id, printfulId: printfulProduct.id, created: true };
+          if (existingProduct) {
+            await storage.updateProduct(existingProduct.id, {
+              printfulSyncProductId: printfulProduct.id,
+              printfulSyncVariants: printfulProduct,
+            });
+            results.whiteWithAuthor = { id: existingProduct.id, printfulId: printfulProduct.id, updated: true };
+          } else {
+            const newProduct = await storage.createProduct({
+              quoteId: quote.id,
+              weeklyWinnerId: winner.id,
+              name: `${truncatedQuote} - With Attribution`,
+              description: `Quote by ${authorName}`,
+              price: '29.99',
+              imageUrl: null,
+              isActive: true,
+              printfulSyncProductId: printfulProduct.id,
+              printfulSyncVariants: printfulProduct,
+            });
+            results.whiteWithAuthor = { id: newProduct.id, printfulId: printfulProduct.id, created: true };
+          }
+          console.log('[ADMIN] White+author product created/updated successfully');
+        } catch (error: any) {
+          console.error('[ADMIN] Error creating white+author product:', error.message);
+          results.errors.push(`White+author product: ${error.message}`);
         }
-        console.log('[ADMIN] White text product created/updated successfully');
-      } catch (error: any) {
-        console.error('[ADMIN] Error creating white product:', error.message);
-        results.errors.push(`White product: ${error.message}`);
+
+        // Create white text product WITHOUT author (for sale)
+        try {
+          console.log('[ADMIN] Creating white text product WITHOUT author...');
+          const printfulProductNoAuthor = await printfulService.createProduct(
+            quote.text,
+            '',
+            `quote-${quote.id}-white-noauthor`,
+            'white',
+            quote.id,
+            false // includeAuthor = false
+          );
+
+          // Find existing "Quote Only" product
+          const allProducts = await storage.getAllProducts();
+          const existingProduct = allProducts.find(p => 
+            p.quoteId === quote.id && p.name.includes("Quote Only")
+          );
+
+          if (existingProduct) {
+            await storage.updateProduct(existingProduct.id, {
+              printfulSyncProductId: printfulProductNoAuthor.id,
+              printfulSyncVariants: printfulProductNoAuthor,
+            });
+            results.whiteNoAuthor = { id: existingProduct.id, printfulId: printfulProductNoAuthor.id, updated: true };
+          } else {
+            const newProduct = await storage.createProduct({
+              quoteId: quote.id,
+              weeklyWinnerId: winner.id,
+              name: `${truncatedQuote} - Quote Only`,
+              description: `Weekly Winner Quote (no attribution)`,
+              price: '29.99',
+              imageUrl: null,
+              isActive: true,
+              printfulSyncProductId: printfulProductNoAuthor.id,
+              printfulSyncVariants: printfulProductNoAuthor,
+            });
+            results.whiteNoAuthor = { id: newProduct.id, printfulId: printfulProductNoAuthor.id, created: true };
+          }
+          console.log('[ADMIN] White no-author product created/updated successfully');
+        } catch (error: any) {
+          console.error('[ADMIN] Error creating white no-author product:', error.message);
+          results.errors.push(`White no-author product: ${error.message}`);
+        }
       }
 
       // Create gold text product (winner exclusive)
@@ -1007,9 +1057,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const printfulWinnerProduct = await printfulService.createProduct(
           quote.text,
           authorName,
-          `${externalId}-gold`,
+          `quote-${quote.id}-gold`,
           'gold',
-          quote.id
+          quote.id,
+          true // includeAuthor = true
         );
 
         // Find or update the existing gold product
@@ -1019,18 +1070,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         if (existingGoldProduct) {
-          // Update existing product with Printful data
           await storage.updateProduct(existingGoldProduct.id, {
             printfulSyncProductId: printfulWinnerProduct.id,
             printfulSyncVariants: printfulWinnerProduct,
           });
           results.goldProduct = { id: existingGoldProduct.id, printfulId: printfulWinnerProduct.id, updated: true };
+          
+          // Update winner's complimentary order to use gold product
+          await storage.updateWeeklyWinner(winner.id, { winnerProductId: existingGoldProduct.id });
         } else {
-          // Create new product
           const winnerProduct = await storage.createProduct({
             quoteId: quote.id,
-            name: `"${quote.text.substring(0, 50)}${quote.text.length > 50 ? '...' : ''}" (Winner's Gold Edition)`,
-            description: `Exclusive gold text edition for the winning author ${authorName}`,
+            weeklyWinnerId: winner.id,
+            name: `${truncatedQuote} (Winner's Gold Edition)`,
+            description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
             price: '0.00',
             imageUrl: null,
             isActive: false,
@@ -1038,6 +1091,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             printfulSyncVariants: printfulWinnerProduct,
           });
           results.goldProduct = { id: winnerProduct.id, printfulId: printfulWinnerProduct.id, created: true };
+          
+          // Update winner with gold product reference
+          await storage.updateWeeklyWinner(winner.id, { winnerProductId: winnerProduct.id });
         }
         console.log('[ADMIN] Gold text product created/updated successfully');
       } catch (error: any) {
@@ -1045,9 +1101,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results.errors.push(`Gold product: ${error.message}`);
       }
 
-      if (results.errors.length > 0 && !results.whiteProduct && !results.goldProduct) {
+      const hasAnySuccess = results.whiteWithAuthor || results.whiteNoAuthor || results.goldProduct;
+      if (!hasAnySuccess) {
         return res.status(500).json({
-          message: "Failed to create both products",
+          message: "Failed to create any products",
           errors: results.errors
         });
       }
