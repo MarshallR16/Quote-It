@@ -1217,37 +1217,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // === 1. GOLD PRODUCT (winner exclusive, NOT for sale) ===
       console.log(`[ADMIN] Processing Gold Edition product...`);
+      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${goldExternalId}`);
       let existingGoldPrintful = await printfulService.findProductByExternalId(goldExternalId);
       let printfulGoldProduct: any = null;
 
       if (existingGoldPrintful) {
+        console.log(`[ADMIN] Found existing gold product in Printful:`, JSON.stringify(existingGoldPrintful?.sync_product || existingGoldPrintful, null, 2).substring(0, 500));
         const existingSyncProductId = existingGoldPrintful.sync_product?.id;
         console.log(`[ADMIN] Updating existing gold product ${existingSyncProductId} with correct design`);
         try {
           printfulGoldProduct = await printfulService.updateProduct(existingSyncProductId, goldDesignUrl);
+          console.log(`[ADMIN] Update result:`, JSON.stringify(printfulGoldProduct?.sync_product || printfulGoldProduct, null, 2).substring(0, 500));
         } catch (e: any) {
           console.error(`[ADMIN] Failed to update gold product: ${e.message}`);
           printfulGoldProduct = existingGoldPrintful;
         }
       } else {
-        console.log(`[ADMIN] Creating new gold Printful product`);
+        console.log(`[ADMIN] No existing gold product found in Printful, creating new one...`);
         printfulGoldProduct = await printfulService.createProduct(
           winner.quoteText, authorName, goldExternalId, 'gold', winner.quoteId, true
         );
+        console.log(`[ADMIN] Created gold product:`, JSON.stringify(printfulGoldProduct, null, 2).substring(0, 500));
       }
 
+      // Extract sync ID - handle both response formats
       const goldSyncId = printfulGoldProduct?.sync_product?.id || printfulGoldProduct?.id;
+      const goldSyncIdStr = goldSyncId ? String(goldSyncId) : null;
+      console.log(`[ADMIN] Gold sync ID extracted: ${goldSyncIdStr} (raw: ${goldSyncId})`);
       
       // Update or create gold product in database
       if (existingGoldDbProduct) {
+        console.log(`[ADMIN] Updating existing DB product ${existingGoldDbProduct.id} with Printful sync ID: ${goldSyncIdStr}`);
         await storage.updateProduct(existingGoldDbProduct.id, {
-          printfulSyncProductId: goldSyncId,
+          printfulSyncProductId: goldSyncIdStr,
           printfulSyncVariants: printfulGoldProduct,
           isActive: false // Gold is winner exclusive
         });
-        results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncId, updated: true };
+        results.goldProduct = { id: existingGoldDbProduct.id, printfulId: goldSyncIdStr, updated: true };
       } else {
         const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - Gold Edition`;
+        console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${goldSyncIdStr}`);
         const newProduct = await storage.createProduct({
           quoteId: winner.quoteId,
           name: productName,
@@ -1255,27 +1264,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: '29.99',
           imageUrl: null,
           isActive: false, // Gold is winner exclusive
-          printfulSyncProductId: goldSyncId,
+          printfulSyncProductId: goldSyncIdStr,
           printfulSyncVariants: printfulGoldProduct,
         });
-        results.goldProduct = { id: newProduct.id, printfulId: goldSyncId, created: true };
+        results.goldProduct = { id: newProduct.id, printfulId: goldSyncIdStr, created: true };
       }
 
       // === 2. WHITE WITH AUTHOR (for sale) ===
       console.log(`[ADMIN] Processing White with Author product...`);
+      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${whiteWithAuthorExternalId}`);
       let existingWhiteWithAuthorPrintful = await printfulService.findProductByExternalId(whiteWithAuthorExternalId);
       let printfulWhiteWithAuthorProduct: any = null;
 
       if (existingWhiteWithAuthorPrintful) {
+        console.log(`[ADMIN] Found existing white with author product in Printful:`, JSON.stringify(existingWhiteWithAuthorPrintful?.sync_product || existingWhiteWithAuthorPrintful, null, 2).substring(0, 500));
         const existingSyncProductId = existingWhiteWithAuthorPrintful.sync_product?.id;
         console.log(`[ADMIN] White with author product exists: ${existingSyncProductId}`);
         printfulWhiteWithAuthorProduct = existingWhiteWithAuthorPrintful;
       } else {
-        console.log(`[ADMIN] Creating new white with author Printful product`);
+        console.log(`[ADMIN] No existing white with author product found in Printful, creating new one...`);
         try {
           printfulWhiteWithAuthorProduct = await printfulService.createProduct(
             winner.quoteText, authorName, whiteWithAuthorExternalId, 'white', winner.quoteId, true
           );
+          console.log(`[ADMIN] Created white with author product:`, JSON.stringify(printfulWhiteWithAuthorProduct, null, 2).substring(0, 500));
         } catch (e: any) {
           console.error(`[ADMIN] Failed to create white with author product: ${e.message}`);
         }
@@ -1283,16 +1295,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (printfulWhiteWithAuthorProduct) {
         const whiteSyncId = printfulWhiteWithAuthorProduct?.sync_product?.id || printfulWhiteWithAuthorProduct?.id;
+        const whiteSyncIdStr = whiteSyncId ? String(whiteSyncId) : null;
+        console.log(`[ADMIN] White with author sync ID extracted: ${whiteSyncIdStr} (raw: ${whiteSyncId})`);
         
         if (existingWhiteWithAuthorDbProduct) {
+          console.log(`[ADMIN] Updating existing DB product ${existingWhiteWithAuthorDbProduct.id} with Printful sync ID: ${whiteSyncIdStr}`);
           await storage.updateProduct(existingWhiteWithAuthorDbProduct.id, {
-            printfulSyncProductId: whiteSyncId,
+            printfulSyncProductId: whiteSyncIdStr,
             printfulSyncVariants: printfulWhiteWithAuthorProduct,
             isActive: true // For sale
           });
-          results.whiteWithAuthorProduct = { id: existingWhiteWithAuthorDbProduct.id, printfulId: whiteSyncId, updated: true };
+          results.whiteWithAuthorProduct = { id: existingWhiteWithAuthorDbProduct.id, printfulId: whiteSyncIdStr, updated: true };
         } else {
           const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition`;
+          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${whiteSyncIdStr}`);
           const newProduct = await storage.createProduct({
             quoteId: winner.quoteId,
             name: productName,
@@ -1300,28 +1316,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price: '29.99',
             imageUrl: null,
             isActive: true, // For sale
-            printfulSyncProductId: whiteSyncId,
+            printfulSyncProductId: whiteSyncIdStr,
             printfulSyncVariants: printfulWhiteWithAuthorProduct,
           });
-          results.whiteWithAuthorProduct = { id: newProduct.id, printfulId: whiteSyncId, created: true };
+          results.whiteWithAuthorProduct = { id: newProduct.id, printfulId: whiteSyncIdStr, created: true };
         }
       }
 
       // === 3. WHITE NO AUTHOR (for sale) ===
       console.log(`[ADMIN] Processing White No Author product...`);
+      console.log(`[ADMIN] Looking for existing Printful product with external_id: ${whiteNoAuthorExternalId}`);
       let existingWhiteNoAuthorPrintful = await printfulService.findProductByExternalId(whiteNoAuthorExternalId);
       let printfulWhiteNoAuthorProduct: any = null;
 
       if (existingWhiteNoAuthorPrintful) {
+        console.log(`[ADMIN] Found existing white no author product in Printful:`, JSON.stringify(existingWhiteNoAuthorPrintful?.sync_product || existingWhiteNoAuthorPrintful, null, 2).substring(0, 500));
         const existingSyncProductId = existingWhiteNoAuthorPrintful.sync_product?.id;
         console.log(`[ADMIN] White no author product exists: ${existingSyncProductId}`);
         printfulWhiteNoAuthorProduct = existingWhiteNoAuthorPrintful;
       } else {
-        console.log(`[ADMIN] Creating new white no author Printful product`);
+        console.log(`[ADMIN] No existing white no author product found in Printful, creating new one...`);
         try {
           printfulWhiteNoAuthorProduct = await printfulService.createProduct(
             winner.quoteText, authorName, whiteNoAuthorExternalId, 'white', winner.quoteId, false
           );
+          console.log(`[ADMIN] Created white no author product:`, JSON.stringify(printfulWhiteNoAuthorProduct, null, 2).substring(0, 500));
         } catch (e: any) {
           console.error(`[ADMIN] Failed to create white no author product: ${e.message}`);
         }
@@ -1329,16 +1348,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (printfulWhiteNoAuthorProduct) {
         const noAuthorSyncId = printfulWhiteNoAuthorProduct?.sync_product?.id || printfulWhiteNoAuthorProduct?.id;
+        const noAuthorSyncIdStr = noAuthorSyncId ? String(noAuthorSyncId) : null;
+        console.log(`[ADMIN] White no author sync ID extracted: ${noAuthorSyncIdStr} (raw: ${noAuthorSyncId})`);
         
         if (existingWhiteNoAuthorDbProduct) {
+          console.log(`[ADMIN] Updating existing DB product ${existingWhiteNoAuthorDbProduct.id} with Printful sync ID: ${noAuthorSyncIdStr}`);
           await storage.updateProduct(existingWhiteNoAuthorDbProduct.id, {
-            printfulSyncProductId: noAuthorSyncId,
+            printfulSyncProductId: noAuthorSyncIdStr,
             printfulSyncVariants: printfulWhiteNoAuthorProduct,
             isActive: true // For sale
           });
-          results.whiteNoAuthorProduct = { id: existingWhiteNoAuthorDbProduct.id, printfulId: noAuthorSyncId, updated: true };
+          results.whiteNoAuthorProduct = { id: existingWhiteNoAuthorDbProduct.id, printfulId: noAuthorSyncIdStr, updated: true };
         } else {
           const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition (No Author)`;
+          console.log(`[ADMIN] Creating new DB product with Printful sync ID: ${noAuthorSyncIdStr}`);
           const newProduct = await storage.createProduct({
             quoteId: winner.quoteId,
             name: productName,
@@ -1346,10 +1369,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price: '29.99',
             imageUrl: null,
             isActive: true, // For sale
-            printfulSyncProductId: noAuthorSyncId,
+            printfulSyncProductId: noAuthorSyncIdStr,
             printfulSyncVariants: printfulWhiteNoAuthorProduct,
           });
-          results.whiteNoAuthorProduct = { id: newProduct.id, printfulId: noAuthorSyncId, created: true };
+          results.whiteNoAuthorProduct = { id: newProduct.id, printfulId: noAuthorSyncIdStr, created: true };
         }
       }
 
