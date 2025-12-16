@@ -885,6 +885,54 @@ export class PrintfulService {
       throw new Error(`Failed to fetch store products: ${error.message}`);
     }
   }
+
+  /**
+   * Get the sync variant ID for a specific size from a Printful product
+   * Size should be one of: S, M, L, XL, 2XL
+   */
+  async getSyncVariantForSize(syncProductId: number, size: string): Promise<number | null> {
+    try {
+      console.log(`[PRINTFUL] Getting sync variant for product ${syncProductId}, size ${size}`);
+      const productDetails = await this.getProductDetails(syncProductId);
+      
+      if (!productDetails?.sync_variants) {
+        console.error('[PRINTFUL] No sync_variants found for product');
+        return null;
+      }
+
+      const normalizedSize = size.toUpperCase().trim();
+      
+      // Try matching by size field first
+      let variant = productDetails.sync_variants.find((v: any) => 
+        v.size?.toUpperCase()?.trim() === normalizedSize
+      );
+
+      // Fallback: try matching size in the variant name (e.g., "Black / M")
+      if (!variant) {
+        variant = productDetails.sync_variants.find((v: any) => {
+          const name = v.name?.toUpperCase() || '';
+          // Match patterns like "/ M", "/ XL", "/ 2XL"
+          return name.includes(`/ ${normalizedSize}`) || name.endsWith(` ${normalizedSize}`);
+        });
+      }
+
+      if (!variant) {
+        console.error(`[PRINTFUL] No variant found for size ${size}`);
+        console.log('[PRINTFUL] Available variants:', productDetails.sync_variants.map((v: any) => ({
+          id: v.id,
+          size: v.size,
+          name: v.name
+        })));
+        return null;
+      }
+
+      console.log(`[PRINTFUL] Found sync variant ${variant.id} for size ${size}`);
+      return variant.id;
+    } catch (error: any) {
+      console.error('[PRINTFUL] Error getting sync variant for size:', error.message);
+      return null;
+    }
+  }
 }
 
 export const printfulService = new PrintfulService();

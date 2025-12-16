@@ -2010,7 +2010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update the order with shipping info and change status to processing
-      const updatedOrder = await storage.updateOrder(orderId, {
+      let updatedOrder = await storage.updateOrder(orderId, {
         shippingAddress: shippingInfo,
         status: 'processing',
       });
@@ -2021,10 +2021,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const product = await storage.getProduct(order.productId);
           if (product?.printfulSyncProductId) {
             console.log('[WINNER ORDER] Creating Printful fulfillment for complimentary order:', orderId);
-            // Note: Printful fulfillment would go here if fully integrated
+            
+            // Get the sync variant ID for the selected size
+            const syncVariantId = await printfulService.getSyncVariantForSize(
+              product.printfulSyncProductId,
+              shippingInfo.size
+            );
+            
+            if (!syncVariantId) {
+              throw new Error(`Could not find variant for size ${shippingInfo.size}`);
+            }
+            
+            console.log('[WINNER ORDER] Found sync variant ID:', syncVariantId, 'for size:', shippingInfo.size);
+            
+            // Create the Printful order
+            const printfulOrder = await printfulService.createOrder(
+              `winner-${orderId}`,
+              {
+                name: shippingInfo.name,
+                address1: shippingInfo.address1,
+                city: shippingInfo.city,
+                state_code: shippingInfo.state_code,
+                country_code: shippingInfo.country_code,
+                zip: shippingInfo.zip,
+                email: shippingInfo.email,
+              },
+              [{
+                sync_variant_id: syncVariantId,
+                quantity: 1,
+              }]
+            );
+            
+            console.log('[WINNER ORDER] Printful order created:', printfulOrder.id);
+            
+            // Save the Printful order ID immediately so we have a reference even if confirmation fails
+            updatedOrder = await storage.updateOrder(orderId, {
+              printfulOrderId: printfulOrder.id,
+              status: 'pending_confirmation',
+            });
+            
+            // Confirm the order (submit for fulfillment)
+            try {
+              const confirmedOrder = await printfulService.confirmOrder(printfulOrder.id);
+              console.log('[WINNER ORDER] Printful order confirmed:', confirmedOrder.id, 'status:', confirmedOrder.status);
+              
+              // Update status to completed after successful confirmation
+              updatedOrder = await storage.updateOrder(orderId, {
+                status: 'completed',
+              });
+              
+              console.log('[WINNER ORDER] Order successfully submitted to Printful!');
+            } catch (confirmError: any) {
+              console.error('[WINNER ORDER] Confirmation failed but order created. Printful ID:', printfulOrder.id, 'Error:', confirmError.message);
+              // Order exists in Printful but confirmation failed - ops can manually confirm
+              updatedOrder = await storage.updateOrder(orderId, {
+                status: 'pending_confirmation',
+              });
+            }
+          } else {
+            console.error('[WINNER ORDER] Product has no printfulSyncProductId');
           }
         } catch (printfulError: any) {
-          console.error('[WINNER ORDER] Printful error (order still saved):', printfulError.message);
+          console.error('[WINNER ORDER] Printful error (order still saved locally):', printfulError.message);
+          // Order creation failed - update status to indicate the issue
+          updatedOrder = await storage.updateOrder(orderId, {
+            status: 'printful_error',
+          });
         }
       }
       
