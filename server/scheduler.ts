@@ -44,32 +44,57 @@ export async function reconcilePrintfulProducts(): Promise<{ fixed: number; erro
     for (const pfProduct of printfulProducts) {
       const externalId = pfProduct.external_id;
       
-      // Parse external_id format: quote-{quoteId}-{type}
-      // Examples: quote-abc123-gold, quote-abc123-white-author, quote-abc123-white-noauthor
+      // Parse external_id format: quote-{uuid}-{type}
+      // Examples: quote-13cab244-9766-43a7-a4a9-19c895aefecd-gold
+      //           quote-13cab244-9766-43a7-a4a9-19c895aefecd-white-author
+      //           quote-13cab244-9766-43a7-a4a9-19c895aefecd-white-noauthor
+      // NOTE: UUIDs contain dashes, so we can't just split by dash!
       if (!externalId || !externalId.startsWith('quote-')) {
         continue; // Skip non-quote products
       }
       
-      const parts = externalId.split('-');
-      if (parts.length < 3) continue;
+      // Extract the quote ID (UUID) by finding the type suffix and removing it
+      // Type suffixes are: -gold, -white-author, -white-noauthor, -white
+      let quoteId: string;
+      let isGold = false;
+      let isWhiteAuthor = false;
+      let isWhiteNoAuthor = false;
       
-      const quoteId = parts[1];
-      const isGold = externalId.includes('-gold');
-      const isWhiteAuthor = externalId.includes('-white-author') || (externalId.includes('-white') && !externalId.includes('-noauthor'));
-      const isWhiteNoAuthor = externalId.includes('-white-noauthor');
+      const withoutPrefix = externalId.substring(6); // Remove 'quote-'
+      
+      if (withoutPrefix.endsWith('-gold')) {
+        quoteId = withoutPrefix.slice(0, -5); // Remove '-gold'
+        isGold = true;
+      } else if (withoutPrefix.endsWith('-white-noauthor')) {
+        quoteId = withoutPrefix.slice(0, -15); // Remove '-white-noauthor'
+        isWhiteNoAuthor = true;
+      } else if (withoutPrefix.endsWith('-white-author')) {
+        quoteId = withoutPrefix.slice(0, -13); // Remove '-white-author'
+        isWhiteAuthor = true;
+      } else if (withoutPrefix.endsWith('-white')) {
+        quoteId = withoutPrefix.slice(0, -6); // Remove '-white' (legacy format)
+        isWhiteAuthor = true;
+      } else {
+        console.log(`[RECONCILE] Unknown external_id format: ${externalId}`);
+        continue;
+      }
+      
+      console.log(`[RECONCILE] Parsed external_id: ${externalId} -> quoteId: ${quoteId}, gold: ${isGold}, whiteAuthor: ${isWhiteAuthor}, whiteNoAuthor: ${isWhiteNoAuthor}`);
       
       // Find matching database products for this quote
       const matchingProducts = dbProductsByQuoteId.get(quoteId) || [];
       
       for (const dbProduct of matchingProducts) {
         // Check if this DB product matches the Printful product type
-        const isDbGold = dbProduct.name.toLowerCase().includes('gold');
-        const isDbNoAuthor = dbProduct.name.toLowerCase().includes('no author') || dbProduct.name.toLowerCase().includes('without');
+        const nameLower = dbProduct.name.toLowerCase();
+        const isDbGold = nameLower.includes('gold');
+        const isDbNoAuthor = nameLower.includes('no author') || nameLower.includes('without') || nameLower.includes('quote only');
+        const isDbWithAuthor = nameLower.includes('with attribution') || nameLower.includes('white edition');
         
         let isMatch = false;
         if (isGold && isDbGold) isMatch = true;
         else if (isWhiteNoAuthor && isDbNoAuthor) isMatch = true;
-        else if (isWhiteAuthor && !isDbGold && !isDbNoAuthor) isMatch = true;
+        else if (isWhiteAuthor && (isDbWithAuthor || (!isDbGold && !isDbNoAuthor))) isMatch = true;
         
         if (isMatch && !dbProduct.printfulSyncProductId) {
           // Found a match - update the database with the Printful sync ID
