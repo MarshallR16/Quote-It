@@ -79,13 +79,17 @@ function Router() {
     enabled: isAuthenticated && !requiresProfileCompletion,
   });
 
-  // Show winner modal if there's a pending order and user hasn't been notified
+  // Show winner modal if there's a pending order that still needs shipping info
   useEffect(() => {
     if (winnerOrderData?.order?.id) {
-      const notifiedKey = `winner_notified_${winnerOrderData.order.id}`;
-      const alreadyNotified = localStorage.getItem(notifiedKey);
-      if (!alreadyNotified) {
-        setShowWinnerModal(true);
+      // Only show modal if order is still awaiting address input
+      // Once successfully submitted, the order status changes and modal won't show
+      if (winnerOrderData.order.status === "awaiting_address") {
+        const notifiedKey = `winner_notified_${winnerOrderData.order.id}`;
+        const alreadyNotified = localStorage.getItem(notifiedKey);
+        if (!alreadyNotified) {
+          setShowWinnerModal(true);
+        }
       }
     }
   }, [winnerOrderData]);
@@ -204,9 +208,8 @@ function Router() {
         orderData={winnerOrderData || null}
         onComplete={() => {
           setShowWinnerModal(false);
-          if (winnerOrderData?.order?.id) {
-            localStorage.setItem(`winner_notified_${winnerOrderData.order.id}`, "true");
-          }
+          // Don't set localStorage flag here - the modal will set it only after
+          // successful order submission. This allows re-opening if there was an error.
         }}
       />
     </div>

@@ -209,10 +209,9 @@ export default function WinnerCelebrationModal({
   };
 
   const handleClose = () => {
-    // Mark as notified so it doesn't show again
-    if (orderData) {
-      localStorage.setItem(`winner_notified_${orderData.order.id}`, "true");
-    }
+    // Only close the modal - don't set localStorage flag here
+    // The flag should only be set when the order is successfully submitted
+    // This allows winners to re-open the modal if there was an error
     onComplete();
   };
 
