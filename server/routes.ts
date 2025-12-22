@@ -9,7 +9,7 @@ import Stripe from "stripe";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { users } from "@shared/schema";
-import { selectWeeklyWinner } from "./scheduler";
+import { selectWeeklyWinner, reconcilePrintfulProducts } from "./scheduler";
 import sharp from "sharp";
 import { containsBlockedContent } from "./contentFilter";
 
@@ -1116,6 +1116,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('[ADMIN] Error recreating Printful products:', error);
       res.status(500).json({ message: "Error recreating products: " + error.message });
+    }
+  });
+
+  // Manually trigger Printful reconciliation to fix missing sync IDs
+  app.post("/api/admin/printful/reconcile", requireAdmin, async (req: any, res: any) => {
+    try {
+      console.log('[ADMIN] Manually triggering Printful reconciliation...');
+      const result = await reconcilePrintfulProducts();
+      res.json({
+        message: `Reconciliation complete. Fixed ${result.fixed} products.`,
+        fixed: result.fixed,
+        errors: result.errors
+      });
+    } catch (error: any) {
+      console.error('[ADMIN] Error during reconciliation:', error);
+      res.status(500).json({ message: "Error during reconciliation: " + error.message });
     }
   });
 

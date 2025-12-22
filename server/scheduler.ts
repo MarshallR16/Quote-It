@@ -10,6 +10,97 @@ const printfulService = isPrintfulConfigured ? new PrintfulService() : null;
 const DESIGN_BASE_URL = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
 
 /**
+ * Reconcile Printful products with database - fixes missing sync IDs
+ * This runs on startup and can be called manually to ensure data consistency
+ */
+export async function reconcilePrintfulProducts(): Promise<{ fixed: number; errors: string[] }> {
+  const result = { fixed: 0, errors: [] as string[] };
+  
+  if (!printfulService) {
+    console.log('[RECONCILE] Printful not configured, skipping reconciliation');
+    return result;
+  }
+  
+  try {
+    console.log('[RECONCILE] Starting Printful product reconciliation...');
+    
+    // Get all Printful products
+    const printfulProducts = await printfulService.listProducts();
+    console.log(`[RECONCILE] Found ${printfulProducts.length} products in Printful`);
+    
+    // Get all database products
+    const dbProducts = await storage.getAllProducts();
+    console.log(`[RECONCILE] Found ${dbProducts.length} products in database`);
+    
+    // Build a map of database products by quote_id for quick lookup
+    const dbProductsByQuoteId = new Map<string, typeof dbProducts>();
+    for (const product of dbProducts) {
+      const existing = dbProductsByQuoteId.get(product.quoteId) || [];
+      existing.push(product);
+      dbProductsByQuoteId.set(product.quoteId, existing);
+    }
+    
+    // Check each Printful product
+    for (const pfProduct of printfulProducts) {
+      const externalId = pfProduct.external_id;
+      
+      // Parse external_id format: quote-{quoteId}-{type}
+      // Examples: quote-abc123-gold, quote-abc123-white-author, quote-abc123-white-noauthor
+      if (!externalId || !externalId.startsWith('quote-')) {
+        continue; // Skip non-quote products
+      }
+      
+      const parts = externalId.split('-');
+      if (parts.length < 3) continue;
+      
+      const quoteId = parts[1];
+      const isGold = externalId.includes('-gold');
+      const isWhiteAuthor = externalId.includes('-white-author') || (externalId.includes('-white') && !externalId.includes('-noauthor'));
+      const isWhiteNoAuthor = externalId.includes('-white-noauthor');
+      
+      // Find matching database products for this quote
+      const matchingProducts = dbProductsByQuoteId.get(quoteId) || [];
+      
+      for (const dbProduct of matchingProducts) {
+        // Check if this DB product matches the Printful product type
+        const isDbGold = dbProduct.name.toLowerCase().includes('gold');
+        const isDbNoAuthor = dbProduct.name.toLowerCase().includes('no author') || dbProduct.name.toLowerCase().includes('without');
+        
+        let isMatch = false;
+        if (isGold && isDbGold) isMatch = true;
+        else if (isWhiteNoAuthor && isDbNoAuthor) isMatch = true;
+        else if (isWhiteAuthor && !isDbGold && !isDbNoAuthor) isMatch = true;
+        
+        if (isMatch && !dbProduct.printfulSyncProductId) {
+          // Found a match - update the database with the Printful sync ID
+          console.log(`[RECONCILE] Fixing product ${dbProduct.id}: setting printfulSyncProductId to ${pfProduct.id}`);
+          try {
+            await storage.updateProduct(dbProduct.id, {
+              printfulSyncProductId: pfProduct.id,
+            });
+            result.fixed++;
+            console.log(`[RECONCILE] Fixed: ${dbProduct.name} -> Printful ID ${pfProduct.id}`);
+          } catch (updateError: any) {
+            result.errors.push(`Failed to update ${dbProduct.id}: ${updateError.message}`);
+          }
+        }
+      }
+    }
+    
+    console.log(`[RECONCILE] Reconciliation complete. Fixed ${result.fixed} products.`);
+    if (result.errors.length > 0) {
+      console.error('[RECONCILE] Errors:', result.errors);
+    }
+    
+  } catch (error: any) {
+    console.error('[RECONCILE] Error during reconciliation:', error.message);
+    result.errors.push(error.message);
+  }
+  
+  return result;
+}
+
+/**
  * Generate a mockup image for a product using Printful's mockup generator
  * and store the mockup URL in the database
  */
@@ -563,4 +654,9 @@ export function startWeeklyWinnerScheduler() {
   setTimeout(() => {
     autoHealWeeklyWinnerProducts();
   }, 5000); // Wait 5 seconds after startup to ensure DB is ready
+  
+  // Auto-reconcile: Sync Printful products with database to fix missing sync IDs
+  setTimeout(() => {
+    reconcilePrintfulProducts();
+  }, 10000); // Wait 10 seconds after startup to ensure Printful connection is ready
 }
