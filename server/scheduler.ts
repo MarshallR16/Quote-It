@@ -613,9 +613,10 @@ async function autoHealWeeklyWinnerProducts() {
     // Always check for complimentary order - runs even if gold product already existed
     if (goldProductId) {
       const existingOrders = await storage.getOrdersByUser(winner.authorId);
-      const hasComplimentaryOrder = existingOrders.some(o => o.isComplimentary && o.productId === goldProductId);
+      const existingComplimentaryOrder = existingOrders.find(o => o.isComplimentary && o.productId === goldProductId);
       
-      if (!hasComplimentaryOrder) {
+      if (!existingComplimentaryOrder) {
+        // No order exists - create one
         try {
           const complimentaryOrder = await storage.createOrder({
             userId: winner.authorId,
@@ -629,8 +630,20 @@ async function autoHealWeeklyWinnerProducts() {
         } catch (orderError: any) {
           console.error('[SCHEDULER] Error creating complimentary order:', orderError.message);
         }
+      } else if (existingComplimentaryOrder.status === 'failed' || existingComplimentaryOrder.status === 'pending') {
+        // Order exists but is in a failed/pending state - reset it so winner can try again
+        try {
+          await storage.updateOrder(existingComplimentaryOrder.id, { 
+            status: 'awaiting_address',
+            printfulOrderId: null,  // Clear any failed Printful reference
+          });
+          console.log('[SCHEDULER] Reset failed complimentary order to awaiting_address:', existingComplimentaryOrder.id);
+        } catch (resetError: any) {
+          console.error('[SCHEDULER] Error resetting complimentary order:', resetError.message);
+        }
       } else {
-        console.log('[SCHEDULER] Winner already has a complimentary order');
+        // Order is in awaiting_address, completed, or fulfilled - leave it alone
+        console.log('[SCHEDULER] Winner already has a complimentary order with status:', existingComplimentaryOrder.status);
       }
     }
     
