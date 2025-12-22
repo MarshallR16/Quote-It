@@ -56,6 +56,13 @@ export async function selectWeeklyWinner() {
         quote.voteCount > max.voteCount ? quote : max
       , quotes[0]);
 
+      // IMPORTANT: Require at least 1 vote to select a winner
+      // This prevents selecting test/demo quotes with 0 votes
+      if (topQuote.voteCount < 1) {
+        console.log(`[SCHEDULER] Top quote has ${topQuote.voteCount} votes - minimum 1 vote required to select winner`);
+        throw new Error('No quotes with votes available to select winner. Minimum 1 vote required.');
+      }
+
       console.log(`[SCHEDULER] Top quote: "${topQuote.text}" with ${topQuote.voteCount} votes`);
 
       // Calculate week start/end dates (Monday to Sunday)
