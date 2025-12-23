@@ -1840,31 +1840,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error('Missing required shipping information');
           }
 
-          console.log('Submitting order to Printful...');
+          console.log('[PAID ORDER] Submitting order to Printful...');
+          console.log('[PAID ORDER] Product:', product.id, 'printfulSyncProductId:', product.printfulSyncProductId);
           
-          const variants = product.printfulSyncVariants as any;
+          // Use getSyncVariantForSize to get the correct variant ID from Printful
+          const syncVariantId = await printfulService.getSyncVariantForSize(
+            product.printfulSyncProductId,
+            shippingInfo.size
+          );
           
-          // Printful variant IDs for Bella+Canvas 3001 (black)
-          const sizeToVariantId: Record<string, number> = {
-            'S': 4011,
-            'M': 4012,
-            'L': 4013,
-            'XL': 4014,
-            '2XL': 4017,
-          };
-          
-          const targetVariantId = sizeToVariantId[shippingInfo.size];
-          
-          if (!targetVariantId) {
-            throw new Error(`Invalid size: ${shippingInfo.size}`);
+          if (!syncVariantId) {
+            throw new Error(`Could not find variant for size ${shippingInfo.size}`);
           }
-
-          // Find the sync variant with matching variant_id
-          const selectedVariant = variants?.sync_variants?.find((v: any) => v.variant_id === targetVariantId);
           
-          if (!selectedVariant) {
-            throw new Error(`Variant not found for size ${shippingInfo.size}`);
-          }
+          console.log('[PAID ORDER] Found sync variant ID:', syncVariantId, 'for size:', shippingInfo.size);
 
           // Create order in Printful
           const printfulOrder = await printfulService.createOrder(
@@ -1879,10 +1868,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               email: shippingInfo.email,
             },
             [{
-              sync_variant_id: selectedVariant.id,
+              sync_variant_id: syncVariantId,
               quantity: 1,
             }]
           );
+          
+          console.log('[PAID ORDER] Printful order created:', printfulOrder.id);
 
           // Confirm the order (submit for fulfillment)
           await printfulService.confirmOrder(printfulOrder.id);
@@ -1893,9 +1884,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             printfulOrderId: printfulOrder.id,
           });
 
-          console.log('Printful order created and confirmed:', printfulOrder.id);
+          console.log('[PAID ORDER] Printful order confirmed:', printfulOrder.id);
         } catch (error: any) {
-          console.error('Error creating Printful order:', error);
+          console.error('[PAID ORDER] Error creating Printful order:', error.message);
           // Update order with error status
           await storage.updateOrder(order.id, {
             status: 'failed',

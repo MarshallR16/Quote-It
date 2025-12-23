@@ -10,11 +10,35 @@ const printfulService = isPrintfulConfigured ? new PrintfulService() : null;
 const DESIGN_BASE_URL = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
 
 /**
- * Reconcile Printful products with database - fixes missing sync IDs
+ * Parse Printful external_id to extract quoteId and product type
+ */
+function parseExternalId(externalId: string): { quoteId: string; type: 'gold' | 'white-author' | 'white-noauthor' } | null {
+  if (!externalId || !externalId.startsWith('quote-')) {
+    return null;
+  }
+  
+  const withoutPrefix = externalId.substring(6); // Remove 'quote-'
+  
+  if (withoutPrefix.endsWith('-gold')) {
+    return { quoteId: withoutPrefix.slice(0, -5), type: 'gold' };
+  } else if (withoutPrefix.endsWith('-white-noauthor')) {
+    return { quoteId: withoutPrefix.slice(0, -15), type: 'white-noauthor' };
+  } else if (withoutPrefix.endsWith('-white-author')) {
+    return { quoteId: withoutPrefix.slice(0, -13), type: 'white-author' };
+  } else if (withoutPrefix.endsWith('-white')) {
+    // Legacy format - treat as white with author
+    return { quoteId: withoutPrefix.slice(0, -6), type: 'white-author' };
+  }
+  
+  return null;
+}
+
+/**
+ * Reconcile Printful products with database - imports missing products and fixes sync IDs
  * This runs on startup and can be called manually to ensure data consistency
  */
-export async function reconcilePrintfulProducts(): Promise<{ fixed: number; errors: string[] }> {
-  const result = { fixed: 0, errors: [] as string[] };
+export async function reconcilePrintfulProducts(): Promise<{ fixed: number; created: number; errors: string[] }> {
+  const result = { fixed: 0, created: 0, errors: [] as string[] };
   
   if (!printfulService) {
     console.log('[RECONCILE] Printful not configured, skipping reconciliation');
@@ -32,87 +56,139 @@ export async function reconcilePrintfulProducts(): Promise<{ fixed: number; erro
     const dbProducts = await storage.getAllProducts();
     console.log(`[RECONCILE] Found ${dbProducts.length} products in database`);
     
-    // Build a map of database products by quote_id for quick lookup
-    const dbProductsByQuoteId = new Map<string, typeof dbProducts>();
+    // Build a map of database products by quote_id + type for quick lookup
+    const dbProductKey = (quoteId: string, type: string) => `${quoteId}:${type}`;
+    const dbProductsByKey = new Map<string, typeof dbProducts[0]>();
+    
     for (const product of dbProducts) {
-      const existing = dbProductsByQuoteId.get(product.quoteId) || [];
-      existing.push(product);
-      dbProductsByQuoteId.set(product.quoteId, existing);
+      const nameLower = product.name.toLowerCase();
+      let type = 'white-author'; // default
+      if (nameLower.includes('gold')) {
+        type = 'gold';
+      } else if (nameLower.includes('no author') || nameLower.includes('without') || nameLower.includes('quote only')) {
+        type = 'white-noauthor';
+      }
+      const key = dbProductKey(product.quoteId, type);
+      // Keep first match (shouldn't have duplicates, but just in case)
+      if (!dbProductsByKey.has(key)) {
+        dbProductsByKey.set(key, product);
+      }
     }
     
-    // Check each Printful product
+    // Process each Printful product
     for (const pfProduct of printfulProducts) {
-      const externalId = pfProduct.external_id;
-      
-      // Parse external_id format: quote-{uuid}-{type}
-      // Examples: quote-13cab244-9766-43a7-a4a9-19c895aefecd-gold
-      //           quote-13cab244-9766-43a7-a4a9-19c895aefecd-white-author
-      //           quote-13cab244-9766-43a7-a4a9-19c895aefecd-white-noauthor
-      // NOTE: UUIDs contain dashes, so we can't just split by dash!
-      if (!externalId || !externalId.startsWith('quote-')) {
-        continue; // Skip non-quote products
-      }
-      
-      // Extract the quote ID (UUID) by finding the type suffix and removing it
-      // Type suffixes are: -gold, -white-author, -white-noauthor, -white
-      let quoteId: string;
-      let isGold = false;
-      let isWhiteAuthor = false;
-      let isWhiteNoAuthor = false;
-      
-      const withoutPrefix = externalId.substring(6); // Remove 'quote-'
-      
-      if (withoutPrefix.endsWith('-gold')) {
-        quoteId = withoutPrefix.slice(0, -5); // Remove '-gold'
-        isGold = true;
-      } else if (withoutPrefix.endsWith('-white-noauthor')) {
-        quoteId = withoutPrefix.slice(0, -15); // Remove '-white-noauthor'
-        isWhiteNoAuthor = true;
-      } else if (withoutPrefix.endsWith('-white-author')) {
-        quoteId = withoutPrefix.slice(0, -13); // Remove '-white-author'
-        isWhiteAuthor = true;
-      } else if (withoutPrefix.endsWith('-white')) {
-        quoteId = withoutPrefix.slice(0, -6); // Remove '-white' (legacy format)
-        isWhiteAuthor = true;
-      } else {
-        console.log(`[RECONCILE] Unknown external_id format: ${externalId}`);
+      const parsed = parseExternalId(pfProduct.external_id);
+      if (!parsed) {
+        console.log(`[RECONCILE] Skipping product with unknown external_id: ${pfProduct.external_id}`);
         continue;
       }
       
-      console.log(`[RECONCILE] Parsed external_id: ${externalId} -> quoteId: ${quoteId}, gold: ${isGold}, whiteAuthor: ${isWhiteAuthor}, whiteNoAuthor: ${isWhiteNoAuthor}`);
+      const { quoteId, type } = parsed;
+      console.log(`[RECONCILE] Processing: ${pfProduct.external_id} -> quoteId: ${quoteId}, type: ${type}`);
       
-      // Find matching database products for this quote
-      const matchingProducts = dbProductsByQuoteId.get(quoteId) || [];
+      // Check if we have a matching product in database
+      const key = dbProductKey(quoteId, type);
+      const existingProduct = dbProductsByKey.get(key);
       
-      for (const dbProduct of matchingProducts) {
-        // Check if this DB product matches the Printful product type
-        const nameLower = dbProduct.name.toLowerCase();
-        const isDbGold = nameLower.includes('gold');
-        const isDbNoAuthor = nameLower.includes('no author') || nameLower.includes('without') || nameLower.includes('quote only');
-        const isDbWithAuthor = nameLower.includes('with attribution') || nameLower.includes('white edition');
-        
-        let isMatch = false;
-        if (isGold && isDbGold) isMatch = true;
-        else if (isWhiteNoAuthor && isDbNoAuthor) isMatch = true;
-        else if (isWhiteAuthor && (isDbWithAuthor || (!isDbGold && !isDbNoAuthor))) isMatch = true;
-        
-        if (isMatch && !dbProduct.printfulSyncProductId) {
-          // Found a match - update the database with the Printful sync ID
-          console.log(`[RECONCILE] Fixing product ${dbProduct.id}: setting printfulSyncProductId to ${pfProduct.id}`);
+      if (existingProduct) {
+        // Product exists - update sync ID if missing
+        if (!existingProduct.printfulSyncProductId) {
+          console.log(`[RECONCILE] Updating existing product ${existingProduct.id} with Printful sync ID ${pfProduct.id}`);
           try {
-            await storage.updateProduct(dbProduct.id, {
+            await storage.updateProduct(existingProduct.id, {
               printfulSyncProductId: pfProduct.id,
             });
             result.fixed++;
-            console.log(`[RECONCILE] Fixed: ${dbProduct.name} -> Printful ID ${pfProduct.id}`);
+            console.log(`[RECONCILE] Fixed: ${existingProduct.name} -> Printful ID ${pfProduct.id}`);
           } catch (updateError: any) {
-            result.errors.push(`Failed to update ${dbProduct.id}: ${updateError.message}`);
+            result.errors.push(`Failed to update ${existingProduct.id}: ${updateError.message}`);
           }
+        } else {
+          console.log(`[RECONCILE] Product ${existingProduct.id} already has sync ID ${existingProduct.printfulSyncProductId}`);
+        }
+      } else {
+        // Product doesn't exist in database - CREATE it if quote exists
+        console.log(`[RECONCILE] No database product found for ${key}, checking if quote exists...`);
+        
+        const quote = await storage.getQuote(quoteId);
+        if (!quote) {
+          console.log(`[RECONCILE] Quote ${quoteId} not found in database, skipping product creation`);
+          continue;
+        }
+        
+        // Get full product details from Printful (price, variants)
+        let productDetails;
+        try {
+          productDetails = await printfulService.getProductDetails(pfProduct.id);
+        } catch (detailError: any) {
+          console.log(`[RECONCILE] Failed to get details for Printful product ${pfProduct.id}: ${detailError.message}`);
+          result.errors.push(`Failed to get details for ${pfProduct.id}: ${detailError.message}`);
+          continue;
+        }
+        
+        // Extract price from first variant (they all have same price)
+        const variants = productDetails.sync_variants || [];
+        const price = variants[0]?.retail_price || '29.99';
+        
+        // Build product name and description based on type
+        const quotePreview = quote.text.length > 50 ? quote.text.substring(0, 47) + '...' : quote.text;
+        let productName: string;
+        let productDescription: string;
+        let isActive: boolean;
+        
+        if (type === 'gold') {
+          productName = `"${quotePreview}" (Winner's Gold Edition)`;
+          productDescription = 'Exclusive winner edition with gold text';
+          isActive = false; // Gold editions are not for sale
+        } else if (type === 'white-noauthor') {
+          productName = `"${quotePreview}" - Quote Only`;
+          productDescription = 'Weekly Winner Quote (no attribution)';
+          isActive = true;
+        } else {
+          productName = `"${quotePreview}" - With Attribution`;
+          productDescription = 'Weekly Winner Quote with author attribution';
+          isActive = true;
+        }
+        
+        // Try to find weekly winner for this quote (to link weeklyWinnerId)
+        const weeklyWinner = await storage.getWeeklyWinnerByQuoteId(quoteId);
+        
+        // Store variant info for order fulfillment
+        const syncVariants = variants.map((v: any) => ({
+          id: v.id,
+          variant_id: v.variant_id,
+          size: v.size,
+          name: v.name,
+          retail_price: v.retail_price,
+        }));
+        
+        // Create the product in database
+        try {
+          const newProduct = await storage.createProduct({
+            quoteId,
+            weeklyWinnerId: weeklyWinner?.id || null,
+            name: productName,
+            description: productDescription,
+            price,
+            imageUrl: null, // Can generate mockup later
+            printfulSyncProductId: pfProduct.id,
+            printfulSyncVariants: syncVariants,
+            isActive,
+          });
+          
+          result.created++;
+          console.log(`[RECONCILE] Created product: ${newProduct.id} (${productName}) -> Printful ID ${pfProduct.id}`);
+          
+          // Add to our map so we don't create duplicates in this run
+          dbProductsByKey.set(key, newProduct);
+        } catch (createError: any) {
+          result.errors.push(`Failed to create product for ${key}: ${createError.message}`);
+          console.error(`[RECONCILE] Failed to create product for ${key}:`, createError.message);
         }
       }
     }
     
-    console.log(`[RECONCILE] Reconciliation complete. Fixed ${result.fixed} products.`);
+    console.log(`[RECONCILE] Reconciliation complete. Created ${result.created} products, fixed ${result.fixed} products.`);
     if (result.errors.length > 0) {
       console.error('[RECONCILE] Errors:', result.errors);
     }

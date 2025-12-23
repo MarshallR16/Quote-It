@@ -81,6 +81,9 @@ export interface IStorage {
   
   // Quote deletion helpers
   isQuoteWeeklyWinner(quoteId: string): Promise<boolean>;
+  
+  // Get weekly winner by quote ID (for reconciliation)
+  getWeeklyWinnerByQuoteId(quoteId: string): Promise<WeeklyWinner | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -1197,6 +1200,17 @@ export class DbStorage implements IStorage {
       .limit(1);
     
     return result.length > 0;
+  }
+
+  async getWeeklyWinnerByQuoteId(quoteId: string): Promise<WeeklyWinner | undefined> {
+    const result = await db
+      .select()
+      .from(weeklyWinners)
+      .where(eq(weeklyWinners.quoteId, quoteId))
+      .orderBy(desc(weeklyWinners.createdAt))
+      .limit(1);
+    
+    return result[0];
   }
 }
 
