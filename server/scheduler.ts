@@ -614,15 +614,17 @@ async function autoHealWeeklyWinnerProducts() {
       if (existingGoldProduct && !existingGoldProduct.printfulSyncProductId && isPrintfulConfigured && printfulService) {
         console.log('[SCHEDULER] Gold product exists but lacks Printful sync - attempting auto-sync...');
         
-        // Check if we're in development mode - skip Printful sync entirely
-        const isDevelopment = process.env.NODE_ENV === 'development';
-        if (isDevelopment) {
+        // Check if we're in production mode - only attempt Printful sync in production
+        // Default to development if NODE_ENV is not set (safe default)
+        const isProduction = process.env.NODE_ENV === 'production';
+        if (!isProduction) {
           console.log('[SCHEDULER] Skipping Printful sync in development mode.');
           console.log('[SCHEDULER] Reason: Printful requires publicly accessible design URLs (quote-it.co/api/designs/...)');
           console.log('[SCHEDULER] The quote may not exist in the production database, causing 404 errors.');
           console.log('[SCHEDULER] Product will be synced when the app runs in production mode.');
         } else {
-          // Only attempt Printful sync in production mode
+          // Production mode - attempt Printful sync
+          console.log('[SCHEDULER] Production mode detected - attempting Printful product sync...');
           try {
             const connectionTest = await printfulService.testConnection();
             if (connectionTest.success) {
