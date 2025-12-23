@@ -219,6 +219,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check winner and order status for current user
+  app.get('/api/admin/debug/winner-status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const user = await storage.getUser(userId);
+      
+      // Get most recent weekly winner
+      const winners = await storage.getAllWeeklyWinners();
+      const sortedWinners = winners.sort((a, b) => 
+        new Date(b.weekEndDate || 0).getTime() - new Date(a.weekEndDate || 0).getTime()
+      );
+      const currentWinner = sortedWinners[0];
+      
+      // Get user's orders
+      const userOrders = await storage.getOrdersByUser(userId);
+      const complimentaryOrders = userOrders.filter((o: any) => o.isComplimentary);
+      
+      // Get products for current winner
+      let winnerProducts: any[] = [];
+      let winnerQuote: any = null;
+      let winnerAuthorId: string | null = null;
+      if (currentWinner) {
+        const allProducts = await storage.getAllProducts();
+        winnerProducts = allProducts.filter((p: any) => p.weeklyWinnerId === currentWinner.id);
+        winnerQuote = await storage.getQuote(currentWinner.quoteId);
+        winnerAuthorId = winnerQuote?.authorId || null;
+      }
+      
+      res.json({
+        currentUser: {
+          id: userId,
+          name: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+          email: user?.email,
+        },
+        currentWinner: currentWinner ? {
+          winnerId: currentWinner.id,
+          quoteId: currentWinner.quoteId,
+          quoteText: winnerQuote?.text?.substring(0, 50) + '...',
+          authorId: winnerAuthorId,
+          weekEndDate: currentWinner.weekEndDate,
+          isCurrentUser: winnerAuthorId === userId,
+        } : null,
+        winnerProducts: winnerProducts.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          isGold: p.name.includes('Gold'),
+          printfulSyncProductId: p.printfulSyncProductId,
+        })),
+        userComplimentaryOrders: complimentaryOrders.map((o: any) => ({
+          id: o.id,
+          status: o.status,
+          productId: o.productId,
+          printfulOrderId: o.printfulOrderId,
+        })),
+        diagnosis: {
+          isWinner: winnerAuthorId === userId,
+          hasComplimentaryOrder: complimentaryOrders.length > 0,
+          hasAwaitingAddressOrder: complimentaryOrders.some((o: any) => o.status === 'awaiting_address'),
+          goldProductExists: winnerProducts.some((p: any) => p.name.includes('Gold')),
+        }
+      });
+    } catch (error: any) {
+      console.error('Debug winner status error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Endpoint for winner to create/reset their complimentary order
+  app.post('/api/winner/create-order', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      
+      // Get most recent weekly winner
+      const winner = await storage.getMostRecentWeeklyWinnerWithDetails();
+      if (!winner) {
+        return res.status(404).json({ message: 'No weekly winner found' });
+      }
+      
+      // Check if current user is the winner
+      if (winner.authorId !== userId) {
+        return res.status(403).json({ message: 'You are not the current winner' });
+      }
+      
+      // Find the gold product for this winner
+      const allProducts = await storage.getAllProducts();
+      const goldProduct = allProducts.find((p: any) => 
+        p.weeklyWinnerId === winner.winnerId && p.name.includes('Gold')
+      );
+      
+      if (!goldProduct) {
+        return res.status(404).json({ message: 'No gold product found for this winner. Please wait for products to be created.' });
+      }
+      
+      // Check for existing complimentary order
+      const existingOrders = await storage.getOrdersByUser(userId);
+      const existingComplimentary = existingOrders.find((o: any) => 
+        o.isComplimentary && o.productId === goldProduct.id
+      );
+      
+      if (existingComplimentary) {
+        if (existingComplimentary.status === 'awaiting_address') {
+          return res.json({ 
+            message: 'You already have a pending order', 
+            orderId: existingComplimentary.id,
+            status: 'awaiting_address'
+          });
+        } else if (existingComplimentary.status === 'completed' || existingComplimentary.status === 'fulfilled') {
+          return res.status(400).json({ message: 'Your complimentary order has already been fulfilled' });
+        } else {
+          // Reset the order to awaiting_address
+          await storage.updateOrder(existingComplimentary.id, { 
+            status: 'awaiting_address',
+            printfulOrderId: null
+          });
+          console.log(`[WINNER] Reset order ${existingComplimentary.id} to awaiting_address for user ${userId}`);
+          return res.json({ 
+            message: 'Your order has been reset. You can now claim your free shirt!', 
+            orderId: existingComplimentary.id,
+            status: 'awaiting_address'
+          });
+        }
+      }
+      
+      // Create new complimentary order
+      const newOrder = await storage.createOrder({
+        userId: userId,
+        productId: goldProduct.id,
+        amount: '0.00',
+        status: 'awaiting_address',
+        isComplimentary: true,
+        includeAuthor: true,
+      });
+      
+      console.log(`[WINNER] Created complimentary order ${newOrder.id} for user ${userId}`);
+      
+      res.json({ 
+        message: 'Complimentary order created! You can now claim your free shirt.', 
+        orderId: newOrder.id,
+        status: 'awaiting_address'
+      });
+    } catch (error: any) {
+      console.error('Create winner order error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Admin endpoint to generate mockup for a product
   app.post('/api/admin/products/:productId/generate-mockup', isAuthenticated, async (req: any, res) => {
     try {
@@ -1941,12 +2087,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all orders for the user
       const allOrders = await storage.getOrdersByUser(userId);
       
+      console.log(`[WINNER-ORDER] User ${userId} has ${allOrders.length} orders`);
+      const complimentaryOrders = allOrders.filter((o: any) => o.isComplimentary);
+      console.log(`[WINNER-ORDER] Found ${complimentaryOrders.length} complimentary orders:`, 
+        complimentaryOrders.map((o: any) => ({ id: o.id, status: o.status, productId: o.productId })));
+      
       // Find a complimentary order that's awaiting an address
       const pendingWinnerOrder = allOrders.find(
         (order: any) => order.isComplimentary && order.status === 'awaiting_address'
       );
       
       if (!pendingWinnerOrder) {
+        console.log(`[WINNER-ORDER] No pending complimentary order found for user ${userId}`);
         return res.json(null);
       }
       

@@ -81,6 +81,28 @@ export default function ProfilePage() {
     (order) => order.status === "awaiting_address"
   );
 
+  // Mutation to create/reset winner order
+  const createWinnerOrderMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/winner/create-order");
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders/my-complimentary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/winner/pending-order"] });
+      toast({
+        title: "Order Created!",
+        description: data.message || "You can now claim your free shirt!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Cannot Create Order",
+        description: error.message || "You may not be the current winner",
+      });
+    },
+  });
+
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!user?.id) throw new Error("User not authenticated");
@@ -362,7 +384,7 @@ export default function ProfilePage() {
             )}
 
             {/* Free Shirt Claim Section */}
-            {pendingFreeShirt && (
+            {pendingFreeShirt ? (
               <Card data-testid="card-free-shirt" className="border-yellow-500 bg-gradient-to-r from-yellow-500/10 to-orange-500/10">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
@@ -382,6 +404,25 @@ export default function ProfilePage() {
                   >
                     <Gift className="w-4 h-4 mr-2" />
                     Claim Your Free Shirt
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card data-testid="card-check-winner" className="border-dashed">
+                <CardContent className="py-4">
+                  <Button
+                    onClick={() => createWinnerOrderMutation.mutate()}
+                    disabled={createWinnerOrderMutation.isPending}
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-check-winner"
+                  >
+                    {createWinnerOrderMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trophy className="w-4 h-4 mr-2" />
+                    )}
+                    Check if I Won a Free Shirt
                   </Button>
                 </CardContent>
               </Card>
