@@ -164,8 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const testDesignUrl = async (url: string): Promise<{ accessible: boolean; error: string | null }> => {
         try {
           const axios = (await import('axios')).default;
-          const response = await axios.get(url, { timeout: 10000 });
-          const accessible = response.status === 200 && response.headers['content-type']?.includes('svg');
+          const response = await axios.get(url, { timeout: 10000, responseType: 'arraybuffer' });
+          const accessible = response.status === 200 && response.headers['content-type']?.includes('png');
           return { accessible, error: null };
         } catch (error: any) {
           return { accessible: false, error: error.message };
