@@ -865,15 +865,21 @@ export class DbStorage implements IStorage {
       ))
       .orderBy(desc(weeklyWinners.createdAt));
     
-    // Deduplicate by winnerId - prevents duplicate entries when multiple products are active for same winner
-    const seen = new Set<string>();
-    const deduplicated = result.filter(item => {
-      if (seen.has(item.winnerId)) {
-        return false;
+    // Deduplicate by quoteId - prevents the same quote from appearing multiple times in archive
+    // This can happen if there are data issues with multiple weekly_winner entries for the same quote
+    // We keep the MOST RECENT winner entry for each quote (based on weekEndDate)
+    const seenQuotes = new Map<string, any>();
+    for (const item of result) {
+      const existing = seenQuotes.get(item.quoteId);
+      if (!existing || new Date(item.weekEndDate) > new Date(existing.weekEndDate)) {
+        seenQuotes.set(item.quoteId, item);
       }
-      seen.add(item.winnerId);
-      return true;
-    });
+    }
+    
+    // Return deduplicated results, sorted by most recent first
+    const deduplicated = Array.from(seenQuotes.values()).sort((a, b) => 
+      new Date(b.weekEndDate).getTime() - new Date(a.weekEndDate).getTime()
+    );
     
     return deduplicated;
   }
