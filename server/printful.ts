@@ -688,6 +688,40 @@ export class PrintfulService {
   }
 
   /**
+   * Update ONLY the external_id of a Printful product (no design changes)
+   * This is used to tag existing products with our tracking IDs
+   */
+  async updateProductExternalId(syncProductId: number, newExternalId: string): Promise<any> {
+    try {
+      console.log(`[PRINTFUL] Updating product ${syncProductId} external_id to: ${newExternalId}`);
+      
+      // Get current product details
+      const currentProduct = await this.getProductDetails(syncProductId);
+      if (!currentProduct) {
+        throw new Error(`Product ${syncProductId} not found in Printful`);
+      }
+
+      const syncProduct = currentProduct.sync_product;
+
+      // Only update the sync_product with new external_id, preserve everything else
+      const data = {
+        sync_product: {
+          external_id: newExternalId,
+        },
+      };
+
+      console.log('[PRINTFUL] Sending PUT request to update external_id only');
+      const response = await printfulClient.put(`/store/products/${syncProductId}`, data);
+      console.log('[PRINTFUL] Product external_id updated successfully');
+      
+      return response.data.result;
+    } catch (error: any) {
+      console.error('Printful update external_id error:', error.response?.data || error.message);
+      throw new Error(`Failed to update Printful external_id: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  /**
    * Create a mockup for a product variant
    */
   async createMockup(variantId: number, imageUrl: string): Promise<string> {

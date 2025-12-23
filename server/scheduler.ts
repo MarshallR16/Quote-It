@@ -34,6 +34,31 @@ function parseExternalId(externalId: string): { quoteId: string; type: 'gold' | 
 }
 
 /**
+ * Normalize text for comparison - removes quotes, extra spaces, lowercases
+ */
+function normalizeQuoteText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/["""'']/g, '') // Remove various quote characters
+    .replace(/\s+/g, ' ')     // Normalize whitespace
+    .trim()
+    .substring(0, 50);        // Compare first 50 chars only
+}
+
+/**
+ * Determine product type from Printful product name
+ */
+function getProductTypeFromName(name: string): 'gold' | 'white-author' | 'white-noauthor' {
+  const nameLower = name.toLowerCase();
+  if (nameLower.includes('gold')) {
+    return 'gold';
+  } else if (nameLower.includes('quote only') || nameLower.includes('no author') || nameLower.includes('without author')) {
+    return 'white-noauthor';
+  }
+  return 'white-author';
+}
+
+/**
  * Reconcile Printful products with database - imports missing products and fixes sync IDs
  * This runs on startup and can be called manually to ensure data consistency
  */
@@ -56,18 +81,25 @@ export async function reconcilePrintfulProducts(): Promise<{ fixed: number; crea
     const dbProducts = await storage.getAllProducts();
     console.log(`[RECONCILE] Found ${dbProducts.length} products in database`);
     
+    // Get all quotes for text matching
+    const allQuotes = await storage.getAllQuotes();
+    console.log(`[RECONCILE] Loaded ${allQuotes.length} quotes for text matching`);
+    
+    // Build a map of normalized quote text to quote for matching
+    const quotesByNormalizedText = new Map<string, typeof allQuotes[0]>();
+    for (const quote of allQuotes) {
+      const normalized = normalizeQuoteText(quote.text);
+      if (!quotesByNormalizedText.has(normalized)) {
+        quotesByNormalizedText.set(normalized, quote);
+      }
+    }
+    
     // Build a map of database products by quote_id + type for quick lookup
     const dbProductKey = (quoteId: string, type: string) => `${quoteId}:${type}`;
     const dbProductsByKey = new Map<string, typeof dbProducts[0]>();
     
     for (const product of dbProducts) {
-      const nameLower = product.name.toLowerCase();
-      let type = 'white-author'; // default
-      if (nameLower.includes('gold')) {
-        type = 'gold';
-      } else if (nameLower.includes('no author') || nameLower.includes('without') || nameLower.includes('quote only')) {
-        type = 'white-noauthor';
-      }
+      const type = getProductTypeFromName(product.name);
       const key = dbProductKey(product.quoteId, type);
       // Keep first match (shouldn't have duplicates, but just in case)
       if (!dbProductsByKey.has(key)) {
@@ -77,10 +109,48 @@ export async function reconcilePrintfulProducts(): Promise<{ fixed: number; crea
     
     // Process each Printful product
     for (const pfProduct of printfulProducts) {
-      const parsed = parseExternalId(pfProduct.external_id);
+      let parsed = parseExternalId(pfProduct.external_id);
+      
+      // If no valid external_id, try to match by product name containing quote text
       if (!parsed) {
-        console.log(`[RECONCILE] Skipping product with unknown external_id: ${pfProduct.external_id}`);
-        continue;
+        console.log(`[RECONCILE] Product ${pfProduct.id} has no external_id, attempting to match by quote text...`);
+        
+        // Extract quote text from product name (format: "Quote text..." or similar)
+        const productName = pfProduct.name || '';
+        const type = getProductTypeFromName(productName);
+        
+        // Try to find a matching quote by comparing text in the product name
+        let matchedQuote: typeof allQuotes[0] | undefined;
+        for (const quote of allQuotes) {
+          const quoteSnippet = quote.text.substring(0, 30).toLowerCase();
+          if (productName.toLowerCase().includes(quoteSnippet)) {
+            matchedQuote = quote;
+            break;
+          }
+        }
+        
+        if (matchedQuote) {
+          console.log(`[RECONCILE] Matched Printful product "${productName.substring(0, 40)}..." to quote ${matchedQuote.id}`);
+          
+          // Build the correct external_id
+          const correctExternalId = `quote-${matchedQuote.id}-${type}`;
+          
+          // Update the Printful product with the correct external_id
+          try {
+            await printfulService.updateProductExternalId(pfProduct.id, correctExternalId);
+            console.log(`[RECONCILE] Updated Printful product ${pfProduct.id} with external_id: ${correctExternalId}`);
+            
+            // Now we can process it with the correct external_id
+            parsed = { quoteId: matchedQuote.id, type };
+          } catch (updateError: any) {
+            console.error(`[RECONCILE] Failed to update external_id for product ${pfProduct.id}: ${updateError.message}`);
+            result.errors.push(`Failed to update external_id for ${pfProduct.id}: ${updateError.message}`);
+            continue;
+          }
+        } else {
+          console.log(`[RECONCILE] Could not match product "${productName.substring(0, 40)}..." to any quote, skipping`);
+          continue;
+        }
       }
       
       const { quoteId, type } = parsed;

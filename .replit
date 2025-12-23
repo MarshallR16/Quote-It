@@ -46,3 +46,6 @@ integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_stripe:1.0.0"
 
 [userenv.shared]
 DESIGN_BASE_URL = "https://quote-it.co"
+
+[userenv.production]
+NODE_ENV = "production"
