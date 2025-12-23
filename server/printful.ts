@@ -2,6 +2,7 @@ import axios from 'axios';
 import QRCode from 'qrcode';
 import FormData from 'form-data';
 import admin from 'firebase-admin';
+import sharp from 'sharp';
 import './firebaseAuth'; // Ensure Firebase is initialized
 
 const PRINTFUL_API_URL = 'https://api.printful.com';
@@ -322,41 +323,6 @@ export class PrintfulService {
     return this.sanitizeForSVG(text);
   }
 
-  /**
-   * Upload file directly to Printful's file storage
-   * Returns the file URL from Printful's CDN
-   */
-  private async uploadToPrintful(fileContent: string, fileName: string): Promise<string> {
-    try {
-      console.log('[PRINTFUL] Uploading design file:', fileName);
-      
-      // Create form data with the file and required type field
-      const formData = new FormData();
-      formData.append('type', 'default');
-      const buffer = Buffer.from(fileContent);
-      formData.append('file', buffer, {
-        filename: fileName,
-        contentType: 'image/svg+xml',
-      });
-
-      // Upload to Printful's files endpoint
-      const response = await axios.post(`${PRINTFUL_API_URL}/files`, formData, {
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          ...formData.getHeaders(),
-        },
-      });
-
-      const fileResult = response.data.result;
-      console.log('[PRINTFUL] File uploaded successfully, ID:', fileResult.id);
-      
-      // Return the file URL from Printful
-      return fileResult.url;
-    } catch (error: any) {
-      console.error('[PRINTFUL] File upload error:', error.response?.data || error.message);
-      throw new Error(`Failed to upload to Printful: ${error.response?.data?.error?.message || error.message}`);
-    }
-  }
 
   /**
    * Get the design URL for a quote
@@ -540,6 +506,13 @@ export class PrintfulService {
       throw new Error(`Failed to create Printful product: ${error.response?.data?.error?.message || error.message}`);
     }
   }
+
+  /**
+   * NOTE: Printful API requires publicly accessible URLs for design files.
+   * It does NOT accept inline base64 data or embedded file content.
+   * Products can only be created when the design URL (quote-it.co/api/designs/...) is accessible.
+   * In development mode, this won't work if the quote doesn't exist in the production database.
+   */
 
   /**
    * Get product details from Printful

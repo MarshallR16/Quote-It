@@ -608,6 +608,48 @@ async function autoHealWeeklyWinnerProducts() {
       // Get the existing gold product ID
       const existingGoldProduct = winnerProducts.find(p => p.name.includes('Gold Edition'));
       goldProductId = existingGoldProduct?.id || null;
+      
+      // Auto-sync: If gold product exists but lacks Printful sync, try to sync it now
+      // This requires a publicly accessible design URL (works in production, not development)
+      if (existingGoldProduct && !existingGoldProduct.printfulSyncProductId && isPrintfulConfigured && printfulService) {
+        console.log('[SCHEDULER] Gold product exists but lacks Printful sync - attempting auto-sync...');
+        
+        // Check if we're in development mode - skip Printful sync entirely
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        if (isDevelopment) {
+          console.log('[SCHEDULER] Skipping Printful sync in development mode.');
+          console.log('[SCHEDULER] Reason: Printful requires publicly accessible design URLs (quote-it.co/api/designs/...)');
+          console.log('[SCHEDULER] The quote may not exist in the production database, causing 404 errors.');
+          console.log('[SCHEDULER] Product will be synced when the app runs in production mode.');
+        } else {
+          // Only attempt Printful sync in production mode
+          try {
+            const connectionTest = await printfulService.testConnection();
+            if (connectionTest.success) {
+              // Try to create product with external URL
+              const printfulGoldProduct = await printfulService.createProduct(
+                winner.quoteText,
+                authorName,
+                `quote-${winner.quoteId}-gold`,
+                'gold',
+                winner.quoteId,
+                true // includeAuthor = true
+              );
+              
+              const goldSyncId = (printfulGoldProduct as any)?.sync_product?.id || printfulGoldProduct?.id;
+              if (goldSyncId) {
+                await storage.updateProduct(existingGoldProduct.id, {
+                  printfulSyncProductId: goldSyncId,
+                  printfulSyncVariants: printfulGoldProduct,
+                });
+                console.log(`[SCHEDULER] Auto-synced gold product with Printful ID: ${goldSyncId}`);
+              }
+            }
+          } catch (syncError: any) {
+            console.error('[SCHEDULER] Auto-sync failed:', syncError.message);
+          }
+        }
+      }
     }
     
     // Always check for complimentary order - runs even if gold product already existed

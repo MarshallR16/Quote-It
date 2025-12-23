@@ -2148,10 +2148,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Submit shipping info for a complimentary winner order
   app.post('/api/orders/:id/shipping', isAuthenticated, async (req: any, res) => {
+    console.log('[SHIPPING] Received shipping submission for order:', req.params.id);
     try {
       const userId = req.firebaseUser.uid;
       const { id: orderId } = req.params;
       const shippingInfo = req.body;
+      console.log('[SHIPPING] User:', userId, 'Order:', orderId, 'Fields:', Object.keys(shippingInfo));
       
       // Validate required fields
       const requiredFields = ['name', 'email', 'address1', 'city', 'state_code', 'country_code', 'zip', 'size'];
@@ -2178,15 +2180,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update the order with shipping info and change status to processing
+      console.log('[SHIPPING] Saving shipping info to order...');
       let updatedOrder = await storage.updateOrder(orderId, {
         shippingAddress: shippingInfo,
         status: 'processing',
       });
+      console.log('[SHIPPING] Order updated - status:', updatedOrder.status, 'shipping saved:', !!updatedOrder.shippingAddress);
       
       // If Printful is configured, attempt to create the fulfillment order
       if (isPrintfulConfigured && printfulService) {
         try {
           const product = await storage.getProduct(order.productId);
+          console.log('[SHIPPING] Product:', product?.id, 'printfulSyncProductId:', product?.printfulSyncProductId);
           if (product?.printfulSyncProductId) {
             console.log('[WINNER ORDER] Creating Printful fulfillment for complimentary order:', orderId);
             
@@ -2247,7 +2252,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           } else {
-            console.error('[WINNER ORDER] Product has no printfulSyncProductId');
+            console.log('[WINNER ORDER] Product has no printfulSyncProductId - order saved but not submitted to Printful');
+            // Mark as pending_sync so we know it needs to be manually synced
+            updatedOrder = await storage.updateOrder(orderId, {
+              status: 'pending_sync',
+            });
           }
         } catch (printfulError: any) {
           console.error('[WINNER ORDER] Printful error (order still saved locally):', printfulError.message);
@@ -2256,8 +2265,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'printful_error',
           });
         }
+      } else {
+        console.log('[SHIPPING] Printful not configured - order saved locally only');
       }
       
+      console.log('[SHIPPING] Returning order with status:', updatedOrder.status);
       res.json(updatedOrder);
     } catch (error: any) {
       console.error("Error submitting shipping info:", error);
