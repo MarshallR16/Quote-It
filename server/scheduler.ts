@@ -363,259 +363,140 @@ export async function selectWeeklyWinner() {
       
       console.log(`[SCHEDULER] Author for shirt: ${authorName}`);
 
-      // Test Printful connection if configured
-      let printfulAvailable = false;
-      if (isPrintfulConfigured && printfulService) {
-        try {
-          console.log('[SCHEDULER] Testing Printful connection before product creation...');
-          const connectionTest = await printfulService.testConnection();
-          printfulAvailable = connectionTest.success;
-          
-          if (!printfulAvailable) {
-            console.error('[SCHEDULER] Printful connection failed:', connectionTest.message);
-            console.log('[SCHEDULER] Will create demo products without Printful sync');
-          } else {
-            console.log('[SCHEDULER] Printful connection successful:', connectionTest.storeInfo?.name);
-          }
-        } catch (connError: any) {
-          console.error('[SCHEDULER] Printful connection test error:', connError.message);
-          printfulAvailable = false;
-        }
-      } else {
-        console.log('[SCHEDULER] Printful not configured, will create demo products');
+      // Printful is REQUIRED - no demo products ever
+      if (!isPrintfulConfigured || !printfulService) {
+        throw new Error('Printful is not configured. Cannot create winner products without Printful.');
       }
+
+      // Test Printful connection
+      console.log('[SCHEDULER] Testing Printful connection before product creation...');
+      const connectionTest = await printfulService.testConnection();
+      
+      if (!connectionTest.success) {
+        throw new Error(`Printful connection failed: ${connectionTest.message}. Will retry on next cron run.`);
+      }
+      
+      console.log('[SCHEDULER] Printful connection successful:', connectionTest.storeInfo?.name);
 
       // Helper to truncate quote text for product names
       const truncatedQuote = `"${topQuote.text.substring(0, 50)}${topQuote.text.length > 50 ? '...' : ''}"`;
 
-      // ALWAYS create 3 products - try Printful first if available, fallback to demo
-      try {
-          // =================================================================
-          // PRODUCT 1: WHITE text WITH author (for store purchase)
-          // =================================================================
-          console.log('[SCHEDULER] Creating white text product WITH author for store...');
-          
-          if (printfulAvailable && printfulService) {
-            try {
-              const printfulProduct = await printfulService.createProduct(
-                topQuote.text,
-                authorName,
-                `quote-${topQuote.id}-white-author`,
-                'white',
-                topQuote.id,
-                true // includeAuthor = true
-              );
-
-              productWithAuthor = await storage.createProduct({
-                quoteId: topQuote.id,
-                weeklyWinnerId: winner.id,
-                name: `${truncatedQuote} - With Attribution`,
-                description: `Quote by ${authorName}`,
-                price: '29.99',
-                imageUrl: null,
-                printfulSyncProductId: printfulProduct.id,
-                printfulSyncVariants: printfulProduct,
-                isActive: true,
-              });
-              console.log(`[SCHEDULER] White+author product created with Printful: ${productWithAuthor.id}`);
-            } catch (printfulError: any) {
-              console.error('[SCHEDULER] Printful white+author creation failed:', printfulError.message);
-              productWithAuthor = await storage.createProduct({
-                quoteId: topQuote.id,
-                weeklyWinnerId: winner.id,
-                name: `${truncatedQuote} - With Attribution`,
-                description: `Quote by ${authorName}`,
-                price: '29.99',
-                imageUrl: null,
-                printfulSyncProductId: null,
-                printfulSyncVariants: null,
-                isActive: true,
-              });
-              console.log(`[SCHEDULER] Demo white+author product created: ${productWithAuthor.id}`);
-            }
-          } else {
-            productWithAuthor = await storage.createProduct({
-              quoteId: topQuote.id,
-              weeklyWinnerId: winner.id,
-              name: `${truncatedQuote} - With Attribution`,
-              description: `Quote by ${authorName}`,
-              price: '29.99',
-              imageUrl: null,
-              printfulSyncProductId: null,
-              printfulSyncVariants: null,
-              isActive: true,
-            });
-            console.log(`[SCHEDULER] Demo white+author product created: ${productWithAuthor.id}`);
-          }
-
-          // =================================================================
-          // PRODUCT 2: WHITE text WITHOUT author (for store purchase)
-          // =================================================================
-          console.log('[SCHEDULER] Creating white text product WITHOUT author for store...');
-          
-          if (printfulAvailable && printfulService) {
-            try {
-              const printfulProductNoAuthor = await printfulService.createProduct(
-                topQuote.text,
-                '', // No author
-                `quote-${topQuote.id}-white-noauthor`,
-                'white',
-                topQuote.id,
-                false // includeAuthor = false
-              );
-
-              productNoAuthor = await storage.createProduct({
-                quoteId: topQuote.id,
-                weeklyWinnerId: winner.id,
-                name: `${truncatedQuote} - Quote Only`,
-                description: `Weekly Winner Quote (no attribution)`,
-                price: '29.99',
-                imageUrl: null,
-                printfulSyncProductId: printfulProductNoAuthor.id,
-                printfulSyncVariants: printfulProductNoAuthor,
-                isActive: true,
-              });
-              console.log(`[SCHEDULER] White no-author product created with Printful: ${productNoAuthor.id}`);
-            } catch (printfulError: any) {
-              console.error('[SCHEDULER] Printful white no-author creation failed:', printfulError.message);
-              productNoAuthor = await storage.createProduct({
-                quoteId: topQuote.id,
-                weeklyWinnerId: winner.id,
-                name: `${truncatedQuote} - Quote Only`,
-                description: `Weekly Winner Quote (no attribution)`,
-                price: '29.99',
-                imageUrl: null,
-                printfulSyncProductId: null,
-                printfulSyncVariants: null,
-                isActive: true,
-              });
-              console.log(`[SCHEDULER] Demo white no-author product created: ${productNoAuthor.id}`);
-            }
-          } else {
-            productNoAuthor = await storage.createProduct({
-              quoteId: topQuote.id,
-              weeklyWinnerId: winner.id,
-              name: `${truncatedQuote} - Quote Only`,
-              description: `Weekly Winner Quote (no attribution)`,
-              price: '29.99',
-              imageUrl: null,
-              printfulSyncProductId: null,
-              printfulSyncVariants: null,
-              isActive: true,
-            });
-            console.log(`[SCHEDULER] Demo white no-author product created: ${productNoAuthor.id}`);
-          }
-
-          // =================================================================
-          // PRODUCT 3: GOLD text WITH author (exclusive for winner)
-          // =================================================================
-          console.log('[SCHEDULER] Creating gold text product for winner...');
-          
-          if (printfulAvailable && printfulService) {
-            try {
-              const printfulWinnerProduct = await printfulService.createProduct(
-                topQuote.text,
-                authorName,
-                `quote-${topQuote.id}-gold`,
-                'gold',
-                topQuote.id,
-                true // includeAuthor = true
-              );
-
-              winnerProduct = await storage.createProduct({
-                quoteId: topQuote.id,
-                weeklyWinnerId: winner.id,
-                name: `${truncatedQuote} (Winner's Gold Edition)`,
-                description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
-                price: '29.99',
-                imageUrl: null,
-                printfulSyncProductId: printfulWinnerProduct.id,
-                printfulSyncVariants: printfulWinnerProduct,
-                isActive: false, // Not for sale - winner exclusive
-              });
-              console.log(`[SCHEDULER] Gold text product created with Printful: ${winnerProduct.id}`);
-            } catch (printfulWinnerError: any) {
-              console.error('[SCHEDULER] Printful gold product creation failed:', printfulWinnerError.message);
-              winnerProduct = await storage.createProduct({
-                quoteId: topQuote.id,
-                weeklyWinnerId: winner.id,
-                name: `${truncatedQuote} (Winner's Gold Edition)`,
-                description: `Quote by ${authorName} - Exclusive Winner's Edition`,
-                price: '29.99',
-                imageUrl: null,
-                printfulSyncProductId: null,
-                printfulSyncVariants: null,
-                isActive: false, // Not for sale - winner exclusive
-              });
-              console.log(`[SCHEDULER] Demo winner product created: ${winnerProduct.id}`);
-            }
-          } else {
-            winnerProduct = await storage.createProduct({
-              quoteId: topQuote.id,
-              weeklyWinnerId: winner.id,
-              name: `${truncatedQuote} (Winner's Gold Edition)`,
-              description: `Quote by ${authorName} - Exclusive Winner's Edition`,
-              price: '29.99',
-              imageUrl: null,
-              printfulSyncProductId: null,
-              printfulSyncVariants: null,
-              isActive: false, // Not for sale - winner exclusive
-            });
-            console.log(`[SCHEDULER] Demo winner product created: ${winnerProduct.id}`);
-          }
-
-          // Update weekly winner with product IDs (use first active product as primary)
-          const primaryProduct = productWithAuthor || productNoAuthor;
-          if (primaryProduct) {
-            await storage.updateWeeklyWinner(winner.id, {
-              productId: primaryProduct.id,
-              winnerProductId: winnerProduct?.id || null,
-            });
-          }
-
-          // Create complimentary order for the winner (gold product)
-          const orderProduct = winnerProduct || productWithAuthor;
-          if (orderProduct) {
-            try {
-              const complimentaryOrder = await storage.createOrder({
-                userId: topQuote.authorId,
-                productId: orderProduct.id,
-                amount: '0.00',
-                status: 'awaiting_address',
-                isComplimentary: true,
-                includeAuthor: true,
-              });
-              console.log('[SCHEDULER] Created complimentary order for winner:', complimentaryOrder.id, 
-                winnerProduct ? '(gold edition)' : '(white edition fallback)');
-            } catch (error: any) {
-              console.error('[SCHEDULER] Error creating complimentary order:', error.message);
-            }
-          } else {
-            console.error('[SCHEDULER] Cannot create complimentary order - no product available');
-          }
-      } catch (error: any) {
-        console.error('[SCHEDULER] Error creating products:', error.message);
-        // Even on error, try to create at minimum a demo product if we don't have one
-        if (!productWithAuthor && !productNoAuthor) {
+      // Helper to save product to database with retries
+      const saveProductWithRetry = async (productData: any, printfulProductId: number, printfulProduct: any, maxRetries = 3): Promise<any> => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
-            console.log('[SCHEDULER] Attempting to create demo product after error...');
-            productWithAuthor = await storage.createProduct({
-              quoteId: topQuote.id,
-              weeklyWinnerId: winner.id,
-              name: `${truncatedQuote}`,
-              description: `Weekly Winner - Quote by ${authorName}`,
-              price: '29.99',
-              imageUrl: null,
-              printfulSyncProductId: null,
-              printfulSyncVariants: null,
-              isActive: true,
+            const dbProduct = await storage.createProduct({
+              ...productData,
+              printfulSyncProductId: printfulProductId,
+              printfulSyncVariants: printfulProduct,
             });
-            console.log(`[SCHEDULER] Emergency demo product created: ${productWithAuthor.id}`);
-            await storage.updateWeeklyWinner(winner.id, { productId: productWithAuthor.id });
-          } catch (demoError: any) {
-            console.error('[SCHEDULER] Failed to create emergency demo product:', demoError.message);
+            return dbProduct;
+          } catch (dbError: any) {
+            console.error(`[SCHEDULER] DB save attempt ${attempt}/${maxRetries} failed:`, dbError.message);
+            if (attempt === maxRetries) {
+              throw new Error(`Failed to save product to database after ${maxRetries} attempts: ${dbError.message}`);
+            }
+            // Wait before retry (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           }
         }
+      };
+
+      // =================================================================
+      // PRODUCT 1: WHITE text WITH author (for store purchase)
+      // =================================================================
+      console.log('[SCHEDULER] Creating white text product WITH author for store...');
+      
+      const printfulProduct = await printfulService.createProduct(
+        topQuote.text,
+        authorName,
+        `quote-${topQuote.id}-white-author`,
+        'white',
+        topQuote.id,
+        true // includeAuthor = true
+      );
+
+      productWithAuthor = await saveProductWithRetry({
+        quoteId: topQuote.id,
+        weeklyWinnerId: winner.id,
+        name: `${truncatedQuote} - With Attribution`,
+        description: `Quote by ${authorName}`,
+        price: '29.99',
+        imageUrl: null,
+        isActive: true,
+      }, printfulProduct.id, printfulProduct);
+      console.log(`[SCHEDULER] White+author product created with Printful: ${productWithAuthor.id}, syncId: ${printfulProduct.id}`);
+
+      // =================================================================
+      // PRODUCT 2: WHITE text WITHOUT author (for store purchase)
+      // =================================================================
+      console.log('[SCHEDULER] Creating white text product WITHOUT author for store...');
+      
+      const printfulProductNoAuthor = await printfulService.createProduct(
+        topQuote.text,
+        '', // No author
+        `quote-${topQuote.id}-white-noauthor`,
+        'white',
+        topQuote.id,
+        false // includeAuthor = false
+      );
+
+      productNoAuthor = await saveProductWithRetry({
+        quoteId: topQuote.id,
+        weeklyWinnerId: winner.id,
+        name: `${truncatedQuote} - Quote Only`,
+        description: `Weekly Winner Quote (no attribution)`,
+        price: '29.99',
+        imageUrl: null,
+        isActive: true,
+      }, printfulProductNoAuthor.id, printfulProductNoAuthor);
+      console.log(`[SCHEDULER] White no-author product created with Printful: ${productNoAuthor.id}, syncId: ${printfulProductNoAuthor.id}`);
+
+      // =================================================================
+      // PRODUCT 3: GOLD text WITH author (exclusive for winner)
+      // =================================================================
+      console.log('[SCHEDULER] Creating gold text product for winner...');
+      
+      const printfulWinnerProduct = await printfulService.createProduct(
+        topQuote.text,
+        authorName,
+        `quote-${topQuote.id}-gold`,
+        'gold',
+        topQuote.id,
+        true // includeAuthor = true
+      );
+
+      winnerProduct = await saveProductWithRetry({
+        quoteId: topQuote.id,
+        weeklyWinnerId: winner.id,
+        name: `${truncatedQuote} (Winner's Gold Edition)`,
+        description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
+        price: '29.99',
+        imageUrl: null,
+        isActive: false, // Not for sale - winner exclusive
+      }, printfulWinnerProduct.id, printfulWinnerProduct);
+      console.log(`[SCHEDULER] Gold text product created with Printful: ${winnerProduct.id}, syncId: ${printfulWinnerProduct.id}`);
+
+      // Update weekly winner with product IDs
+      await storage.updateWeeklyWinner(winner.id, {
+        productId: productWithAuthor.id,
+        winnerProductId: winnerProduct.id,
+      });
+
+      // Create complimentary order for the winner (gold product)
+      try {
+        const complimentaryOrder = await storage.createOrder({
+          userId: topQuote.authorId,
+          productId: winnerProduct.id,
+          amount: '0.00',
+          status: 'awaiting_address',
+          isComplimentary: true,
+          includeAuthor: true,
+        });
+        console.log('[SCHEDULER] Created complimentary order for winner:', complimentaryOrder.id, '(gold edition)');
+      } catch (error: any) {
+        console.error('[SCHEDULER] Error creating complimentary order:', error.message);
+        // Don't throw - products were created successfully, order can be created later
       }
 
       console.log('[SCHEDULER] Weekly winner selection completed successfully');
@@ -638,7 +519,7 @@ export async function selectWeeklyWinner() {
 
 async function autoHealWeeklyWinnerProducts() {
   try {
-    console.log('[SCHEDULER] Checking for weekly winners without products...');
+    console.log('[SCHEDULER] Auto-heal: Checking for weekly winners with missing or unsynced products...');
     
     // First, fix any products with broken image URLs (local file paths don't work in production)
     const allProducts = await storage.getAllProducts();
@@ -646,7 +527,6 @@ async function autoHealWeeklyWinnerProducts() {
       if (product.imageUrl && product.imageUrl.includes('/attached_assets/')) {
         console.log('[SCHEDULER] Fixing broken image URL for product:', product.id);
         await storage.updateProduct(product.id, { imageUrl: null });
-        console.log('[SCHEDULER] Fixed image URL - set to null for fallback');
       }
     }
     
@@ -662,155 +542,28 @@ async function autoHealWeeklyWinnerProducts() {
     const winnerProducts = allProducts.filter(p => p.weeklyWinnerId === winner.winnerId);
     console.log(`[SCHEDULER] Found ${winnerProducts.length} products for winner ${winner.winnerId}`);
     
-    // Check if gold product exists (name contains "Gold Edition")
-    const hasGoldProduct = winnerProducts.some(p => p.name.includes('Gold Edition'));
+    // Find products with missing sync IDs - these need to be fixed via reconciliation
+    const productsNeedingSync = winnerProducts.filter(p => !p.printfulSyncProductId);
     
-    // Check if winner has basic products
-    const hasBasicProduct = winnerProducts.some(p => !p.name.includes('Gold Edition'));
-    
-    // Get author info for product creation
-    const author = await storage.getUser(winner.authorId);
-    const authorName = author 
-      ? `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.username || author.email?.split('@')[0] || 'Anonymous'
-      : winner.authorUsername || 'Anonymous';
-    
-    const truncatedQuote = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}"`;
-    
-    // Track the gold product (existing or newly created)
-    let goldProductId: string | null = null;
-    
-    // Create missing gold product for winner
-    if (!hasGoldProduct) {
-      console.log(`[SCHEDULER] Weekly winner ${winner.winnerId} is MISSING gold product - creating now...`);
-      
-      let goldProduct = null;
-      
-      // In development, skip Printful because design URLs point to production
-      // which may have different database state. Use admin endpoint to sync Printful later.
-      const isProduction = process.env.NODE_ENV === 'production';
-      
-      // Only try Printful in production where design URLs will work
-      if (isProduction && isPrintfulConfigured && printfulService) {
-        try {
-          console.log('[SCHEDULER] Production environment - creating gold product with Printful...');
-          const connectionTest = await printfulService.testConnection();
-          
-          if (connectionTest.success) {
-            const printfulGoldProduct = await printfulService.createProduct(
-              winner.quoteText,
-              authorName,
-              `quote-${winner.quoteId}-gold`,
-              'gold',
-              winner.quoteId,
-              true // includeAuthor = true
-            );
-            
-            goldProduct = await storage.createProduct({
-              quoteId: winner.quoteId,
-              weeklyWinnerId: winner.winnerId,
-              name: `${truncatedQuote} (Winner's Gold Edition)`,
-              description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
-              price: '29.99',
-              imageUrl: null,
-              printfulSyncProductId: printfulGoldProduct.id,
-              printfulSyncVariants: printfulGoldProduct,
-              isActive: false, // Not for sale - winner exclusive
-            });
-            console.log(`[SCHEDULER] Created gold product with Printful: ${goldProduct.id}`);
-          } else {
-            console.log('[SCHEDULER] Printful unavailable, creating demo gold product...');
-          }
-        } catch (printfulError: any) {
-          console.error('[SCHEDULER] Printful gold product creation failed:', printfulError.message);
-        }
-      } else if (!isProduction) {
-        console.log('[SCHEDULER] Development environment - skipping Printful, creating demo gold product');
-        console.log('[SCHEDULER] Use POST /api/admin/sync-gold-product to sync with Printful in production');
-      }
-      
-      // Fallback: create demo gold product if Printful failed or not in production
-      if (!goldProduct) {
-        goldProduct = await storage.createProduct({
-          quoteId: winner.quoteId,
-          weeklyWinnerId: winner.winnerId,
-          name: `${truncatedQuote} (Winner's Gold Edition)`,
-          description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
-          price: '29.99',
-          imageUrl: null,
-          printfulSyncProductId: null,
-          printfulSyncVariants: null,
-          isActive: false, // Not for sale - winner exclusive
-        });
-        console.log(`[SCHEDULER] Created demo gold product: ${goldProduct.id}`);
-      }
-      
-      goldProductId = goldProduct.id;
-      
-      // Update winner with gold product ID
-      await storage.updateWeeklyWinner(winner.winnerId, { winnerProductId: goldProduct.id });
-      console.log('[SCHEDULER] Updated weekly winner with gold product ID');
-    } else {
-      console.log('[SCHEDULER] Gold product already exists for this winner');
-      // Get the existing gold product ID
-      const existingGoldProduct = winnerProducts.find(p => p.name.includes('Gold Edition'));
-      goldProductId = existingGoldProduct?.id || null;
-      
-      // Auto-sync: If gold product exists but lacks Printful sync, try to sync it now
-      // This requires a publicly accessible design URL (works in production, not development)
-      if (existingGoldProduct && !existingGoldProduct.printfulSyncProductId && isPrintfulConfigured && printfulService) {
-        console.log('[SCHEDULER] Gold product exists but lacks Printful sync - attempting auto-sync...');
-        
-        // Check if we're in production mode - only attempt Printful sync in production
-        // Default to development if NODE_ENV is not set (safe default)
-        const isProduction = process.env.NODE_ENV === 'production';
-        if (!isProduction) {
-          console.log('[SCHEDULER] Skipping Printful sync in development mode.');
-          console.log('[SCHEDULER] Reason: Printful requires publicly accessible design URLs (quote-it.co/api/designs/...)');
-          console.log('[SCHEDULER] The quote may not exist in the production database, causing 404 errors.');
-          console.log('[SCHEDULER] Product will be synced when the app runs in production mode.');
-        } else {
-          // Production mode - attempt Printful sync
-          console.log('[SCHEDULER] Production mode detected - attempting Printful product sync...');
-          try {
-            const connectionTest = await printfulService.testConnection();
-            if (connectionTest.success) {
-              // Try to create product with external URL
-              const printfulGoldProduct = await printfulService.createProduct(
-                winner.quoteText,
-                authorName,
-                `quote-${winner.quoteId}-gold`,
-                'gold',
-                winner.quoteId,
-                true // includeAuthor = true
-              );
-              
-              const goldSyncId = (printfulGoldProduct as any)?.sync_product?.id || printfulGoldProduct?.id;
-              if (goldSyncId) {
-                await storage.updateProduct(existingGoldProduct.id, {
-                  printfulSyncProductId: goldSyncId,
-                  printfulSyncVariants: printfulGoldProduct,
-                });
-                console.log(`[SCHEDULER] Auto-synced gold product with Printful ID: ${goldSyncId}`);
-              }
-            }
-          } catch (syncError: any) {
-            console.error('[SCHEDULER] Auto-sync failed:', syncError.message);
-          }
-        }
-      }
+    if (productsNeedingSync.length > 0) {
+      console.log(`[SCHEDULER] ${productsNeedingSync.length} products need Printful sync - reconciliation will fix these`);
+      // Reconciliation runs separately and will link these products to Printful
     }
     
-    // Always check for complimentary order - runs even if gold product already existed
-    if (goldProductId) {
+    // Find gold product
+    const goldProduct = winnerProducts.find(p => p.name.includes('Gold Edition'));
+    
+    // Check for complimentary order if gold product exists
+    if (goldProduct) {
       const existingOrders = await storage.getOrdersByUser(winner.authorId);
-      const existingComplimentaryOrder = existingOrders.find(o => o.isComplimentary && o.productId === goldProductId);
+      const existingComplimentaryOrder = existingOrders.find(o => o.isComplimentary && o.productId === goldProduct.id);
       
       if (!existingComplimentaryOrder) {
         // No order exists - create one
         try {
           const complimentaryOrder = await storage.createOrder({
             userId: winner.authorId,
-            productId: goldProductId,
+            productId: goldProduct.id,
             amount: '0.00',
             status: 'awaiting_address',
             isComplimentary: true,
@@ -832,33 +585,10 @@ async function autoHealWeeklyWinnerProducts() {
           console.error('[SCHEDULER] Error resetting complimentary order:', resetError.message);
         }
       } else {
-        // Order is in awaiting_address, completed, or fulfilled - leave it alone
         console.log('[SCHEDULER] Winner already has a complimentary order with status:', existingComplimentaryOrder.status);
       }
-    }
-    
-    // Also ensure winner has at least one basic product
-    if (!hasBasicProduct) {
-      console.log(`[SCHEDULER] Weekly winner ${winner.winnerId} has no basic product - creating demo product...`);
-      
-      const basicProduct = await storage.createProduct({
-        quoteId: winner.quoteId,
-        weeklyWinnerId: winner.winnerId,
-        name: `${truncatedQuote} - With Attribution`,
-        description: `Quote by ${authorName}`,
-        price: '29.99',
-        imageUrl: null,
-        printfulSyncProductId: null,
-        printfulSyncVariants: null,
-        isActive: true,
-      });
-      console.log('[SCHEDULER] Created demo basic product:', basicProduct.id);
-      
-      // Update winner with product ID if not set
-      if (!winner.productId) {
-        await storage.updateWeeklyWinner(winner.winnerId, { productId: basicProduct.id });
-        console.log('[SCHEDULER] Updated weekly winner with basic product ID');
-      }
+    } else {
+      console.log('[SCHEDULER] No gold product found for winner - reconciliation should create it from Printful');
     }
     
     console.log('[SCHEDULER] Auto-heal completed');
