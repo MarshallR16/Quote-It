@@ -1832,7 +1832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Automatically submit to Printful if configured and shipping info provided
-      if (isPrintfulConfigured && shippingInfo && product.printfulSyncProductId) {
+      if (isPrintfulConfigured && shippingInfo) {
         try {
           // Validate shipping info
           if (!shippingInfo.name || !shippingInfo.address1 || !shippingInfo.city || 
@@ -1840,12 +1840,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error('Missing required shipping information');
           }
 
+          // Auto-fetch missing sync ID from Printful if needed
+          let syncProductId = product.printfulSyncProductId;
+          if (!syncProductId && product.quoteId) {
+            console.log('[PAID ORDER] Missing printfulSyncProductId - auto-fetching from Printful...');
+            
+            // Determine expected external_id based on product type
+            const isGold = product.name.includes('Gold Edition');
+            const hasAuthor = product.name.includes('Attribution');
+            let externalIdPattern: string;
+            if (isGold) {
+              externalIdPattern = `quote-${product.quoteId}-gold`;
+            } else if (hasAuthor) {
+              externalIdPattern = `quote-${product.quoteId}-white-author`;
+            } else {
+              externalIdPattern = `quote-${product.quoteId}-white-noauthor`;
+            }
+            
+            const printfulProduct = await printfulService.findProductByExternalId(externalIdPattern);
+            if (printfulProduct) {
+              syncProductId = printfulProduct.id;
+              // Update database with found sync ID
+              await storage.updateProduct(product.id, {
+                printfulSyncProductId: printfulProduct.id,
+                printfulSyncVariants: printfulProduct,
+              });
+              console.log('[PAID ORDER] Auto-fetched and saved printfulSyncProductId:', syncProductId);
+            } else {
+              throw new Error('Product not found in Printful - cannot process order');
+            }
+          }
+
+          if (!syncProductId) {
+            throw new Error('Product has no Printful sync ID and could not be auto-fetched');
+          }
+
           console.log('[PAID ORDER] Submitting order to Printful...');
-          console.log('[PAID ORDER] Product:', product.id, 'printfulSyncProductId:', product.printfulSyncProductId);
+          console.log('[PAID ORDER] Product:', product.id, 'printfulSyncProductId:', syncProductId);
           
           // Use getSyncVariantForSize to get the correct variant ID from Printful
           const syncVariantId = await printfulService.getSyncVariantForSize(
-            product.printfulSyncProductId,
+            syncProductId,
             shippingInfo.size
           );
           
@@ -2183,12 +2218,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const product = await storage.getProduct(order.productId);
           console.log('[SHIPPING] Product:', product?.id, 'printfulSyncProductId:', product?.printfulSyncProductId);
-          if (product?.printfulSyncProductId) {
+          
+          // Auto-fetch missing sync ID from Printful if needed
+          let syncProductId = product?.printfulSyncProductId;
+          if (product && !syncProductId && product.quoteId) {
+            console.log('[WINNER ORDER] Missing printfulSyncProductId - auto-fetching from Printful...');
+            
+            // Determine expected external_id based on product type
+            const isGold = product.name.includes('Gold Edition');
+            const hasAuthor = product.name.includes('Attribution');
+            let externalIdPattern: string;
+            if (isGold) {
+              externalIdPattern = `quote-${product.quoteId}-gold`;
+            } else if (hasAuthor) {
+              externalIdPattern = `quote-${product.quoteId}-white-author`;
+            } else {
+              externalIdPattern = `quote-${product.quoteId}-white-noauthor`;
+            }
+            
+            const printfulProduct = await printfulService.findProductByExternalId(externalIdPattern);
+            if (printfulProduct) {
+              syncProductId = printfulProduct.id;
+              // Update database with found sync ID
+              await storage.updateProduct(product.id, {
+                printfulSyncProductId: printfulProduct.id,
+                printfulSyncVariants: printfulProduct,
+              });
+              console.log('[WINNER ORDER] Auto-fetched and saved printfulSyncProductId:', syncProductId);
+            } else {
+              throw new Error('Product not found in Printful - cannot process order');
+            }
+          }
+          
+          if (syncProductId) {
             console.log('[WINNER ORDER] Creating Printful fulfillment for complimentary order:', orderId);
             
             // Get the sync variant ID for the selected size
             const syncVariantId = await printfulService.getSyncVariantForSize(
-              product.printfulSyncProductId,
+              syncProductId,
               shippingInfo.size
             );
             
