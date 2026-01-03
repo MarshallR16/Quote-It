@@ -608,12 +608,26 @@ export function startWeeklyWinnerScheduler() {
 
   console.log('[SCHEDULER] Weekly winner cron job initialized (runs every Sunday at 11:59 PM)');
   
+  // Hourly reconciliation: Sync Printful products with database to fix any sync gaps
+  // Cron format: 0 * * * * = every hour at minute 0
+  cron.schedule('0 * * * *', async () => {
+    console.log('[SCHEDULER] Running hourly Printful reconciliation...');
+    try {
+      const result = await reconcilePrintfulProducts();
+      console.log(`[SCHEDULER] Hourly reconciliation completed: fixed=${result.fixed}, created=${result.created}`);
+    } catch (error: any) {
+      console.error('[SCHEDULER] Hourly reconciliation error:', error.message);
+    }
+  });
+  
+  console.log('[SCHEDULER] Hourly Printful reconciliation cron job initialized');
+  
   // Auto-heal: Check if most recent weekly winner has products, create if missing
   setTimeout(() => {
     autoHealWeeklyWinnerProducts();
   }, 5000); // Wait 5 seconds after startup to ensure DB is ready
   
-  // Auto-reconcile: Sync Printful products with database to fix missing sync IDs
+  // Auto-reconcile on startup: Sync Printful products with database to fix missing sync IDs
   setTimeout(() => {
     reconcilePrintfulProducts();
   }, 10000); // Wait 10 seconds after startup to ensure Printful connection is ready
