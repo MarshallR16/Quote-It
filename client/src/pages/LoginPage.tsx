@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { queryClient } from "@/lib/queryClient";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -122,36 +123,50 @@ export default function LoginPage() {
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Update profile with display name, referral code, and reload to get fresh token
       if (userCredential.user) {
         const { updateProfile } = await import("firebase/auth");
-        // Store referral code in customData temporarily (we'll process it in backend)
+        
+        // Update Firebase profile with display name
         await updateProfile(userCredential.user, { 
           displayName: name.trim(),
         });
-        // Reload user to ensure token has updated claims
-        await userCredential.user.reload();
         
-        // Send referral code to backend if provided
-        if (referralCode.trim()) {
-          try {
-            const idToken = await userCredential.user.getIdToken();
-            const response = await fetch('/api/auth/apply-referral', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`,
-              },
-              body: JSON.stringify({ referralCode: referralCode.trim() }),
-            });
-            
-            if (!response.ok) {
-              console.log('Referral code application failed:', await response.text());
-            }
-          } catch (error) {
-            console.error('Error applying referral code:', error);
-            // Don't block signup if referral fails
+        // Parse the name into first and last name
+        const nameParts = name.trim().split(/\s+/);
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ');
+        
+        // Get fresh token and immediately complete the profile on the backend
+        // This bypasses the issue where Firebase token claims don't update immediately
+        const idToken = await userCredential.user.getIdToken(true);
+        
+        try {
+          const response = await fetch('/api/auth/complete-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ 
+              firstName, 
+              lastName,
+              referralCode: referralCode.trim() || undefined,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Profile completion failed:', errorData);
+            // Don't block - the user can complete profile later if needed
+          } else {
+            console.log('[SIGNUP] Profile completed successfully on backend');
+            // Invalidate the user query so it refetches with the new user data
+            // This prevents the ProfileCompletionModal from appearing
+            queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           }
+        } catch (error) {
+          console.error('Error completing profile:', error);
+          // Don't block signup - profile completion can happen later
         }
       }
 
