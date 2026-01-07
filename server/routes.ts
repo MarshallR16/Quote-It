@@ -1896,11 +1896,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               name: shippingInfo.name,
               address1: shippingInfo.address1,
+              address2: shippingInfo.address2,
               city: shippingInfo.city,
               state_code: shippingInfo.state_code,
               country_code: shippingInfo.country_code || 'US',
               zip: shippingInfo.zip,
               email: shippingInfo.email,
+              phone: shippingInfo.phone,
             },
             [{
               sync_variant_id: syncVariantId,
@@ -2276,11 +2278,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               name: shippingInfo.name,
               address1: shippingInfo.address1,
+              address2: shippingInfo.address2,
               city: shippingInfo.city,
               state_code: shippingInfo.state_code,
               country_code: shippingInfo.country_code,
               zip: shippingInfo.zip,
               email: shippingInfo.email,
+              phone: shippingInfo.phone,
             },
             [{
               sync_variant_id: syncVariantId,

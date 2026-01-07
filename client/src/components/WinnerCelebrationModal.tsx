@@ -49,10 +49,12 @@ interface ShippingInfo {
   name: string;
   email: string;
   address1: string;
+  address2: string;
   city: string;
   state_code: string;
   country_code: string;
   zip: string;
+  phone: string;
   size: string;
 }
 
@@ -127,10 +129,12 @@ export default function WinnerCelebrationModal({
     name: "",
     email: "",
     address1: "",
+    address2: "",
     city: "",
     state_code: "",
     country_code: "US",
     zip: "",
+    phone: "",
     size: "M",
   });
 
@@ -344,6 +348,19 @@ export default function WinnerCelebrationModal({
                   />
                 </div>
 
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="address2">Apartment, Suite, etc. (optional)</Label>
+                  <Input
+                    id="address2"
+                    type="text"
+                    value={shippingInfo.address2}
+                    onChange={(e) => handleShippingChange("address2", e.target.value)}
+                    placeholder="Apt 4B, Suite 200, etc."
+                    disabled={isLoading}
+                    data-testid="input-shipping-address2"
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="city">City *</Label>
                   <Input
@@ -423,6 +440,19 @@ export default function WinnerCelebrationModal({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="phone">Phone Number (optional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={shippingInfo.phone}
+                    onChange={(e) => handleShippingChange("phone", e.target.value)}
+                    placeholder="For delivery updates"
+                    disabled={isLoading}
+                    data-testid="input-shipping-phone"
+                  />
                 </div>
               </div>
 

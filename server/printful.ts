@@ -769,11 +769,13 @@ export class PrintfulService {
     recipient: {
       name: string;
       address1: string;
+      address2?: string;
       city: string;
       state_code: string;
       country_code: string;
       zip: string;
       email: string;
+      phone?: string;
     },
     items: Array<{
       sync_variant_id: number;
@@ -781,9 +783,28 @@ export class PrintfulService {
     }>
   ): Promise<PrintfulOrder> {
     try {
+      // Filter out empty optional fields
+      const cleanedRecipient: Record<string, string> = {
+        name: recipient.name,
+        address1: recipient.address1,
+        city: recipient.city,
+        state_code: recipient.state_code,
+        country_code: recipient.country_code,
+        zip: recipient.zip,
+        email: recipient.email,
+      };
+      
+      // Only include address2 and phone if they have values
+      if (recipient.address2?.trim()) {
+        cleanedRecipient.address2 = recipient.address2.trim();
+      }
+      if (recipient.phone?.trim()) {
+        cleanedRecipient.phone = recipient.phone.trim();
+      }
+
       const data = {
         external_id: externalId,
-        recipient,
+        recipient: cleanedRecipient,
         items,
       };
 

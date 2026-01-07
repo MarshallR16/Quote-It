@@ -81,10 +81,12 @@ interface ShippingInfo {
   name: string;
   email: string;
   address1: string;
+  address2: string;
   city: string;
   state_code: string;
   country_code: string;
   zip: string;
+  phone: string;
   size: string;
   includeAuthor: boolean;
 }
@@ -194,10 +196,12 @@ export default function CheckoutPage() {
     name: '',
     email: '',
     address1: '',
+    address2: '',
     city: '',
     state_code: '',
     country_code: 'US',
     zip: '',
+    phone: '',
     size: 'M',
     includeAuthor: true,
   });
@@ -431,6 +435,17 @@ export default function CheckoutPage() {
                   data-testid="input-address"
                 />
               </div>
+
+              <div>
+                <Label htmlFor="address2">Apartment, Suite, etc. (optional)</Label>
+                <Input
+                  id="address2"
+                  value={shippingInfo.address2}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, address2: e.target.value })}
+                  placeholder="Apt 4B, Suite 200, etc."
+                  data-testid="input-address2"
+                />
+              </div>
               
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -484,23 +499,36 @@ export default function CheckoutPage() {
                 </div>
               </div>
               
-              <div>
-                <Label htmlFor="size">T-Shirt Size</Label>
-                <Select
-                  value={shippingInfo.size}
-                  onValueChange={(value) => setShippingInfo({ ...shippingInfo, size: value })}
-                >
-                  <SelectTrigger id="size" data-testid="select-size">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="S">Small</SelectItem>
-                    <SelectItem value="M">Medium</SelectItem>
-                    <SelectItem value="L">Large</SelectItem>
-                    <SelectItem value="XL">X-Large</SelectItem>
-                    <SelectItem value="2XL">2X-Large</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="size">T-Shirt Size</Label>
+                  <Select
+                    value={shippingInfo.size}
+                    onValueChange={(value) => setShippingInfo({ ...shippingInfo, size: value })}
+                  >
+                    <SelectTrigger id="size" data-testid="select-size">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="S">Small</SelectItem>
+                      <SelectItem value="M">Medium</SelectItem>
+                      <SelectItem value="L">Large</SelectItem>
+                      <SelectItem value="XL">X-Large</SelectItem>
+                      <SelectItem value="2XL">2X-Large</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone Number (optional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={shippingInfo.phone}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
+                    placeholder="For delivery updates"
+                    data-testid="input-phone"
+                  />
+                </div>
               </div>
 
               {/* Author Attribution Option */}
