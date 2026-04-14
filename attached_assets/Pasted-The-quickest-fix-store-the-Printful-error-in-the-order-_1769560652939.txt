@@ -1,0 +1,86 @@
+The quickest fix: store the Printful error in the order row
+1) Add a column to orders for the error
+
+Open: shared/schema.ts
+
+Find export const orders = pgTable("orders", { ... }) and add:
+
+printfulError: text("printful_error"),
+
+
+So it becomes:
+
+export const orders = pgTable("orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  printfulOrderId: integer("printful_order_id"),
+  shippingAddress: jsonb("shipping_address"),
+  printfulError: text("printful_error"), // ✅ add this
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  isComplimentary: boolean("is_complimentary").notNull().default(false),
+  includeAuthor: boolean("include_author").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+2) Push the DB change
+
+In Replit Shell, run:
+
+npm run db:push
+
+
+(Your package.json already has "db:push": "drizzle-kit push".)
+
+3) Capture the real Printful error details
+
+Open: server/routes.ts
+
+In the /api/verify-payment Printful catch, replace it with:
+
+} catch (error: any) {
+  const details =
+    error?.response?.data
+      ? JSON.stringify(error.response.data)
+      : (error?.message || "Unknown error");
+
+  console.error("[PAID ORDER] Printful error:", details);
+
+  await storage.updateOrder(order.id, {
+    status: "failed",
+    printfulError: details,
+  });
+
+  return res.status(502).json({
+    message: "Payment succeeded, but Printful order creation failed.",
+    orderId: order.id,
+    details,
+  });
+}
+
+
+✅ After this, every failed order will show exactly why in the DB (printful_error), and the client will also receive the reason.
+
+Where to view it in Replit
+
+In the left sidebar, look for something like Database / Postgres (or a “Tools” section). Open the table orders and check printful_error.
+
+If you can’t find the DB UI, you can still confirm it by temporarily adding an endpoint like “get my latest orders” (you might already have one) and return printfulError.
+
+Most common reasons you’ll see once the error is saved
+
+When you paste the printful_error value here, I’ll tell you the exact fix — but the usual ones are:
+
+401/403: Printful token missing/wrong
+
+Recipient validation: state_code, country_code, zip formatting
+
+Variant not found: the size coming from the UI doesn’t match what Printful has (e.g., XXL vs 2XL)
+
+Do this next
+
+Open one failed order row and copy/paste the shipping_address (redact personal info) and the new printful_error once you add it.
+
+If you don’t want to do the DB column step, paste the shipping_address now and I’ll sanity-check it for the common Printful validation/size issues.
