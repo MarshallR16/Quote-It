@@ -23,12 +23,127 @@ if (process.env.STRIPE_SECRET_KEY) {
   });
 }
 
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+
 // Check if Printful is configured
 const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
 
 // Design base URL for Printful - defaults to production domain
 // Printful must be able to access designs externally, so this should be a publicly accessible URL
 const DESIGN_BASE_URL = process.env.DESIGN_BASE_URL || 'https://quote-it.co';
+
+/**
+ * Resolve a product's Printful sync ID, falling back to a Printful API lookup
+ * by external_id if the database row is missing the value (and persisting the result).
+ */
+async function resolvePrintfulSyncId(product: Product): Promise<number | null> {
+  if (product.printfulSyncProductId) {
+    return product.printfulSyncProductId;
+  }
+  if (!product.quoteId) {
+    return null;
+  }
+
+  const isGold = product.name.includes('Gold Edition');
+  const hasAuthor = product.name.includes('Attribution');
+  const externalId = isGold
+    ? `quote-${product.quoteId}-gold`
+    : hasAuthor
+    ? `quote-${product.quoteId}-white-author`
+    : `quote-${product.quoteId}-white-noauthor`;
+
+  const printfulProduct = await printfulService.findProductByExternalId(externalId);
+  if (!printfulProduct?.id) return null;
+
+  await storage.updateProduct(product.id, {
+    printfulSyncProductId: printfulProduct.id,
+    printfulSyncVariants: printfulProduct,
+  });
+  return printfulProduct.id;
+}
+
+/**
+ * Push a paid order to Printful (create + confirm). Idempotent:
+ *  - If `printfulOrderId` is already set, returns the order unchanged.
+ *  - Re-runnable from both /api/verify-payment and the Stripe webhook.
+ *
+ * Throws on unrecoverable errors so the caller can decide how to surface them.
+ * Caller is responsible for marking the order failed if appropriate.
+ */
+async function fulfillPrintfulForOrder(orderId: string): Promise<{ status: string; printfulOrderId: number | null }> {
+  if (!isPrintfulConfigured) {
+    console.log('[FULFILL] Printful not configured, skipping Printful fulfillment');
+    return { status: 'pending', printfulOrderId: null };
+  }
+
+  const order = await storage.getOrder(orderId);
+  if (!order) throw new Error(`Order ${orderId} not found`);
+
+  if (order.printfulOrderId) {
+    console.log(`[FULFILL] Order ${orderId} already has Printful order ${order.printfulOrderId}, skipping`);
+    return { status: order.status, printfulOrderId: order.printfulOrderId };
+  }
+
+  const shippingInfo: any = order.shippingAddress;
+  if (!shippingInfo || typeof shippingInfo !== 'object') {
+    console.warn(`[FULFILL] Order ${orderId} has no shipping address yet, marking awaiting_address`);
+    await storage.updateOrder(orderId, { status: 'awaiting_address' });
+    return { status: 'awaiting_address', printfulOrderId: null };
+  }
+
+  const required = ['name', 'address1', 'city', 'state_code', 'zip', 'email', 'size'];
+  for (const field of required) {
+    if (!shippingInfo[field]) {
+      throw new Error(`Missing required shipping field: ${field}`);
+    }
+  }
+
+  const product = await storage.getProduct(order.productId);
+  if (!product) throw new Error(`Product ${order.productId} not found`);
+
+  const syncProductId = await resolvePrintfulSyncId(product);
+  if (!syncProductId) {
+    throw new Error('Product has no Printful sync ID and could not be auto-fetched');
+  }
+
+  const syncVariantId = await printfulService.getSyncVariantForSize(syncProductId, shippingInfo.size);
+  if (!syncVariantId) {
+    throw new Error(`Could not find variant for size ${shippingInfo.size}`);
+  }
+
+  const externalId = order.isComplimentary ? `winner-${order.id}` : `order-${order.id}`;
+  const printfulOrder = await printfulService.createOrder(
+    externalId,
+    {
+      name: shippingInfo.name,
+      address1: shippingInfo.address1,
+      address2: shippingInfo.address2,
+      city: shippingInfo.city,
+      state_code: shippingInfo.state_code,
+      country_code: shippingInfo.country_code || 'US',
+      zip: shippingInfo.zip,
+      email: shippingInfo.email,
+      phone: shippingInfo.phone,
+    },
+    [{ sync_variant_id: syncVariantId, quantity: 1 }],
+  );
+
+  // Persist the Printful order ID immediately so retries don't double-create.
+  await storage.updateOrder(orderId, {
+    printfulOrderId: printfulOrder.id,
+    status: 'pending_confirmation',
+  });
+
+  try {
+    await printfulService.confirmOrder(printfulOrder.id);
+    await storage.updateOrder(orderId, { status: 'completed' });
+    console.log(`[FULFILL] Order ${orderId} -> Printful ${printfulOrder.id} completed`);
+    return { status: 'completed', printfulOrderId: printfulOrder.id };
+  } catch (confirmError: any) {
+    console.error(`[FULFILL] Confirm failed for Printful ${printfulOrder.id}: ${confirmError.message}`);
+    return { status: 'pending_confirmation', printfulOrderId: printfulOrder.id };
+  }
+}
 
 // Test Printful connection on startup and verify variant IDs
 async function testPrintfulOnStartup() {
@@ -1611,6 +1726,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create payment intent for Stripe checkout
+  // Persist a draft order before Stripe.confirmPayment runs.
+  // Ensures the webhook + success-page paths both have shipping info available
+  // so the customer is never left in a "paid but no Printful order" state.
+  app.post("/api/checkout/prepare", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!stripe) {
+        return res.status(503).json({ message: "Payment processing is not configured" });
+      }
+      const userId = req.firebaseUser.uid;
+      const { paymentIntentId, shippingInfo } = req.body || {};
+
+      if (!paymentIntentId || typeof paymentIntentId !== 'string') {
+        return res.status(400).json({ message: "paymentIntentId is required" });
+      }
+      if (!shippingInfo || typeof shippingInfo !== 'object') {
+        return res.status(400).json({ message: "shippingInfo is required" });
+      }
+      const required = ['name', 'email', 'address1', 'city', 'state_code', 'country_code', 'zip', 'size'];
+      for (const field of required) {
+        if (!shippingInfo[field]) {
+          return res.status(400).json({ message: `${field} is required` });
+        }
+      }
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (paymentIntent.metadata.userId !== userId) {
+        return res.status(403).json({ message: "Payment intent does not belong to this user" });
+      }
+      const productId = paymentIntent.metadata.productId;
+      if (!productId) {
+        return res.status(400).json({ message: "Payment intent missing productId metadata" });
+      }
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      // Idempotent: if an order row already exists for this PI, just update shipping.
+      const existing = await storage.getOrderByPaymentIntentId(paymentIntentId);
+      if (existing) {
+        if (existing.userId !== userId) {
+          return res.status(403).json({ message: "Order belongs to a different user" });
+        }
+        // Don't overwrite shipping after fulfillment has started
+        if (!existing.printfulOrderId) {
+          const updated = await storage.updateOrder(existing.id, {
+            shippingAddress: shippingInfo,
+            includeAuthor: shippingInfo.includeAuthor !== false,
+          });
+          return res.json({ order: updated });
+        }
+        return res.json({ order: existing });
+      }
+
+      try {
+        const order = await storage.createOrder({
+          userId,
+          productId,
+          stripePaymentIntentId: paymentIntentId,
+          amount: product.price,
+          status: 'pending',
+          shippingAddress: shippingInfo,
+          includeAuthor: shippingInfo.includeAuthor !== false,
+        });
+        return res.json({ order });
+      } catch (insertError: any) {
+        // Race with webhook: another path inserted the row between our check and insert.
+        if (insertError?.code === '23505') {
+          const order = await storage.getOrderByPaymentIntentId(paymentIntentId);
+          if (order) return res.json({ order });
+        }
+        throw insertError;
+      }
+    } catch (error: any) {
+      console.error('[CHECKOUT PREPARE] Error:', error.message);
+      res.status(500).json({ message: "Error preparing checkout: " + error.message });
+    }
+  });
+
+  // Stripe webhook for reliable, async order fulfillment.
+  // Fires `payment_intent.succeeded` even if the user closes the success-page tab,
+  // guaranteeing paid orders reach Printful.
+  app.post("/api/stripe/webhook", async (req: any, res) => {
+    if (!stripe) {
+      return res.status(503).send("Stripe not configured");
+    }
+    if (!STRIPE_WEBHOOK_SECRET) {
+      console.error("[STRIPE WEBHOOK] STRIPE_WEBHOOK_SECRET not configured");
+      return res.status(503).send("Webhook secret not configured");
+    }
+
+    const signature = req.headers['stripe-signature'];
+    if (!signature || typeof signature !== 'string') {
+      return res.status(400).send("Missing stripe-signature header");
+    }
+    const rawBody = req.rawBody;
+    if (!rawBody) {
+      // Express's express.json() verify hook captures rawBody; if it's missing the
+      // middleware order changed - fail loudly instead of silently dropping the event.
+      console.error("[STRIPE WEBHOOK] req.rawBody not available - check express.json verify hook");
+      return res.status(500).send("Raw body not captured");
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(rawBody as Buffer, signature, STRIPE_WEBHOOK_SECRET);
+    } catch (err: any) {
+      console.error('[STRIPE WEBHOOK] Signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Acknowledge fast; do work after. Stripe retries on non-2xx.
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      console.log(`[STRIPE WEBHOOK] payment_intent.succeeded ${paymentIntent.id}`);
+
+      try {
+        let order = await storage.getOrderByPaymentIntentId(paymentIntent.id);
+
+        // Defensive: if /api/checkout/prepare never ran (e.g. client crashed),
+        // create a stub order so admins can recover. Shipping will be missing.
+        if (!order) {
+          const productId = paymentIntent.metadata.productId;
+          const userId = paymentIntent.metadata.userId;
+          if (!productId || !userId) {
+            console.error('[STRIPE WEBHOOK] PI missing productId/userId metadata, cannot create stub order');
+            return res.json({ received: true });
+          }
+          const product = await storage.getProduct(productId);
+          if (!product) {
+            console.error(`[STRIPE WEBHOOK] Product ${productId} not found, cannot create stub order`);
+            return res.json({ received: true });
+          }
+          try {
+            order = await storage.createOrder({
+              userId,
+              productId,
+              stripePaymentIntentId: paymentIntent.id,
+              amount: product.price,
+              status: 'awaiting_address',
+            });
+            console.warn(`[STRIPE WEBHOOK] Created stub order ${order.id} without shipping - manual recovery needed`);
+          } catch (insertError: any) {
+            if (insertError?.code === '23505') {
+              order = await storage.getOrderByPaymentIntentId(paymentIntent.id);
+            } else {
+              throw insertError;
+            }
+          }
+        }
+
+        if (paymentIntent.metadata.usedDiscount === 'true' && order && !order.printfulOrderId) {
+          // Only count the discount once - skip if we've already fulfilled.
+          await storage.incrementUsedReferralDiscounts(order.userId);
+        }
+
+        if (order) {
+          try {
+            await fulfillPrintfulForOrder(order.id);
+          } catch (fulfillError: any) {
+            console.error(`[STRIPE WEBHOOK] Fulfillment failed for order ${order.id}:`, fulfillError.message);
+            await storage.updateOrder(order.id, { status: 'failed' });
+          }
+        }
+      } catch (handlerError: any) {
+        console.error('[STRIPE WEBHOOK] Handler error:', handlerError.message);
+        // Return 500 so Stripe retries.
+        return res.status(500).send("Handler error");
+      }
+    }
+
+    res.json({ received: true });
+  });
+
   app.post("/api/create-payment-intent", isAuthenticated, async (req: any, res) => {
     try {
       if (!stripe) {
@@ -1797,141 +2086,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get product to get authoritative price
       const product = await storage.getProduct(productId);
-      
+
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      // Check if order already exists for this payment intent (globally, not just for this user)
-      // This prevents the same payment intent from being reused to create multiple orders
-      const allOrders = await storage.getOrdersByUser(userId);
-      // TODO: Implement a more efficient global search across all users
-      // For now, we check the user's orders which is sufficient since we verify userId matches metadata
-      const existingOrder = allOrders.find(o => o.stripePaymentIntentId === paymentIntentId);
-      
-      if (existingOrder) {
-        // Order already exists, return it
-        return res.json({ order: existingOrder, product });
-      }
+      // Idempotent global lookup by payment intent ID (uniq_orders_stripe_payment_intent_id).
+      // Both this endpoint and the Stripe webhook converge on this row.
+      let order = await storage.getOrderByPaymentIntentId(paymentIntentId);
 
-      // Create order with verified data
-      const order = await storage.createOrder({
-        userId,
-        productId,
-        stripePaymentIntentId: paymentIntentId,
-        amount: product.price,
-        status: "processing",
-        shippingAddress: shippingInfo ? JSON.stringify(shippingInfo) : null,
-        includeAuthor: shippingInfo?.includeAuthor !== false, // default to true if not specified
-      });
-
-      // If a referral discount was used, increment the used discount counter
-      if (paymentIntent.metadata.usedDiscount === 'true') {
-        await storage.incrementUsedReferralDiscounts(userId);
-        console.log('[ORDER] Incremented used referral discount for user:', userId);
-      }
-
-      // Automatically submit to Printful if configured and shipping info provided
-      if (isPrintfulConfigured && shippingInfo) {
+      if (order) {
+        if (order.userId !== userId) {
+          return res.status(403).json({ message: "Order belongs to a different user" });
+        }
+        // Patch shipping if /api/checkout/prepare didn't run (legacy clients) and
+        // fulfillment hasn't started yet.
+        if (shippingInfo && !order.shippingAddress && !order.printfulOrderId) {
+          order = await storage.updateOrder(order.id, {
+            shippingAddress: shippingInfo,
+            includeAuthor: shippingInfo.includeAuthor !== false,
+          });
+        }
+      } else {
+        // No prepare/webhook ran yet - create the row now.
         try {
-          // Validate shipping info
-          if (!shippingInfo.name || !shippingInfo.address1 || !shippingInfo.city || 
-              !shippingInfo.state_code || !shippingInfo.zip || !shippingInfo.email || !shippingInfo.size) {
-            throw new Error('Missing required shipping information');
-          }
-
-          // Auto-fetch missing sync ID from Printful if needed
-          let syncProductId = product.printfulSyncProductId;
-          if (!syncProductId && product.quoteId) {
-            console.log('[PAID ORDER] Missing printfulSyncProductId - auto-fetching from Printful...');
-            
-            // Determine expected external_id based on product type
-            const isGold = product.name.includes('Gold Edition');
-            const hasAuthor = product.name.includes('Attribution');
-            let externalIdPattern: string;
-            if (isGold) {
-              externalIdPattern = `quote-${product.quoteId}-gold`;
-            } else if (hasAuthor) {
-              externalIdPattern = `quote-${product.quoteId}-white-author`;
-            } else {
-              externalIdPattern = `quote-${product.quoteId}-white-noauthor`;
-            }
-            
-            const printfulProduct = await printfulService.findProductByExternalId(externalIdPattern);
-            if (printfulProduct) {
-              syncProductId = printfulProduct.id;
-              // Update database with found sync ID
-              await storage.updateProduct(product.id, {
-                printfulSyncProductId: printfulProduct.id,
-                printfulSyncVariants: printfulProduct,
-              });
-              console.log('[PAID ORDER] Auto-fetched and saved printfulSyncProductId:', syncProductId);
-            } else {
-              throw new Error('Product not found in Printful - cannot process order');
-            }
-          }
-
-          if (!syncProductId) {
-            throw new Error('Product has no Printful sync ID and could not be auto-fetched');
-          }
-
-          console.log('[PAID ORDER] Submitting order to Printful...');
-          console.log('[PAID ORDER] Product:', product.id, 'printfulSyncProductId:', syncProductId);
-          
-          // Use getSyncVariantForSize to get the correct variant ID from Printful
-          const syncVariantId = await printfulService.getSyncVariantForSize(
-            syncProductId,
-            shippingInfo.size
-          );
-          
-          if (!syncVariantId) {
-            throw new Error(`Could not find variant for size ${shippingInfo.size}`);
-          }
-          
-          console.log('[PAID ORDER] Found sync variant ID:', syncVariantId, 'for size:', shippingInfo.size);
-
-          // Create order in Printful
-          const printfulOrder = await printfulService.createOrder(
-            `order-${order.id}`,
-            {
-              name: shippingInfo.name,
-              address1: shippingInfo.address1,
-              address2: shippingInfo.address2,
-              city: shippingInfo.city,
-              state_code: shippingInfo.state_code,
-              country_code: shippingInfo.country_code || 'US',
-              zip: shippingInfo.zip,
-              email: shippingInfo.email,
-              phone: shippingInfo.phone,
-            },
-            [{
-              sync_variant_id: syncVariantId,
-              quantity: 1,
-            }]
-          );
-          
-          console.log('[PAID ORDER] Printful order created:', printfulOrder.id);
-
-          // Confirm the order (submit for fulfillment)
-          await printfulService.confirmOrder(printfulOrder.id);
-
-          // Update order status
-          await storage.updateOrder(order.id, {
-            status: 'completed',
-            printfulOrderId: printfulOrder.id,
+          order = await storage.createOrder({
+            userId,
+            productId,
+            stripePaymentIntentId: paymentIntentId,
+            amount: product.price,
+            status: 'pending',
+            shippingAddress: shippingInfo || null,
+            includeAuthor: shippingInfo?.includeAuthor !== false,
           });
+        } catch (insertError: any) {
+          if (insertError?.code === '23505') {
+            const existing = await storage.getOrderByPaymentIntentId(paymentIntentId);
+            if (!existing) throw insertError;
+            order = existing;
+          } else {
+            throw insertError;
+          }
+        }
 
-          console.log('[PAID ORDER] Printful order confirmed:', printfulOrder.id);
-        } catch (error: any) {
-          console.error('[PAID ORDER] Error creating Printful order:', error.message);
-          // Update order with error status
-          await storage.updateOrder(order.id, {
-            status: 'failed',
-          });
+        if (paymentIntent.metadata.usedDiscount === 'true') {
+          await storage.incrementUsedReferralDiscounts(userId);
         }
       }
 
-      res.json({ order, product });
+      // Run fulfillment (webhook may have already done it - helper is idempotent).
+      try {
+        await fulfillPrintfulForOrder(order.id);
+      } catch (fulfillError: any) {
+        console.error('[VERIFY-PAYMENT] Fulfillment error:', fulfillError.message);
+        await storage.updateOrder(order.id, { status: 'failed' });
+      }
+
+      const finalOrder = await storage.getOrder(order.id);
+      res.json({ order: finalOrder, product });
     } catch (error: any) {
       res.status(500).json({ message: "Error verifying payment: " + error.message });
     }

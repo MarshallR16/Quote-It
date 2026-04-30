@@ -140,7 +140,31 @@ function CheckoutForm({
     try {
       // Store shipping info for order creation after payment
       sessionStorage.setItem('shippingInfo', JSON.stringify(shippingInfo));
-      
+
+      // Persist a draft order on the server BEFORE confirming payment so the
+      // Stripe webhook can fulfill even if the user closes the success page.
+      const paymentIntentId = sessionStorage.getItem('paymentIntentId');
+      if (paymentIntentId) {
+        try {
+          const prepareRes = await apiRequest("POST", "/api/checkout/prepare", {
+            paymentIntentId,
+            shippingInfo,
+          });
+          if (!prepareRes.ok) {
+            const body = await prepareRes.json().catch(() => ({}));
+            throw new Error(body.message || "Failed to prepare order");
+          }
+        } catch (prepareErr: any) {
+          toast({
+            title: "Could not prepare order",
+            description: prepareErr.message || "Please try again",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+          return;
+        }
+      }
+
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {

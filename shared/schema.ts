@@ -147,11 +147,16 @@ export const orders = pgTable("orders", {
   printfulOrderId: integer("printful_order_id"),
   shippingAddress: jsonb("shipping_address"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  status: text("status").notNull().default("pending"), // pending, completed, failed, awaiting_address
+  status: text("status").notNull().default("pending"), // pending, completed, failed, awaiting_address, processing, pending_confirmation, printful_error
   isComplimentary: boolean("is_complimentary").notNull().default(false), // true for free winner shirts
   includeAuthor: boolean("include_author").notNull().default(true), // whether to include author attribution on shirt
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  // Postgres treats NULL as distinct in a unique index, so unpaid/complimentary orders
+  // (which have NULL stripePaymentIntentId) are unaffected. Real intent IDs are unique.
+  uniqueStripePaymentIntent: uniqueIndex("uniq_orders_stripe_payment_intent_id")
+    .on(table.stripePaymentIntentId),
+}));
 
 export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true,
