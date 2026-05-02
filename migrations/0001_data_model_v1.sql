@@ -23,6 +23,11 @@
 
 BEGIN;
 
+-- Pin session timezone for the duration of this migration so the ISO-week
+-- backfills (`to_char(..., 'IYYY"-W"IW')`) match the app-side `isoWeekId()`
+-- helper, which always uses UTC. SET LOCAL is reverted at COMMIT.
+SET LOCAL TIME ZONE 'UTC';
+
 -- -----------------------------------------------------
 -- 1. Enums
 -- -----------------------------------------------------
