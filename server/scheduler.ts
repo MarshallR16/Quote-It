@@ -1,6 +1,9 @@
 import cron from 'node-cron';
-import { storage } from './storage';
+import { storage, isoWeekId } from './storage';
 import { PrintfulService } from './printful';
+
+// Window during which a winner can claim their free gold tee before it expires.
+const PRIZE_CLAIM_WINDOW_DAYS = 14;
 
 const isPrintfulConfigured = !!process.env.PRINTFUL_API_TOKEN;
 const printfulService = isPrintfulConfigured ? new PrintfulService() : null;
@@ -234,9 +237,12 @@ export async function reconcilePrintfulProducts(): Promise<{ fixed: number; crea
         
         // Create the product in database
         try {
+          const variant: 'white' | 'gold_winner' = type === 'gold' ? 'gold_winner' : 'white';
           const newProduct = await storage.createProduct({
             quoteId,
             weeklyWinnerId: weeklyWinner?.id || null,
+            variant,
+            isExclusive: variant === 'gold_winner',
             name: productName,
             description: productDescription,
             price,
@@ -339,15 +345,22 @@ export async function selectWeeklyWinner() {
       weekEnd.setDate(weekStart.getDate() + 6);
       weekEnd.setHours(23, 59, 59, 999);
 
-      // Create weekly winner
+      // Create weekly winner. weekId/winnerUserId are required and provide:
+      //   - weekId: stable ISO-week identifier ("2026-W18") for app-side lookups
+      //     and unique constraint (one winner per week)
+      //   - winnerUserId: denormalized author for cheap "is this user the winner"
+      //     checks without joining quotes -> users
+      const winnerWeekId = isoWeekId(weekStart);
       const winner = await storage.createWeeklyWinner({
         quoteId: topQuote.id,
+        weekId: winnerWeekId,
+        winnerUserId: topQuote.authorId,
         weekStartDate: weekStart,
         weekEndDate: weekEnd,
         finalVoteCount: topQuote.voteCount,
       });
 
-      console.log(`[SCHEDULER] Weekly winner created: ${winner.id}`);
+      console.log(`[SCHEDULER] Weekly winner created: ${winner.id} (${winnerWeekId})`);
 
       // Declare product variables outside if block so they're accessible for return
       // 3 products: gold (winner), white with author (for sale), white no author (for sale)
@@ -419,6 +432,8 @@ export async function selectWeeklyWinner() {
       productWithAuthor = await saveProductWithRetry({
         quoteId: topQuote.id,
         weeklyWinnerId: winner.id,
+        variant: 'white' as const,
+        isExclusive: false,
         name: `${truncatedQuote} - With Attribution`,
         description: `Quote by ${authorName}`,
         price: '29.99',
@@ -444,6 +459,8 @@ export async function selectWeeklyWinner() {
       productNoAuthor = await saveProductWithRetry({
         quoteId: topQuote.id,
         weeklyWinnerId: winner.id,
+        variant: 'white' as const,
+        isExclusive: false,
         name: `${truncatedQuote} - Quote Only`,
         description: `Weekly Winner Quote (no attribution)`,
         price: '29.99',
@@ -469,6 +486,8 @@ export async function selectWeeklyWinner() {
       winnerProduct = await saveProductWithRetry({
         quoteId: topQuote.id,
         weeklyWinnerId: winner.id,
+        variant: 'gold_winner' as const,
+        isExclusive: true,
         name: `${truncatedQuote} (Winner's Gold Edition)`,
         description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
         price: '29.99',
@@ -483,20 +502,22 @@ export async function selectWeeklyWinner() {
         winnerProductId: winnerProduct.id,
       });
 
-      // Create complimentary order for the winner (gold product)
+      // Create the prize voucher for the winner. Real `orders` rows are only
+      // ever created when the winner submits an address (via /api/prizes/:id/claim).
       try {
-        const complimentaryOrder = await storage.createOrder({
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + PRIZE_CLAIM_WINDOW_DAYS);
+        const prize = await storage.createPrize({
+          weeklyWinnerId: winner.id,
           userId: topQuote.authorId,
           productId: winnerProduct.id,
-          amount: '0.00',
-          status: 'awaiting_address',
-          isComplimentary: true,
-          includeAuthor: true,
+          status: 'unclaimed',
+          expiresAt,
         });
-        console.log('[SCHEDULER] Created complimentary order for winner:', complimentaryOrder.id, '(gold edition)');
+        console.log(`[SCHEDULER] Created unclaimed prize for winner: ${prize.id} (expires ${expiresAt.toISOString()})`);
       } catch (error: any) {
-        console.error('[SCHEDULER] Error creating complimentary order:', error.message);
-        // Don't throw - products were created successfully, order can be created later
+        console.error('[SCHEDULER] Error creating prize:', error.message);
+        // Don't throw - products were created successfully, prize can be backfilled by autoHeal
       }
 
       console.log('[SCHEDULER] Weekly winner selection completed successfully');
@@ -550,47 +571,37 @@ async function autoHealWeeklyWinnerProducts() {
       // Reconciliation runs separately and will link these products to Printful
     }
     
-    // Find gold product
-    const goldProduct = winnerProducts.find(p => p.name.includes('Gold Edition'));
-    
-    // Check for complimentary order if gold product exists
+    // Find gold product (preferring the new variant column, falling back to name parsing for backfill window)
+    const goldProduct = winnerProducts.find(p => p.variant === 'gold_winner')
+      ?? winnerProducts.find(p => p.name.includes('Gold Edition'));
+
+    // Make sure the winner has a prize. If a previous run failed, create one;
+    // never resurrect expired prizes (winner missed their window).
     if (goldProduct) {
-      const existingOrders = await storage.getOrdersByUser(winner.authorId);
-      const existingComplimentaryOrder = existingOrders.find(o => o.isComplimentary && o.productId === goldProduct.id);
-      
-      if (!existingComplimentaryOrder) {
-        // No order exists - create one
+      const existingPrize = await storage.getPrizeByWeeklyWinner(winner.winnerId);
+
+      if (!existingPrize) {
         try {
-          const complimentaryOrder = await storage.createOrder({
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + PRIZE_CLAIM_WINDOW_DAYS);
+          const prize = await storage.createPrize({
+            weeklyWinnerId: winner.winnerId,
             userId: winner.authorId,
             productId: goldProduct.id,
-            amount: '0.00',
-            status: 'awaiting_address',
-            isComplimentary: true,
-            includeAuthor: true,
+            status: 'unclaimed',
+            expiresAt,
           });
-          console.log('[SCHEDULER] Created complimentary order for winner:', complimentaryOrder.id);
-        } catch (orderError: any) {
-          console.error('[SCHEDULER] Error creating complimentary order:', orderError.message);
-        }
-      } else if (existingComplimentaryOrder.status === 'failed' || existingComplimentaryOrder.status === 'pending') {
-        // Order exists but is in a failed/pending state - reset it so winner can try again
-        try {
-          await storage.updateOrder(existingComplimentaryOrder.id, { 
-            status: 'awaiting_address',
-            printfulOrderId: null,  // Clear any failed Printful reference
-          });
-          console.log('[SCHEDULER] Reset failed complimentary order to awaiting_address:', existingComplimentaryOrder.id);
-        } catch (resetError: any) {
-          console.error('[SCHEDULER] Error resetting complimentary order:', resetError.message);
+          console.log('[SCHEDULER] Auto-heal created prize:', prize.id);
+        } catch (prizeError: any) {
+          console.error('[SCHEDULER] Error creating prize during auto-heal:', prizeError.message);
         }
       } else {
-        console.log('[SCHEDULER] Winner already has a complimentary order with status:', existingComplimentaryOrder.status);
+        console.log(`[SCHEDULER] Winner already has prize ${existingPrize.id} (status: ${existingPrize.status})`);
       }
     } else {
       console.log('[SCHEDULER] No gold product found for winner - reconciliation should create it from Printful');
     }
-    
+
     console.log('[SCHEDULER] Auto-heal completed');
     
   } catch (error: any) {
@@ -621,7 +632,22 @@ export function startWeeklyWinnerScheduler() {
   });
   
   console.log('[SCHEDULER] Hourly Printful reconciliation cron job initialized');
-  
+
+  // Daily prize expiry: any unclaimed prize past expiresAt flips to 'expired'.
+  // Runs at 03:00 server time so it doesn't collide with the Sunday-night
+  // winner job. The product itself stays around (history) but is unclaimable.
+  cron.schedule('0 3 * * *', async () => {
+    console.log('[SCHEDULER] Running daily prize expiry...');
+    try {
+      const expiredCount = await storage.expireStalePrizes();
+      console.log(`[SCHEDULER] Prize expiry complete: ${expiredCount} prize(s) expired`);
+    } catch (error: any) {
+      console.error('[SCHEDULER] Prize expiry error:', error.message);
+    }
+  });
+
+  console.log('[SCHEDULER] Daily prize expiry cron job initialized (03:00)');
+
   // Auto-heal: Check if most recent weekly winner has products, create if missing
   setTimeout(() => {
     autoHealWeeklyWinnerProducts();

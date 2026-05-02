@@ -22,12 +22,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Trophy, Gift, PartyPopper, Shirt, ChevronRight } from "lucide-react";
 import confetti from "canvas-confetti";
 
-interface WinnerOrderData {
-  order: {
+interface WinnerPrizeData {
+  prize: {
     id: string;
     productId: string;
     status: string;
-    isComplimentary: boolean;
+    weeklyWinnerId: string;
+    expiresAt: string;
   };
   quote: {
     id: string;
@@ -36,9 +37,11 @@ interface WinnerOrderData {
   product: {
     id: string;
     name: string;
+    variant: string;
   };
   winner: {
     id: string;
+    weekId: string;
     weekStartDate: string;
     weekEndDate: string;
     finalVoteCount: number;
@@ -60,7 +63,7 @@ interface ShippingInfo {
 
 interface WinnerCelebrationModalProps {
   open: boolean;
-  orderData: WinnerOrderData | null;
+  prizeData: WinnerPrizeData | null;
   onComplete: () => void;
 }
 
@@ -116,10 +119,10 @@ const COUNTRIES = [
   { code: "BR", name: "Brazil" },
 ];
 
-export default function WinnerCelebrationModal({ 
-  open, 
-  orderData,
-  onComplete 
+export default function WinnerCelebrationModal({
+  open,
+  prizeData,
+  onComplete
 }: WinnerCelebrationModalProps) {
   const [step, setStep] = useState<"celebration" | "shipping" | "confirmation">("celebration");
   const [isLoading, setIsLoading] = useState(false);
@@ -184,28 +187,29 @@ export default function WinnerCelebrationModal({
   };
 
   const handleSubmitShipping = async () => {
-    if (!validateShipping() || !orderData) return;
+    if (!validateShipping() || !prizeData) return;
 
     setIsLoading(true);
     try {
-      await apiRequest("POST", `/api/orders/${orderData.order.id}/shipping`, shippingInfo);
-      
-      localStorage.setItem(`winner_notified_${orderData.order.id}`, "true");
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/winner/pending-order"] });
-      
+      await apiRequest("POST", `/api/prizes/${prizeData.prize.id}/claim`, shippingInfo);
+
+      localStorage.setItem(`winner_notified_${prizeData.prize.id}`, "true");
+
+      queryClient.invalidateQueries({ queryKey: ["/api/prizes/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prizes/mine"] });
+
       setStep("confirmation");
-      
+
       toast({
-        title: "Shipping info saved!",
+        title: "Prize claimed!",
         description: "Your free shirt is on its way!",
       });
     } catch (error: any) {
-      console.error("Error submitting shipping:", error);
+      console.error("Error claiming prize:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to save shipping info. Please try again.",
+        description: error.message || "Failed to claim prize. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -213,13 +217,10 @@ export default function WinnerCelebrationModal({
   };
 
   const handleClose = () => {
-    // Only close the modal - don't set localStorage flag here
-    // The flag should only be set when the order is successfully submitted
-    // This allows winners to re-open the modal if there was an error
     onComplete();
   };
 
-  if (!orderData) return null;
+  if (!prizeData) return null;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
@@ -240,11 +241,11 @@ export default function WinnerCelebrationModal({
 
             <div className="my-6 p-4 bg-muted rounded-lg">
               <p className="text-lg font-serif italic text-center">
-                "{orderData.quote.text}"
+                "{prizeData.quote.text}"
               </p>
-              {orderData.winner && (
+              {prizeData.winner && (
                 <p className="text-sm text-muted-foreground text-center mt-2">
-                  {orderData.winner.finalVoteCount.toLocaleString()} votes
+                  {prizeData.winner.finalVoteCount.toLocaleString()} votes
                 </p>
               )}
             </div>

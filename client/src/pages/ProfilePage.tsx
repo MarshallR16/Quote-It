@@ -67,30 +67,30 @@ export default function ProfilePage() {
     enabled: !!user?.id,
   });
 
-  const { data: complimentaryOrders = [] } = useQuery<any[]>({
-    queryKey: ["/api/orders/my-complimentary"],
+  const { data: prizes = [] } = useQuery<any[]>({
+    queryKey: ["/api/prizes/mine"],
     enabled: !!user?.id,
   });
 
-  const { data: winnerOrderData } = useQuery<any>({
-    queryKey: ["/api/winner/pending-order"],
+  const { data: winnerPrizeData } = useQuery<any>({
+    queryKey: ["/api/prizes/pending"],
     enabled: !!user?.id,
   });
 
-  const pendingFreeShirt = complimentaryOrders.find(
-    (order) => order.status === "awaiting_address"
+  const pendingFreeShirt = prizes.find(
+    (prize) => prize.status === "unclaimed"
   );
 
-  // Mutation to create/reset winner order
+  // Mutation to backfill a missing prize (cron failure safety net).
   const createWinnerOrderMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/winner/create-order");
+      return apiRequest("POST", "/api/winner/create-prize");
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders/my-complimentary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/winner/pending-order"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prizes/mine"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prizes/pending"] });
       toast({
-        title: "Order Created!",
+        title: "Prize Created!",
         description: data.message || "You can now claim your free shirt!",
       });
     },
@@ -758,11 +758,11 @@ export default function ProfilePage() {
       {/* Winner Celebration Modal for claiming free shirt */}
       <WinnerCelebrationModal
         open={showClaimModal}
-        orderData={winnerOrderData}
+        prizeData={winnerPrizeData}
         onComplete={() => {
           setShowClaimModal(false);
-          queryClient.invalidateQueries({ queryKey: ["/api/orders/my-complimentary"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/winner/pending-order"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/prizes/mine"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/prizes/pending"] });
         }}
       />
     </div>
