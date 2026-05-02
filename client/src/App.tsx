@@ -38,12 +38,13 @@ import TermsPage from "@/pages/TermsPage";
 import SupportPage from "@/pages/SupportPage";
 import NotFound from "@/pages/not-found";
 
-interface WinnerOrderData {
-  order: {
+interface WinnerPrizeData {
+  prize: {
     id: string;
     productId: string;
     status: string;
-    isComplimentary: boolean;
+    weeklyWinnerId: string;
+    expiresAt: string;
   };
   quote: {
     id: string;
@@ -52,9 +53,11 @@ interface WinnerOrderData {
   product: {
     id: string;
     name: string;
+    variant: string;
   };
   winner: {
     id: string;
+    weekId: string;
     weekStartDate: string;
     weekEndDate: string;
     finalVoteCount: number;
@@ -73,26 +76,22 @@ function Router() {
     enabled: isAuthenticated,
   });
 
-  // Check if user is a winner with pending order
-  const { data: winnerOrderData } = useQuery<WinnerOrderData | null>({
-    queryKey: ["/api/winner/pending-order"],
+  // Check if user is a winner with an unclaimed prize
+  const { data: winnerPrizeData } = useQuery<WinnerPrizeData | null>({
+    queryKey: ["/api/prizes/pending"],
     enabled: isAuthenticated && !requiresProfileCompletion,
   });
 
-  // Show winner modal if there's a pending order that still needs shipping info
+  // Show winner modal if there's an unclaimed prize
   useEffect(() => {
-    if (winnerOrderData?.order?.id) {
-      // Only show modal if order is still awaiting address input
-      // Once successfully submitted, the order status changes and modal won't show
-      if (winnerOrderData.order.status === "awaiting_address") {
-        const notifiedKey = `winner_notified_${winnerOrderData.order.id}`;
-        const alreadyNotified = localStorage.getItem(notifiedKey);
-        if (!alreadyNotified) {
-          setShowWinnerModal(true);
-        }
+    if (winnerPrizeData?.prize?.id && winnerPrizeData.prize.status === "unclaimed") {
+      const notifiedKey = `winner_notified_${winnerPrizeData.prize.id}`;
+      const alreadyNotified = localStorage.getItem(notifiedKey);
+      if (!alreadyNotified) {
+        setShowWinnerModal(true);
       }
     }
-  }, [winnerOrderData]);
+  }, [winnerPrizeData]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -204,12 +203,12 @@ function Router() {
         profileImageUrl={profileData?.profileImageUrl || firebaseUser?.photoURL}
       />
       <WinnerCelebrationModal
-        open={showWinnerModal && !!winnerOrderData}
-        orderData={winnerOrderData || null}
+        open={showWinnerModal && !!winnerPrizeData}
+        prizeData={winnerPrizeData || null}
         onComplete={() => {
           setShowWinnerModal(false);
           // Don't set localStorage flag here - the modal will set it only after
-          // successful order submission. This allows re-opening if there was an error.
+          // successful claim submission. This allows re-opening if there was an error.
         }}
       />
     </div>

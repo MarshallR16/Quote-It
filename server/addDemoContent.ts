@@ -1,6 +1,7 @@
 import { db } from './db';
 import { users, quotes, votes, follows } from '@shared/schema';
 import { sql, eq } from 'drizzle-orm';
+import { isoWeekId } from './storage';
 
 // Sample quotes for each demo account
 const sampleQuotes = [
@@ -94,6 +95,7 @@ async function addDemoContent() {
       const [quote] = await db.insert(quotes).values({
         authorId: user.id,
         text: userQuotes[j],
+        postedForWeekId: isoWeekId(createdAt),
         createdAt,
       }).returning();
 

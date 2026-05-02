@@ -28,14 +28,14 @@ export default function TopNavigation({
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  // Check for complimentary orders (free shirts)
-  const { data: complimentaryOrders } = useQuery<any[]>({
-    queryKey: ["/api/orders/my-complimentary"],
+  // Check for unclaimed prizes (free shirts the winner hasn't redeemed yet)
+  const { data: prizes } = useQuery<any[]>({
+    queryKey: ["/api/prizes/mine"],
     enabled: isAuthenticated,
   });
 
-  const hasPendingFreeShirt = complimentaryOrders?.some(
-    (order) => order.status === "awaiting_address"
+  const hasPendingFreeShirt = prizes?.some(
+    (prize) => prize.status === "unclaimed"
   ) || false;
 
   const toggleDarkMode = () => {

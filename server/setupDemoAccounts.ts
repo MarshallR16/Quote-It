@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { db } from './db';
 import { users, quotes, votes, follows } from '@shared/schema';
 import { sql, eq } from 'drizzle-orm';
+import { isoWeekId } from './storage';
 
 const DEMO_PASSWORD = 'Demo2025!';
 
@@ -186,6 +187,7 @@ async function setupDemoAccounts() {
       const [quote] = await db.insert(quotes).values({
         authorId: user.firebaseUid,
         text: userQuotes[j],
+        postedForWeekId: isoWeekId(createdAt),
         createdAt,
       }).returning();
 

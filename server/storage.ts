@@ -1,6 +1,20 @@
-import { type User, type UpsertUser, type Quote, type QuoteWithAuthor, type InsertQuote, type Vote, type InsertVote, type Product, type InsertProduct, type Order, type InsertOrder, type WeeklyWinner, type InsertWeeklyWinner, type HallOfFame, type InsertHallOfFame, type Follow, type InsertFollow, users, quotes, votes, products, orders, weeklyWinners, hallOfFame, follows } from "@shared/schema";
+import { type User, type UpsertUser, type Quote, type QuoteWithAuthor, type InsertQuote, type Vote, type InsertVote, type Product, type InsertProduct, type Order, type InsertOrder, type WeeklyWinner, type InsertWeeklyWinner, type HallOfFame, type InsertHallOfFame, type Follow, type InsertFollow, type Prize, type InsertPrize, type Comment, type InsertComment, type CommentVote, type InsertCommentVote, users, quotes, votes, products, orders, weeklyWinners, hallOfFame, follows, prizes, comments, commentVotes } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, inArray, lt } from "drizzle-orm";
+
+/**
+ * ISO week identifier (e.g. "2026-W18") for the week containing the given date.
+ * Mirrors Postgres's `to_char(d, 'IYYY"-W"IW')` so app-side and DB-side agree.
+ */
+export function isoWeekId(date: Date = new Date()): string {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  // ISO week: Thursday in current week decides the year.
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
 
 export interface IStorage {
   // User methods
@@ -13,7 +27,7 @@ export interface IStorage {
   updateUserProfileImage(userId: string, profileImageUrl: string): Promise<void>;
   incrementReferralCount(userId: string): Promise<void>;
   incrementUsedReferralDiscounts(userId: string): Promise<void>;
-  createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }>;
+  createQuoteWithLimitCheck(userId: string, quoteData: Omit<InsertQuote, 'postedForWeekId'>): Promise<{ success: boolean; quote?: Quote; remaining?: number; remainingThisWeek?: number; error?: string }>;
   deleteUser(userId: string): Promise<void>;
   deleteQuotesByAuthor(authorId: string): Promise<void>;
   deleteUserQuotesAndRelatedData(authorId: string): Promise<void>;
@@ -79,12 +93,34 @@ export interface IStorage {
 
   // Search methods
   searchUsers(query: string, limit?: number): Promise<User[]>;
-  
+
   // Quote deletion helpers
   isQuoteWeeklyWinner(quoteId: string): Promise<boolean>;
-  
+
   // Get weekly winner by quote ID (for reconciliation)
   getWeeklyWinnerByQuoteId(quoteId: string): Promise<WeeklyWinner | undefined>;
+
+  // Prize methods (winner's free-gold-tee voucher)
+  getPrize(id: string): Promise<Prize | undefined>;
+  getPrizeByWeeklyWinner(weeklyWinnerId: string): Promise<Prize | undefined>;
+  getPrizesByUser(userId: string): Promise<Prize[]>;
+  getPendingPrizeForUser(userId: string): Promise<Prize | undefined>;
+  createPrize(prize: InsertPrize): Promise<Prize>;
+  claimPrize(prizeId: string, orderId: string): Promise<Prize>;
+  expireStalePrizes(): Promise<number>;
+
+  // Comment methods
+  getComment(id: string): Promise<Comment | undefined>;
+  getCommentsByQuote(quoteId: string): Promise<(Comment & { authorUsername: string | null; authorProfileImageUrl: string | null })[]>;
+  createComment(comment: InsertComment): Promise<Comment>;
+  updateComment(id: string, text: string): Promise<Comment>;
+  softDeleteComment(id: string): Promise<Comment>;
+
+  // Comment vote methods
+  getCommentVote(commentId: string, userId: string): Promise<CommentVote | undefined>;
+  createCommentVote(vote: InsertCommentVote): Promise<CommentVote>;
+  updateCommentVote(id: string, value: number): Promise<CommentVote>;
+  deleteCommentVote(id: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -265,8 +301,14 @@ export class DbStorage implements IStorage {
     return winners.length > 0;
   }
 
-  async createQuoteWithLimitCheck(userId: string, quoteData: InsertQuote): Promise<{ success: boolean; quote?: Quote; remaining?: number; error?: string }> {
-    // Use a transaction to atomically check limit, increment counter, and create quote
+  async createQuoteWithLimitCheck(
+    userId: string,
+    quoteData: Omit<InsertQuote, 'postedForWeekId'>,
+  ): Promise<{ success: boolean; quote?: Quote; remaining?: number; remainingThisWeek?: number; error?: string }> {
+    const weekId = isoWeekId();
+    const DAILY_LIMIT = 3;
+    const WEEKLY_LIMIT = 10;
+    // Use a transaction to atomically check both daily + weekly limits and create the quote
     return await db.transaction(async (tx) => {
       // Lock the user row for update
       const user = await tx.select().from(users).where(eq(users.id, userId)).for('update').limit(1);
@@ -276,43 +318,55 @@ export class DbStorage implements IStorage {
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const lastPostDate = user[0].lastPostDate ? new Date(user[0].lastPostDate) : null;
       const isNewDay = !lastPostDate || lastPostDate.getTime() < today.getTime();
       const currentCount = isNewDay ? 0 : (user[0].dailyPostCount || 0);
 
-      // Check limit
-      if (currentCount >= 3) {
+      // Daily cap (carried over from prior behavior)
+      if (currentCount >= DAILY_LIMIT) {
         return { success: false, remaining: 0, error: "Daily limit reached" };
+      }
+
+      // Weekly cap (new): count this user's quotes already posted for the current week.
+      // Same transaction so concurrent inserts can't race past the limit.
+      const weeklyCountResult = await tx
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(quotes)
+        .where(and(eq(quotes.authorId, userId), eq(quotes.postedForWeekId, weekId)));
+      const weeklyCount = weeklyCountResult[0]?.count || 0;
+
+      if (weeklyCount >= WEEKLY_LIMIT) {
+        return {
+          success: false,
+          remainingThisWeek: 0,
+          error: "Weekly quote limit reached (10 per week)",
+        };
       }
 
       // Calculate streak
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(0, 0, 0, 0);
-      
+
       const lastStreakDate = user[0].lastStreakDate ? new Date(user[0].lastStreakDate) : null;
       if (lastStreakDate) {
         lastStreakDate.setHours(0, 0, 0, 0);
       }
-      
-      let newStreak = user[0].currentStreak || 0;
-      
-      if (isNewDay) {
-        // Check if they posted yesterday to maintain streak
-        if (lastStreakDate && lastStreakDate.getTime() === yesterday.getTime()) {
-          newStreak += 1; // Continue streak
-        } else if (!lastStreakDate || lastStreakDate.getTime() < yesterday.getTime()) {
-          newStreak = 1; // Start new streak
-        }
-        // If they already posted today (lastStreakDate === today), keep current streak
-      }
-      
-      // Update longest streak if current streak is now higher
-      const newLongestStreak = Math.max(user[0].longestStreak || 0, newStreak);
 
-      // Atomically increment the counter and update streak
+      let newStreak = user[0].currentStreak || 0;
+
+      if (isNewDay) {
+        if (lastStreakDate && lastStreakDate.getTime() === yesterday.getTime()) {
+          newStreak += 1;
+        } else if (!lastStreakDate || lastStreakDate.getTime() < yesterday.getTime()) {
+          newStreak = 1;
+        }
+      }
+
+      const newLongestStreak = Math.max(user[0].longestStreak || 0, newStreak);
       const newCount = isNewDay ? 1 : currentCount + 1;
+
       await tx.update(users)
         .set({
           dailyPostCount: newCount,
@@ -324,11 +378,18 @@ export class DbStorage implements IStorage {
         })
         .where(eq(users.id, userId));
 
-      // Create the quote within the same transaction
-      const result = await tx.insert(quotes).values(quoteData).returning();
+      const result = await tx.insert(quotes).values({
+        ...quoteData,
+        postedForWeekId: weekId,
+      }).returning();
       const quote = result[0];
 
-      return { success: true, quote, remaining: 3 - newCount };
+      return {
+        success: true,
+        quote,
+        remaining: DAILY_LIMIT - newCount,
+        remainingThisWeek: WEEKLY_LIMIT - (weeklyCount + 1),
+      };
     });
   }
 
@@ -1217,8 +1278,189 @@ export class DbStorage implements IStorage {
       .where(eq(weeklyWinners.quoteId, quoteId))
       .orderBy(desc(weeklyWinners.createdAt))
       .limit(1);
-    
+
     return result[0];
+  }
+
+  // ===================================================
+  // Prizes
+  // ===================================================
+
+  async getPrize(id: string): Promise<Prize | undefined> {
+    const result = await db.select().from(prizes).where(eq(prizes.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPrizeByWeeklyWinner(weeklyWinnerId: string): Promise<Prize | undefined> {
+    const result = await db
+      .select()
+      .from(prizes)
+      .where(eq(prizes.weeklyWinnerId, weeklyWinnerId))
+      .limit(1);
+    return result[0];
+  }
+
+  async getPrizesByUser(userId: string): Promise<Prize[]> {
+    return await db
+      .select()
+      .from(prizes)
+      .where(eq(prizes.userId, userId))
+      .orderBy(desc(prizes.createdAt));
+  }
+
+  async getPendingPrizeForUser(userId: string): Promise<Prize | undefined> {
+    const result = await db
+      .select()
+      .from(prizes)
+      .where(and(eq(prizes.userId, userId), eq(prizes.status, "unclaimed")))
+      .orderBy(desc(prizes.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async createPrize(prize: InsertPrize): Promise<Prize> {
+    const result = await db.insert(prizes).values(prize).returning();
+    return result[0];
+  }
+
+  async claimPrize(prizeId: string, orderId: string): Promise<Prize> {
+    // Atomic transition: only flips unclaimed -> claimed; idempotent for the
+    // pathological "two confirms hit at once" case.
+    const result = await db
+      .update(prizes)
+      .set({
+        status: "claimed",
+        claimedAt: new Date(),
+        orderId,
+      })
+      .where(and(eq(prizes.id, prizeId), eq(prizes.status, "unclaimed")))
+      .returning();
+    if (!result[0]) {
+      // Either already claimed/expired or doesn't exist - re-read to surface state.
+      const existing = await this.getPrize(prizeId);
+      if (!existing) throw new Error(`Prize ${prizeId} not found`);
+      return existing;
+    }
+    return result[0];
+  }
+
+  async expireStalePrizes(): Promise<number> {
+    const result = await db
+      .update(prizes)
+      .set({ status: "expired" })
+      .where(and(eq(prizes.status, "unclaimed"), lt(prizes.expiresAt, new Date())))
+      .returning({ id: prizes.id });
+    return result.length;
+  }
+
+  // ===================================================
+  // Comments
+  // ===================================================
+
+  async getComment(id: string): Promise<Comment | undefined> {
+    const result = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getCommentsByQuote(quoteId: string): Promise<(Comment & { authorUsername: string | null; authorProfileImageUrl: string | null })[]> {
+    const result = await db
+      .select({
+        id: comments.id,
+        quoteId: comments.quoteId,
+        userId: comments.userId,
+        text: comments.text,
+        score: comments.score,
+        createdAt: comments.createdAt,
+        editedAt: comments.editedAt,
+        deletedAt: comments.deletedAt,
+        authorUsername: users.username,
+        authorProfileImageUrl: users.profileImageUrl,
+      })
+      .from(comments)
+      .leftJoin(users, eq(comments.userId, users.id))
+      .where(and(eq(comments.quoteId, quoteId), sql`${comments.deletedAt} IS NULL`))
+      .orderBy(desc(comments.createdAt));
+    return result as any;
+  }
+
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const result = await db.insert(comments).values(comment).returning();
+    return result[0];
+  }
+
+  async updateComment(id: string, text: string): Promise<Comment> {
+    const result = await db
+      .update(comments)
+      .set({ text, editedAt: new Date() })
+      .where(eq(comments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async softDeleteComment(id: string): Promise<Comment> {
+    const result = await db
+      .update(comments)
+      .set({ deletedAt: new Date() })
+      .where(eq(comments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // ===================================================
+  // Comment votes (mirrors votes/quote score updates)
+  // ===================================================
+
+  async getCommentVote(commentId: string, userId: string): Promise<CommentVote | undefined> {
+    const result = await db
+      .select()
+      .from(commentVotes)
+      .where(and(eq(commentVotes.commentId, commentId), eq(commentVotes.userId, userId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async createCommentVote(vote: InsertCommentVote): Promise<CommentVote> {
+    return await db.transaction(async (tx) => {
+      const inserted = await tx.insert(commentVotes).values(vote).returning();
+      await tx
+        .update(comments)
+        .set({ score: sql`${comments.score} + ${vote.value}` })
+        .where(eq(comments.id, vote.commentId));
+      return inserted[0];
+    });
+  }
+
+  async updateCommentVote(id: string, value: number): Promise<CommentVote> {
+    return await db.transaction(async (tx) => {
+      const existing = await tx.select().from(commentVotes).where(eq(commentVotes.id, id)).limit(1);
+      if (!existing[0]) throw new Error("Comment vote not found");
+      const oldValue = existing[0].value;
+      const updated = await tx
+        .update(commentVotes)
+        .set({ value })
+        .where(eq(commentVotes.id, id))
+        .returning();
+      const diff = value - oldValue;
+      if (diff !== 0) {
+        await tx
+          .update(comments)
+          .set({ score: sql`${comments.score} + ${diff}` })
+          .where(eq(comments.id, existing[0].commentId));
+      }
+      return updated[0];
+    });
+  }
+
+  async deleteCommentVote(id: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      const existing = await tx.select().from(commentVotes).where(eq(commentVotes.id, id)).limit(1);
+      if (!existing[0]) return;
+      await tx.delete(commentVotes).where(eq(commentVotes.id, id));
+      await tx
+        .update(comments)
+        .set({ score: sql`${comments.score} - ${existing[0].value}` })
+        .where(eq(comments.id, existing[0].commentId));
+    });
   }
 }
 

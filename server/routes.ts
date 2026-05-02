@@ -86,9 +86,11 @@ async function fulfillPrintfulForOrder(orderId: string): Promise<{ status: strin
 
   const shippingInfo: any = order.shippingAddress;
   if (!shippingInfo || typeof shippingInfo !== 'object') {
-    console.warn(`[FULFILL] Order ${orderId} has no shipping address yet, marking awaiting_address`);
-    await storage.updateOrder(orderId, { status: 'awaiting_address' });
-    return { status: 'awaiting_address', printfulOrderId: null };
+    // Real orders should always have a shipping address by the time they reach
+    // fulfillment. Mark failed so admin recovery is required.
+    console.warn(`[FULFILL] Order ${orderId} has no shipping address - marking failed`);
+    await storage.updateOrder(orderId, { status: 'failed' });
+    return { status: 'failed', printfulOrderId: null };
   }
 
   const required = ['name', 'address1', 'city', 'state_code', 'zip', 'email', 'size'];
@@ -111,7 +113,7 @@ async function fulfillPrintfulForOrder(orderId: string): Promise<{ status: strin
     throw new Error(`Could not find variant for size ${shippingInfo.size}`);
   }
 
-  const externalId = order.isComplimentary ? `winner-${order.id}` : `order-${order.id}`;
+  const externalId = order.isPrizeFulfillment ? `winner-${order.id}` : `order-${order.id}`;
   const printfulOrder = await printfulService.createOrder(
     externalId,
     {
@@ -347,10 +349,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       const currentWinner = sortedWinners[0];
       
-      // Get user's orders
-      const userOrders = await storage.getOrdersByUser(userId);
-      const complimentaryOrders = userOrders.filter((o: any) => o.isComplimentary);
-      
+      // Get user's prizes (replaces former complimentary-orders inspection)
+      const userPrizes = await storage.getPrizesByUser(userId);
+
       // Get products for current winner
       let winnerProducts: any[] = [];
       let winnerQuote: any = null;
@@ -359,9 +360,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const allProducts = await storage.getAllProducts();
         winnerProducts = allProducts.filter((p: any) => p.weeklyWinnerId === currentWinner.id);
         winnerQuote = await storage.getQuote(currentWinner.quoteId);
-        winnerAuthorId = winnerQuote?.authorId || null;
+        winnerAuthorId = currentWinner.winnerUserId ?? winnerQuote?.authorId ?? null;
       }
-      
+
       res.json({
         currentUser: {
           id: userId,
@@ -379,20 +380,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         winnerProducts: winnerProducts.map((p: any) => ({
           id: p.id,
           name: p.name,
-          isGold: p.name.includes('Gold'),
+          variant: p.variant,
+          isExclusive: p.isExclusive,
           printfulSyncProductId: p.printfulSyncProductId,
         })),
-        userComplimentaryOrders: complimentaryOrders.map((o: any) => ({
-          id: o.id,
-          status: o.status,
-          productId: o.productId,
-          printfulOrderId: o.printfulOrderId,
+        userPrizes: userPrizes.map((p) => ({
+          id: p.id,
+          status: p.status,
+          productId: p.productId,
+          weeklyWinnerId: p.weeklyWinnerId,
+          orderId: p.orderId,
+          expiresAt: p.expiresAt,
+          claimedAt: p.claimedAt,
         })),
         diagnosis: {
           isWinner: winnerAuthorId === userId,
-          hasComplimentaryOrder: complimentaryOrders.length > 0,
-          hasAwaitingAddressOrder: complimentaryOrders.some((o: any) => o.status === 'awaiting_address'),
-          goldProductExists: winnerProducts.some((p: any) => p.name.includes('Gold')),
+          hasPrize: userPrizes.length > 0,
+          hasUnclaimedPrize: userPrizes.some((p) => p.status === 'unclaimed'),
+          goldProductExists: winnerProducts.some((p: any) => p.variant === 'gold_winner'),
         }
       });
     } catch (error: any) {
@@ -401,81 +406,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint for winner to create/reset their complimentary order
-  app.post('/api/winner/create-order', isAuthenticated, async (req: any, res) => {
+  // Backfill endpoint: makes sure a winner has an unclaimed prize. The Friday cron
+  // creates one automatically; this only catches the case where the cron failed
+  // mid-run (no gold product yet, or a race) and needs a manual nudge.
+  app.post('/api/winner/create-prize', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.firebaseUser.uid;
-      
-      // Get most recent weekly winner
       const winner = await storage.getMostRecentWeeklyWinnerWithDetails();
       if (!winner) {
         return res.status(404).json({ message: 'No weekly winner found' });
       }
-      
-      // Check if current user is the winner
-      if (winner.authorId !== userId) {
+      const winnerUserId = winner.winnerUserId ?? winner.authorId;
+      if (winnerUserId !== userId) {
         return res.status(403).json({ message: 'You are not the current winner' });
       }
-      
-      // Find the gold product for this winner
+
+      const existingPrize = await storage.getPrizeByWeeklyWinner(winner.winnerId);
+      if (existingPrize) {
+        return res.json({
+          message: `You already have a prize (status: ${existingPrize.status})`,
+          prizeId: existingPrize.id,
+          status: existingPrize.status,
+        });
+      }
+
       const allProducts = await storage.getAllProducts();
-      const goldProduct = allProducts.find((p: any) => 
-        p.weeklyWinnerId === winner.winnerId && p.name.includes('Gold')
-      );
-      
+      const goldProduct = allProducts.find((p) => p.weeklyWinnerId === winner.winnerId && p.variant === 'gold_winner');
       if (!goldProduct) {
-        return res.status(404).json({ message: 'No gold product found for this winner. Please wait for products to be created.' });
+        return res.status(404).json({
+          message: 'No gold product found for this winner yet. Please wait for products to be created.',
+        });
       }
-      
-      // Check for existing complimentary order
-      const existingOrders = await storage.getOrdersByUser(userId);
-      const existingComplimentary = existingOrders.find((o: any) => 
-        o.isComplimentary && o.productId === goldProduct.id
-      );
-      
-      if (existingComplimentary) {
-        if (existingComplimentary.status === 'awaiting_address') {
-          return res.json({ 
-            message: 'You already have a pending order', 
-            orderId: existingComplimentary.id,
-            status: 'awaiting_address'
-          });
-        } else if (existingComplimentary.status === 'completed' || existingComplimentary.status === 'fulfilled') {
-          return res.status(400).json({ message: 'Your complimentary order has already been fulfilled' });
-        } else {
-          // Reset the order to awaiting_address
-          await storage.updateOrder(existingComplimentary.id, { 
-            status: 'awaiting_address',
-            printfulOrderId: null
-          });
-          console.log(`[WINNER] Reset order ${existingComplimentary.id} to awaiting_address for user ${userId}`);
-          return res.json({ 
-            message: 'Your order has been reset. You can now claim your free shirt!', 
-            orderId: existingComplimentary.id,
-            status: 'awaiting_address'
-          });
-        }
-      }
-      
-      // Create new complimentary order
-      const newOrder = await storage.createOrder({
-        userId: userId,
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 14);
+      const prize = await storage.createPrize({
+        weeklyWinnerId: winner.winnerId,
+        userId,
         productId: goldProduct.id,
-        amount: '0.00',
-        status: 'awaiting_address',
-        isComplimentary: true,
-        includeAuthor: true,
+        status: 'unclaimed',
+        expiresAt,
       });
-      
-      console.log(`[WINNER] Created complimentary order ${newOrder.id} for user ${userId}`);
-      
-      res.json({ 
-        message: 'Complimentary order created! You can now claim your free shirt.', 
-        orderId: newOrder.id,
-        status: 'awaiting_address'
-      });
+      console.log(`[WINNER] Backfilled prize ${prize.id} for user ${userId}`);
+      res.json({ message: 'Prize created. You can now claim your free shirt.', prizeId: prize.id, status: prize.status });
     } catch (error: any) {
-      console.error('Create winner order error:', error);
+      console.error('Create winner prize error:', error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -951,6 +926,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const productData = {
         quoteId,
         weeklyWinnerId: weeklyWinnerId || null,
+        variant: 'white' as const,
+        isExclusive: false,
         name: `"${quote.text.substring(0, 50)}${quote.text.length > 50 ? '...' : ''}"`,
         description: `Quote by ${authorName}`,
         price: '29.99',
@@ -1071,10 +1048,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const analytics = await db.execute(sql`
         SELECT 
-          (SELECT COUNT(*) FROM orders WHERE status = 'completed' AND is_complimentary = false) as total_orders,
-          (SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'completed' AND is_complimentary = false) as total_revenue,
+          (SELECT COUNT(*) FROM orders WHERE status = 'completed' AND is_prize_fulfillment = false) as total_orders,
+          (SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'completed' AND is_prize_fulfillment = false) as total_revenue,
           (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
-          (SELECT COUNT(DISTINCT product_id) FROM orders WHERE status = 'completed' AND is_complimentary = false) as products_sold_count,
+          (SELECT COUNT(DISTINCT product_id) FROM orders WHERE status = 'completed' AND is_prize_fulfillment = false) as products_sold_count,
           (SELECT COUNT(*) FROM products WHERE is_active = true) as active_products
       `);
       
@@ -1251,6 +1228,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const newProduct = await storage.createProduct({
               quoteId: quote.id,
               weeklyWinnerId: winner.id,
+              variant: 'white',
+              isExclusive: false,
               name: `${truncatedQuote} - With Attribution`,
               description: `Quote by ${authorName}`,
               price: '29.99',
@@ -1295,6 +1274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const newProduct = await storage.createProduct({
               quoteId: quote.id,
               weeklyWinnerId: winner.id,
+              variant: 'white',
+              isExclusive: false,
               name: `${truncatedQuote} - Quote Only`,
               description: `Weekly Winner Quote (no attribution)`,
               price: '29.99',
@@ -1343,6 +1324,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const winnerProduct = await storage.createProduct({
             quoteId: quote.id,
             weeklyWinnerId: winner.id,
+            variant: 'gold_winner',
+            isExclusive: true,
             name: `${truncatedQuote} (Winner's Gold Edition)`,
             description: `Quote by ${authorName} - Exclusive Winner's Edition with Gold Text`,
             price: '0.00',
@@ -1568,6 +1551,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - Gold Edition`;
         const newProduct = await storage.createProduct({
           quoteId: winner.quoteId,
+          variant: 'gold_winner',
+          isExclusive: true,
           name: productName,
           description: `Winner's exclusive gold edition t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
           price: '29.99',
@@ -1612,6 +1597,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition`;
         const newProduct = await storage.createProduct({
           quoteId: winner.quoteId,
+          variant: 'white',
+          isExclusive: false,
           name: productName,
           description: `Classic white text t-shirt featuring: "${winner.quoteText}" by ${authorName}`,
           price: '29.99',
@@ -1656,6 +1643,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const productName = `"${winner.quoteText.substring(0, 50)}${winner.quoteText.length > 50 ? '...' : ''}" - White Edition (No Author)`;
         const newProduct = await storage.createProduct({
           quoteId: winner.quoteId,
+          variant: 'white',
+          isExclusive: false,
           name: productName,
           description: `Minimalist white text t-shirt featuring: "${winner.quoteText}"`,
           price: '29.99',
@@ -1860,14 +1849,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.json({ received: true });
           }
           try {
+            // Stub order with no shipping - flag as 'failed' so admins notice it
+            // and can recover manually. The "no address yet" state is reserved
+            // for `prizes`, never for real orders.
             order = await storage.createOrder({
               userId,
               productId,
               stripePaymentIntentId: paymentIntent.id,
               amount: product.price,
-              status: 'awaiting_address',
+              status: 'failed',
             });
-            console.warn(`[STRIPE WEBHOOK] Created stub order ${order.id} without shipping - manual recovery needed`);
+            console.warn(`[STRIPE WEBHOOK] Created stub order ${order.id} without shipping (status=failed) - manual recovery needed`);
           } catch (insertError: any) {
             if (insertError?.code === '23505') {
               order = await storage.getOrderByPaymentIntentId(paymentIntent.id);
@@ -2014,15 +2006,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get complimentary orders for current user
-  app.get("/api/orders/my-complimentary", isAuthenticated, async (req: any, res) => {
+  // List the current user's prizes (replaces /api/orders/my-complimentary).
+  app.get("/api/prizes/mine", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.firebaseUser.uid;
-      const allOrders = await storage.getOrdersByUser(userId);
-      const complimentaryOrders = allOrders.filter((order: any) => order.isComplimentary);
-      res.json(complimentaryOrders);
+      const userPrizes = await storage.getPrizesByUser(userId);
+      res.json(userPrizes);
     } catch (error: any) {
-      res.status(500).json({ message: "Error fetching complimentary orders: " + error.message });
+      res.status(500).json({ message: "Error fetching prizes: " + error.message });
     }
   });
 
@@ -2319,233 +2310,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get pending complimentary order for winner (awaiting shipping address)
-  app.get('/api/winner/pending-order', isAuthenticated, async (req: any, res) => {
+  // Get the user's pending (unclaimed) prize, if any. Replaces
+  // /api/winner/pending-order, which conflated "voucher" with "real order".
+  app.get('/api/prizes/pending', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.firebaseUser.uid;
-      
-      // Get all orders for the user
-      const allOrders = await storage.getOrdersByUser(userId);
-      
-      console.log(`[WINNER-ORDER] User ${userId} has ${allOrders.length} orders`);
-      const complimentaryOrders = allOrders.filter((o: any) => o.isComplimentary);
-      console.log(`[WINNER-ORDER] Found ${complimentaryOrders.length} complimentary orders:`, 
-        complimentaryOrders.map((o: any) => ({ id: o.id, status: o.status, productId: o.productId })));
-      
-      // Find a complimentary order that's awaiting an address
-      const pendingWinnerOrder = allOrders.find(
-        (order: any) => order.isComplimentary && order.status === 'awaiting_address'
-      );
-      
-      if (!pendingWinnerOrder) {
-        console.log(`[WINNER-ORDER] No pending complimentary order found for user ${userId}`);
+      const prize = await storage.getPendingPrizeForUser(userId);
+      if (!prize) {
         return res.json(null);
       }
-      
-      // Get the product and quote info for this order
-      const product = await storage.getProduct(pendingWinnerOrder.productId);
-      if (!product) {
-        return res.json(null);
-      }
-      
+
+      const product = await storage.getProduct(prize.productId);
+      if (!product) return res.json(null);
       const quote = await storage.getQuote(product.quoteId);
-      if (!quote) {
-        return res.json(null);
-      }
-      
-      // Get the weekly winner info
-      const weeklyWinner = product.weeklyWinnerId 
-        ? await storage.getWeeklyWinner(product.weeklyWinnerId)
-        : null;
-      
+      if (!quote) return res.json(null);
+      const weeklyWinner = await storage.getWeeklyWinner(prize.weeklyWinnerId);
+
       res.json({
-        order: {
-          id: pendingWinnerOrder.id,
-          productId: pendingWinnerOrder.productId,
-          status: pendingWinnerOrder.status,
-          isComplimentary: pendingWinnerOrder.isComplimentary,
+        prize: {
+          id: prize.id,
+          status: prize.status,
+          productId: prize.productId,
+          weeklyWinnerId: prize.weeklyWinnerId,
+          expiresAt: prize.expiresAt,
         },
-        quote: {
-          id: quote.id,
-          text: quote.text,
-        },
-        product: {
-          id: product.id,
-          name: product.name,
-        },
+        quote: { id: quote.id, text: quote.text },
+        product: { id: product.id, name: product.name, variant: product.variant },
         winner: weeklyWinner ? {
           id: weeklyWinner.id,
+          weekId: weeklyWinner.weekId,
           weekStartDate: weeklyWinner.weekStartDate,
           weekEndDate: weeklyWinner.weekEndDate,
           finalVoteCount: weeklyWinner.finalVoteCount,
         } : null,
       });
     } catch (error: any) {
-      console.error("Error checking winner order:", error);
-      res.status(500).json({ message: "Error checking winner order: " + error.message });
+      console.error("Error fetching pending prize:", error);
+      res.status(500).json({ message: "Error fetching pending prize: " + error.message });
     }
   });
 
   // Submit shipping info for a complimentary winner order
-  app.post('/api/orders/:id/shipping', isAuthenticated, async (req: any, res) => {
-    console.log('[SHIPPING] Received shipping submission for order:', req.params.id);
+  // Winner submits shipping address to claim their prize. Replaces the legacy
+  // /api/orders/:id/shipping endpoint. Atomically:
+  //   1) creates a real `orders` row (is_prize_fulfillment=true, amount=0, with shipping)
+  //   2) flips the prize from unclaimed -> claimed (only-if-unclaimed: idempotent)
+  //   3) submits to Printful via the shared fulfillPrintfulForOrder helper
+  app.post('/api/prizes/:id/claim', isAuthenticated, async (req: any, res) => {
+    console.log('[PRIZE-CLAIM] Submission for prize:', req.params.id);
     try {
       const userId = req.firebaseUser.uid;
-      const { id: orderId } = req.params;
+      const { id: prizeId } = req.params;
       const shippingInfo = req.body;
-      console.log('[SHIPPING] User:', userId, 'Order:', orderId, 'Fields:', Object.keys(shippingInfo));
-      
-      // Validate required fields
+
       const requiredFields = ['name', 'email', 'address1', 'city', 'state_code', 'country_code', 'zip', 'size'];
       for (const field of requiredFields) {
         if (!shippingInfo[field]) {
           return res.status(400).json({ message: `${field} is required` });
         }
       }
-      
-      // Get the order and verify it belongs to this user
-      const allOrders = await storage.getOrdersByUser(userId);
-      const order = allOrders.find((o: any) => o.id === orderId);
-      
-      if (!order) {
-        return res.status(404).json({ message: "Order not found" });
+
+      const prize = await storage.getPrize(prizeId);
+      if (!prize) return res.status(404).json({ message: 'Prize not found' });
+      if (prize.userId !== userId) {
+        return res.status(403).json({ message: 'This prize does not belong to you' });
       }
-      
-      if (!order.isComplimentary) {
-        return res.status(403).json({ message: "This endpoint is only for complimentary orders" });
+      if (prize.status === 'claimed') {
+        return res.status(400).json({ message: 'Prize already claimed', prize });
       }
-      
-      if (order.status !== 'awaiting_address') {
-        return res.status(400).json({ message: "Order is not awaiting address" });
+      if (prize.status === 'expired' || prize.expiresAt < new Date()) {
+        return res.status(400).json({ message: 'Prize has expired' });
       }
-      
-      // Update the order with shipping info and change status to processing
-      console.log('[SHIPPING] Saving shipping info to order...');
-      let updatedOrder = await storage.updateOrder(orderId, {
-        shippingAddress: shippingInfo,
+
+      // 1) Create the real order row. Amount 0 (prize), no Stripe PI, addressed.
+      const order = await storage.createOrder({
+        userId,
+        productId: prize.productId,
+        amount: '0.00',
         status: 'processing',
+        shippingAddress: shippingInfo,
+        includeAuthor: shippingInfo.includeAuthor !== false,
+        isPrizeFulfillment: true,
       });
-      console.log('[SHIPPING] Order updated - status:', updatedOrder.status, 'shipping saved:', !!updatedOrder.shippingAddress);
-      
-      // If Printful is configured, attempt to create the fulfillment order
-      if (isPrintfulConfigured && printfulService) {
-        try {
-          const product = await storage.getProduct(order.productId);
-          console.log('[SHIPPING] Product:', product?.id, 'printfulSyncProductId:', product?.printfulSyncProductId);
-          
-          // Auto-fetch missing sync ID from Printful if needed
-          let syncProductId = product?.printfulSyncProductId;
-          if (product && !syncProductId && product.quoteId) {
-            console.log('[WINNER ORDER] Missing printfulSyncProductId - auto-fetching from Printful...');
-            
-            // Determine expected external_id based on product type
-            const isGold = product.name.includes('Gold Edition');
-            const hasAuthor = product.name.includes('Attribution');
-            let externalIdPattern: string;
-            if (isGold) {
-              externalIdPattern = `quote-${product.quoteId}-gold`;
-            } else if (hasAuthor) {
-              externalIdPattern = `quote-${product.quoteId}-white-author`;
-            } else {
-              externalIdPattern = `quote-${product.quoteId}-white-noauthor`;
-            }
-            
-            const printfulProduct = await printfulService.findProductByExternalId(externalIdPattern);
-            if (printfulProduct) {
-              syncProductId = printfulProduct.id;
-              // Update database with found sync ID
-              await storage.updateProduct(product.id, {
-                printfulSyncProductId: printfulProduct.id,
-                printfulSyncVariants: printfulProduct,
-              });
-              console.log('[WINNER ORDER] Auto-fetched and saved printfulSyncProductId:', syncProductId);
-            } else {
-              throw new Error('Product not found in Printful - cannot process order');
-            }
-          }
-          
-          // At this point, syncProductId should be set (either from DB or auto-fetched)
-          // If it's still not set, throw an error to trigger retry/manual intervention
-          if (!syncProductId) {
-            throw new Error('Product has no Printful sync ID and could not be auto-fetched - no quoteId to search with');
-          }
-          
-          console.log('[WINNER ORDER] Creating Printful fulfillment for complimentary order:', orderId);
-          
-          // Get the sync variant ID for the selected size
-          const syncVariantId = await printfulService.getSyncVariantForSize(
-            syncProductId,
-            shippingInfo.size
-          );
-          
-          if (!syncVariantId) {
-            throw new Error(`Could not find variant for size ${shippingInfo.size}`);
-          }
-          
-          console.log('[WINNER ORDER] Found sync variant ID:', syncVariantId, 'for size:', shippingInfo.size);
-          
-          // Create the Printful order
-          const printfulOrder = await printfulService.createOrder(
-            `winner-${orderId}`,
-            {
-              name: shippingInfo.name,
-              address1: shippingInfo.address1,
-              address2: shippingInfo.address2,
-              city: shippingInfo.city,
-              state_code: shippingInfo.state_code,
-              country_code: shippingInfo.country_code,
-              zip: shippingInfo.zip,
-              email: shippingInfo.email,
-              phone: shippingInfo.phone,
-            },
-            [{
-              sync_variant_id: syncVariantId,
-              quantity: 1,
-            }]
-          );
-          
-          console.log('[WINNER ORDER] Printful order created:', printfulOrder.id);
-          
-          // Save the Printful order ID immediately so we have a reference even if confirmation fails
-          updatedOrder = await storage.updateOrder(orderId, {
-            printfulOrderId: printfulOrder.id,
-            status: 'pending_confirmation',
-          });
-          
-          // Confirm the order (submit for fulfillment)
-          try {
-            const confirmedOrder = await printfulService.confirmOrder(printfulOrder.id);
-            console.log('[WINNER ORDER] Printful order confirmed:', confirmedOrder.id, 'status:', confirmedOrder.status);
-            
-            // Update status to completed after successful confirmation
-            updatedOrder = await storage.updateOrder(orderId, {
-              status: 'completed',
-            });
-            
-            console.log('[WINNER ORDER] Order successfully submitted to Printful!');
-          } catch (confirmError: any) {
-            console.error('[WINNER ORDER] Confirmation failed but order created. Printful ID:', printfulOrder.id, 'Error:', confirmError.message);
-            // Order exists in Printful but confirmation failed - ops can manually confirm
-            updatedOrder = await storage.updateOrder(orderId, {
-              status: 'pending_confirmation',
-            });
-          }
-        } catch (printfulError: any) {
-          console.error('[WINNER ORDER] Printful error (order still saved locally):', printfulError.message);
-          // Order creation failed - update status to indicate the issue
-          updatedOrder = await storage.updateOrder(orderId, {
-            status: 'printful_error',
-          });
-        }
-      } else {
-        console.log('[SHIPPING] Printful not configured - order saved locally only');
+
+      // 2) Flip the prize. claimPrize is only-if-unclaimed - safe under retry.
+      await storage.claimPrize(prize.id, order.id);
+
+      // 3) Submit to Printful (idempotent helper - sets order.status appropriately)
+      try {
+        await fulfillPrintfulForOrder(order.id);
+      } catch (fulfillError: any) {
+        console.error('[PRIZE-CLAIM] Fulfillment error:', fulfillError.message);
+        await storage.updateOrder(order.id, { status: 'failed' });
       }
-      
-      console.log('[SHIPPING] Returning order with status:', updatedOrder.status);
-      res.json(updatedOrder);
+
+      const finalOrder = await storage.getOrder(order.id);
+      const finalPrize = await storage.getPrize(prize.id);
+      res.json({ order: finalOrder, prize: finalPrize });
     } catch (error: any) {
-      console.error("Error submitting shipping info:", error);
-      res.status(500).json({ message: "Error submitting shipping info: " + error.message });
+      console.error('Error claiming prize:', error);
+      res.status(500).json({ message: 'Error claiming prize: ' + error.message });
     }
   });
 
@@ -2630,6 +2494,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('[ADMIN] Printful debug error:', error);
       res.status(500).json({ message: 'Error fetching Printful debug info: ' + error.message });
+    }
+  });
+
+  // ===================================================
+  // Comments (flat, soft-deletable, score column).
+  // 15-minute edit window enforced at this route layer (not in the DB).
+  // ===================================================
+
+  const COMMENT_EDIT_WINDOW_MS = 15 * 60 * 1000;
+  const COMMENT_MAX_LENGTH = 500;
+
+  app.get('/api/quotes/:quoteId/comments', async (req, res) => {
+    try {
+      const { quoteId } = req.params;
+      const comments = await storage.getCommentsByQuote(quoteId);
+      res.json(comments);
+    } catch (error: any) {
+      res.status(500).json({ message: 'Error fetching comments: ' + error.message });
+    }
+  });
+
+  app.post('/api/quotes/:quoteId/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { quoteId } = req.params;
+      const { text } = req.body || {};
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ message: 'Comment text is required' });
+      }
+      if (text.length > COMMENT_MAX_LENGTH) {
+        return res.status(400).json({ message: `Comment must be ${COMMENT_MAX_LENGTH} characters or less` });
+      }
+      const blocked = containsBlockedContent(text);
+      if (blocked.blocked) return res.status(400).json({ message: blocked.reason });
+
+      const quote = await storage.getQuote(quoteId);
+      if (!quote) return res.status(404).json({ message: 'Quote not found' });
+
+      const comment = await storage.createComment({ quoteId, userId, text: text.trim() });
+      res.json(comment);
+    } catch (error: any) {
+      res.status(500).json({ message: 'Error creating comment: ' + error.message });
+    }
+  });
+
+  app.patch('/api/comments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { id } = req.params;
+      const { text } = req.body || {};
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ message: 'Comment text is required' });
+      }
+      if (text.length > COMMENT_MAX_LENGTH) {
+        return res.status(400).json({ message: `Comment must be ${COMMENT_MAX_LENGTH} characters or less` });
+      }
+      const blocked = containsBlockedContent(text);
+      if (blocked.blocked) return res.status(400).json({ message: blocked.reason });
+
+      const existing = await storage.getComment(id);
+      if (!existing || existing.deletedAt) return res.status(404).json({ message: 'Comment not found' });
+      if (existing.userId !== userId) return res.status(403).json({ message: 'Not your comment' });
+      // 15-minute edit window enforced here, not in the DB.
+      if (Date.now() - new Date(existing.createdAt).getTime() > COMMENT_EDIT_WINDOW_MS) {
+        return res.status(403).json({ message: 'Edit window has passed (15 minutes)' });
+      }
+
+      const updated = await storage.updateComment(id, text.trim());
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: 'Error updating comment: ' + error.message });
+    }
+  });
+
+  app.delete('/api/comments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { id } = req.params;
+      const existing = await storage.getComment(id);
+      if (!existing || existing.deletedAt) return res.status(404).json({ message: 'Comment not found' });
+      const user = await storage.getUser(userId);
+      if (existing.userId !== userId && !user?.isAdmin) {
+        return res.status(403).json({ message: 'Not your comment' });
+      }
+      const updated = await storage.softDeleteComment(id);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: 'Error deleting comment: ' + error.message });
+    }
+  });
+
+  // Vote (or change/remove vote) on a comment. Mirrors /api/votes.
+  app.post('/api/comments/:id/vote', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.firebaseUser.uid;
+      const { id: commentId } = req.params;
+      const { value } = req.body || {};
+      if (value !== 1 && value !== -1) {
+        return res.status(400).json({ message: 'value must be 1 or -1' });
+      }
+
+      const comment = await storage.getComment(commentId);
+      if (!comment || comment.deletedAt) return res.status(404).json({ message: 'Comment not found' });
+
+      const existing = await storage.getCommentVote(commentId, userId);
+      if (!existing) {
+        const created = await storage.createCommentVote({ commentId, userId, value });
+        return res.json(created);
+      }
+      if (existing.value === value) {
+        // Same vote -> toggle off
+        await storage.deleteCommentVote(existing.id);
+        return res.json({ message: 'Vote removed' });
+      }
+      const updated = await storage.updateCommentVote(existing.id, value);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: 'Error voting on comment: ' + error.message });
     }
   });
 
